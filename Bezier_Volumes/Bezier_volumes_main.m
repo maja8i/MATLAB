@@ -5,7 +5,7 @@
 
 %Name of the input point cloud (don't include the _voxelizedN or .ply file 
 %extension in the name)
-ptcloud_name = 'knight'; %Must be in PLY format
+ptcloud_name = 'loot'; %Must be in PLY format
 %Bit depth for Morton codes and octree. b also determines the number of 
 %levels in the octree that will be generated (apart from the root level). 
 %The total number of octree levels INCLUDING the root level will therefore 
@@ -35,6 +35,17 @@ q_stepsize = 1;
 
 %-------------------------------------------------------------------------%
 
+%Create the output directory where the reconstructed point cloud(s) from
+%this codec will be written
+output_dir = ['\\Pandora\builds\test\Data\Compression\PLY\Codec_Results\' ptcloud_name '\voxelized' num2str(b) '\BezierVolume\'];
+newdir_stat = mkdir(output_dir);
+if newdir_stat == 1
+    disp(['Created PLY output directory: ' output_dir]);
+else
+    error(['ERROR: Could not create output directory ' output_dir]);
+end
+disp(' ');
+
 %Start recording a log of all MATLAB command line input and output from
 %this point onwards. But first check if a log file already exists and
 %delete it if it does, then create a new log file.
@@ -59,16 +70,7 @@ disp(['ptcloud_file = ' ptcloud_file]);
 %disp(['max_lvl = ' num2str(max_lvl)]);
 disp(['q_stepsize = ' num2str(q_stepsize)]);
 disp('------------------------------------------------------------');
-%Create the output directory where the reconstructed point cloud(s) from
-%this codec will be written
-output_dir = ['\\Pandora\builds\test\Data\Compression\PLY\Codec_Results\' ptcloud_name '\voxelized' num2str(b) '\BezierVolume\'];
-newdir_stat = mkdir(output_dir);
-if newdir_stat == 1
-    disp(['Created PLY output directory: ' output_dir]);
-else
-    error(['ERROR: Could not create output directory ' output_dir]);
-end
-disp(' ');
+
 %Open a text file inside output_dir, to write the geometry bitrates into.
 %If this text file already exists, delete it and create a new one.
 fid_geom_bits = fopen([output_dir ptcloud_name '_voxelized' num2str(b) '_geom_bitrates.txt']);
