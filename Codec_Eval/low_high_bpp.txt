@@ -1,0 +1,6 @@
+"low"; "high" bitrates (bpp) for colour (Y + U + V) used to generate images of reconstructions from different codecs, 
+at viewpoint degrees of: 0, 90, 180, 270.
+
+boxer_voxelized10: 1.9; 2.5
+longdress1180_voxelized10: 1.7; 3
+luna_voxelized10: 0.6; 2.5
