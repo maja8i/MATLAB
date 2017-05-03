@@ -5,7 +5,7 @@
 
 %Name of the input point cloud (don't include the _voxelizedN or .ply file 
 %extension in the name)
-ptcloud_name = 'loot'; %Must be in PLY format
+ptcloud_name = 'boxer'; %Must be in PLY format
 %Bit depth for Morton codes and octree. b also determines the number of 
 %levels in the octree that will be generated (apart from the root level). 
 %The total number of octree levels INCLUDING the root level will therefore 
@@ -27,7 +27,8 @@ start_OT_lvl = 3;
 %the decoder. max_OT_lvl must go from (start_OT_lvl + 1), which must be
 %>= 4 (since before this level, there are no zero crossings in the octree 
 %cells), and can go up to 8. 
-max_OT_lvl = [4 5 6 7 8];
+%max_OT_lvl = [4 5 6 7 8];
+max_OT_lvl = 7;
 %Quantization stepsize for uniform scalar quantization of the control 
 %points at the chosen base level (start_lvl) and of all the wavelet
 %coefficients that will be computed at the encoder

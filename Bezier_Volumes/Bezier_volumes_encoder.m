@@ -249,20 +249,23 @@ normal_nearest_vox = cell((b + 1), 1);
 %vector of the nearest voxel for each unique corner coordinate, and that 
 %corner coordinate itself, at each octree level
 difference_vectors = cell((b + 1), 1);
+%Initialize a cell array to store the dot products between the difference
+%vectors and normal vectors at each octree level
+dot_products = cell((b + 1), 1);
+%Initialize a cell array to store the absolute values of the minimum
+%Euclidean distances (unsigned control points) for each unique corner at
+%each octree level
+min_euclid_dist = cell((b + 1), 1);
 
 tic;
 %for lvl = 1:(b + 1)
 for lvl = 1:max_lvl
     disp(['Computing Bezier control points for octree level ' num2str(lvl) ':']);
-    %Counter to keep track of how many Bezier control points we have stored
-    %at the current octree level
-    control_points_cntr = 1;
     %For each unique corner coordinate, find the nearest occupied voxel in
     %any of the occupied octree cells at the current level that share this 
     %corner. Do this by measuring the Euclidean distance from the corner to 
     %the (centres of) voxels.
-    disp('Computing signed distance to nearest occupied voxel, for each unique corner coordinate ...');
-    disp('------------------------------------------------------------');     
+    disp('Computing signed distance to nearest occupied voxel, for each unique corner coordinate ...');    
     for c = 1:size(unique_coords{lvl}, 1)
         %Find out which occupied octree cells share this corner
         %row_inds = find(ismember(corner_coords{lvl}, unique_coords{lvl}(c, :), 'rows') == 1);
@@ -270,88 +273,93 @@ for lvl = 1:max_lvl
         %temp2 = sum((corner_coords{lvl} - temp), 1);
         %row_inds = find(temp2 > 0);      
         %shared_cells{lvl, c} = ceil(row_inds./8);
-        shared_cells{lvl, c} = ceil((find(ismember(ctrl_pts_pointers{lvl}, c) == 1))./8);   %Can use this instead of above block of code
+        %shared_cells{lvl, c} = ceil((find(ismember(ctrl_pts_pointers{lvl}, c) == 1))./8);   %Can use this instead of above block of code
+        shared_cells{lvl, c} = ceil(find((c - ctrl_pts_pointers{lvl}) == 0)./8);    %Faster than using "ismember"
+        
         %Get the (x, y, z) coordinates of all the occupied voxels in the 
         %cells found above, and the normals for each of these voxels
-        for i = 1:length(shared_cells{lvl, c})
-            if i == 1
-                current_occupied_voxel_coords = occupied_voxel_coords{lvl, shared_cells{lvl, c}(i)};
-                current_occupied_voxel_normals = occupied_voxel_normals{lvl, shared_cells{lvl, c}(i)};
-            else
-                %Concatenate the coordinates from the cells that share the
-                %current corner (concatenate along rows, so that we
-                %maintain the 3-column structure)
-                current_occupied_voxel_coords = cat(1, current_occupied_voxel_coords, occupied_voxel_coords{lvl, shared_cells{lvl, c}(i)});
-                current_occupied_voxel_normals = cat(1, current_occupied_voxel_normals, occupied_voxel_normals{lvl, shared_cells{lvl, c}(i)});
-            end
+        current_occupied_voxel_coords = occupied_voxel_coords{lvl, shared_cells{lvl, c}(1)};
+        current_occupied_voxel_normals = occupied_voxel_normals{lvl, shared_cells{lvl, c}(1)};
+        if length(shared_cells{lvl, c}) > 1
+            %Concatenate the coordinates from the cells that share the
+            %current corner (concatenate along rows, so that we
+            %maintain the 3-column structure)
+            current_occupied_voxel_coords = cat(1, current_occupied_voxel_coords, occupied_voxel_coords{lvl, shared_cells{lvl, c}(2:length(shared_cells{lvl, c}))});
+            current_occupied_voxel_normals = cat(1, current_occupied_voxel_normals, occupied_voxel_normals{lvl, shared_cells{lvl, c}(2:length(shared_cells{lvl, c}))});
         end
+        
         %Find the nearest neighbour to the current unique corner coordinate
         diff = unique_coords{lvl}(c, :) - current_occupied_voxel_coords; 
-        euclid_dists = abs(arrayfun(@(idx) norm(diff(idx, :)), 1:size(diff, 1)));
-        [min_euclid_dist, nearest_voxel_ind] = min(euclid_dists);
+        %euclid_dists = abs(arrayfun(@(idx) norm(diff(idx, :)), 1:size(diff, 1)));
+        euclid_dists = sqrt(sum(diff.^2, 2));   %This operation is faster than "arrayfun", above
+        [min_euclid_dist{lvl}(c), nearest_voxel_ind] = min(euclid_dists);
         %Store the (x, y, z) coordinates of the nearest voxel, for future
         %reference
         nearest_voxels{lvl}(c, 1:3) = current_occupied_voxel_coords(nearest_voxel_ind, :);
         %Get the normal for the nearest voxel (the normal is an (x, y, z)
         %triplet)
         normal_nearest_vox{lvl}(c, 1:3) = current_occupied_voxel_normals(nearest_voxel_ind, :); 
-        %For the same corner point at all the lower octree levels (lower
-        %than the current level), check if a smaller min_euclid_dist
-        %(absolute value of the control point) is found than the current
-        %min_euclid_dist; keep the smallest min_euclid_dist for this
-        %corner, from all the octree levels from the root to the current
-        %octree level. In this case, also change the nearest_voxel
-        %coordinates and normal for this control point.
+        %For the same corner point at the prevoius, lower octree level, 
+        %check if a smaller min_euclid_dist (absolute value of the control 
+        %point) is found than the current min_euclid_dist; keep the 
+        %smallest min_euclid_dist for this corner. Update the nearest_voxel
+        %coordinates and normal for this control point, accordingly.
         if lvl > 1
             %Initialize the true_min (true minimum control point value) to
             %the current absolute control point value
-            true_min = min_euclid_dist;
-            for lower_lvls = (lvl - 1):-1:1
-                %Find the index of the control point associated with the
-                %current corner vertex at level lower_lvls
-                corner_index = find(ismember(corner_coords{lower_lvls}, unique_coords{lvl}(c, :), 'rows') > 0);
-                ctrlpt_index = unique(ctrl_pts_pointers{lower_lvls}(corner_index));
+            %true_min = min_euclid_dist;
+            true_min = min_euclid_dist{lvl}(c);
+            %Currently, we are only considering one lower octree level
+            lower_lvls = lvl - 1;            
+            %Find the first row index where the current corner coordinates
+            %are the same as the (x, y, z) coordinates of a corner at 
+            %lower_lvls. We can stop after finding the first row index, 
+            %because any other row indices that could be found would 
+            %correspond to the same corner coordinate and therefore the 
+            %same control point.
+            corner_index = find(sum(abs(unique_coords{lvl}(c, :) - corner_coords{lower_lvls}), 2) == 0, 1);    
+            ctrlpt_index = ctrl_pts_pointers{lower_lvls}(corner_index);
+            if ~isempty(corner_index)
+                %All the indices in corner_index should be the same, so
+                %just pick the first one
+                %ctrlpt_index = ctrl_pts_pointers{lower_lvls}(corner_index(1));
                 %Find the control point value corresponding to the above 
-                %index
+                %ctrlpt_index
                 test_ctrlpt = control_points{lower_lvls}(ctrlpt_index);
                 %Check if the absolute control point value found above is
                 %smaller than the current true_min: if yes, change the
-                %value of true_min to this new value, and update the
-                %nearest voxel coordinates and normal accordingly.
+                %value of true_min to this new value and update the nearest
+                %voxel coordinates and normal accordingly.
                 if abs(test_ctrlpt) < true_min
-                	true_min = abs(test_ctrlpt);
+                    true_min = abs(test_ctrlpt);
                     nearest_voxels{lvl}(c, 1:3) = nearest_voxels{lower_lvls}(ctrlpt_index, 1:3);
                     normal_nearest_vox{lvl}(c, 1:3) = normal_nearest_vox{lower_lvls}(ctrlpt_index, 1:3);
                 end
             end
-            min_euclid_dist = true_min;
-        end
-        %Compute the difference vector between the current corner point's 
-        %(x, y, z) coordinates and the nearest voxel's (x, y, z) 
-        %coordinates
-        difference_vectors{lvl}(c, 1:3) = unique_coords{lvl}(c, :) - nearest_voxels{lvl}(c, 1:3);
-        %Check the direction of the normal for the nearest_voxel. If the 
-        %normal is pointing away from the corresponding corner,
-        %this indicates that the corner is "inside" the surface implied by
-        %the point cloud in that octree cell, so make the distance value 
-        %(computed above) negative. If the normal is pointing towards the 
-        %corner, this implies that the corner is "outside" the surface, so 
-        %leave the distance value positive. Store the signed distance value 
-        %in control_points: this represents the Bezier control point 
-        %associated with the corresponding cell corner.
-        if dot(difference_vectors{lvl}(c, 1:3), normal_nearest_vox{lvl}(c, 1:3)) < 0 %Nearest voxel normal is pointing away from current corner
-            control_points{lvl}(control_points_cntr) = -min_euclid_dist;
-        elseif dot(difference_vectors{lvl}(c, 1:3), normal_nearest_vox{lvl}(c, 1:3)) > 0 %Nearest voxel normal is pointing towards current corner
-            control_points{lvl}(control_points_cntr) = min_euclid_dist;
-        end
-        control_points_cntr = control_points_cntr + 1;   
-    end %End unique corner coordinate 
-    %Arrange all the control points at the current octree level, into a 
-    %column vector instead of a row vector (purely for visualization 
-    %reasons: it is easier to scroll through a long column vector than a 
-    %row vector)
-    control_points{lvl} = (control_points{lvl})';
-end %End octree level
+            min_euclid_dist{lvl}(c) = true_min;
+        end %End check if lvl > 1
+        disp(['Finished corner ' num2str(c) '/' num2str(size(unique_coords{lvl}, 1))]);
+    end %End c (current unique coordinate)
+    %Compute the difference vector between each unique corner point's 
+    %(x, y, z) coordinates and the corresponding nearest voxel's (x, y, z) 
+    %coordinates, at the current octree level
+    difference_vectors{lvl} = unique_coords{lvl} - nearest_voxels{lvl};
+    %Compute the dot product between each difference vector and the
+    %corresponding nearest voxel's normal vector, at the current octree
+    %level
+    dot_products{lvl} = dot(difference_vectors{lvl}, normal_nearest_vox{lvl}, 2);
+    %To obtain the signed distance value for each control point at the
+    %current octree level, take the sign of each dot product computed above
+    %and add it to the corresponding min_euclid_dist. A negative dot
+    %product indicates that the nearest voxel normal is pointing AWAY from
+    %the corresponding corner, so this corner is INSIDE the surface
+    %implied by the point cloud in that octree cell. A positive dot product
+    %indicates that the nearest voxel normal is pointing TOWARDS the
+    %corresponding corner, so this corner is OUTSIDE the surface of the 
+    %point cloud. 
+    control_points{lvl} = sign(dot_products{lvl}).*min_euclid_dist{lvl}';
+    disp('------------------------------------------------------------');
+end %End lvl
 ctrlpts_time = toc;
 disp(' ');
 disp('************************************************************');
