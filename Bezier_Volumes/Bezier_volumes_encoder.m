@@ -682,7 +682,9 @@ for lvl = start_lvl:(max_lvl - 1)
                     %Find the row index of this coordinate inside 
                     %corner_coords at the parent octree level
                     %parent_row_index = find(ismember(corner_coords{lvl}, parent_corner_coords(parent_cnr_index, :), 'rows') > 0);
-                    parent_row_index = find(ismember(corner_coords{lvl}, child_corner_coords(cnr, :), 'rows') > 0);
+                    %parent_row_index = find(ismember(corner_coords{lvl}, child_corner_coords(cnr, :), 'rows') > 0); 
+                    parent_row_index = find(sum(abs(child_corner_coords(cnr, :) - corner_coords{lvl}), 2) == 0, 1); %Faster than "ismember"
+                    
                     %Find the control point index for the parent corner.
                     %Although the length of parent_row_index may sometimes
                     %be > 1, and so more than one control point index may
@@ -690,7 +692,8 @@ for lvl = start_lvl:(max_lvl - 1)
                     %be the same index, just repeated. So extract only the 
                     %unique control point index found below (should be just
                     %one).
-                    parent_ctrlpt_index = unique(ctrl_pts_pointers{lvl}(parent_row_index));
+                    %parent_ctrlpt_index = unique(ctrl_pts_pointers{lvl}(parent_row_index));
+                    parent_ctrlpt_index = ctrl_pts_pointers{lvl}(parent_row_index);
                     %Do nothing (the signal on this vertex is a low-pass
                     %coefficient and has already been reconstructed),
                     %except insert a 0 here in the wavelet_coeffs cell 
