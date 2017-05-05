@@ -27,8 +27,7 @@ start_OT_lvl = 3;
 %the decoder. max_OT_lvl must go from (start_OT_lvl + 1), which must be
 %>= 4 (since before this level, there are no zero crossings in the octree 
 %cells), and can go up to 8. 
-%max_OT_lvl = [4 5 6 7 8];
-max_OT_lvl = 9;
+max_OT_lvl = [4 5 6 7 8 9 10];
 %Quantization stepsize for uniform scalar quantization of the control 
 %points at the chosen base level (start_lvl) and of all the wavelet
 %coefficients that will be computed at the encoder

@@ -693,28 +693,29 @@ for lvl = max_lvl
 
     disp(['Collecting all reconstructed voxels for each occupied cell at level ' num2str(lvl) ' and finding their centre coordinates ...']);
     %Collect all of the sub-cell coordinates stored at the leaf levels of
-    %subcell_coords_all, for each occ_cell at level "lvl": these represent our
-    %reconstructed voxel (x, y, z) corner coordinates obtained from the 
+    %subcell_coords_all, for each occ_cell at level "lvl": these represent
+    %our reconstructed voxel (x, y, z) corner coordinates obtained from the 
     %reconstructed control points at level "lvl".
-    v_cntr = 1;
-    for sca = 1:size(subcell_coords_all, 2)
-        if ~isempty(subcell_coords_all{end, sca})
-            reconstructed_vox_pos_corners(v_cntr:(v_cntr + size(subcell_coords_all{end, sca}, 1) - 1), 1:3) = subcell_coords_all{end, sca};
-            v_cntr = v_cntr + size(subcell_coords_all{end, sca}, 1);
-        end
-    end
+%     v_cntr = 1;
+%     for sca = 1:size(subcell_coords_all, 2)
+%         if ~isempty(subcell_coords_all{end, sca})
+%             reconstructed_vox_pos_corners(v_cntr:(v_cntr + size(subcell_coords_all{end, sca}, 1) - 1), 1:3) = subcell_coords_all{end, sca};
+%             v_cntr = v_cntr + size(subcell_coords_all{end, sca}, 1);
+%         end
+%     end
+    reconstructed_vox_pos_corners = cat(1, subcell_coords_all{end, :});
     %Our input point cloud's voxel coordinates were considered to be the 
-    %centres of the 1x1x1 voxels, so find the midpoint of each voxel cell in
-    %reconstructed_vox_pos_corners: these midpoints will be our reconstructed voxel
-    %positions
+    %centres of the 1x1x1 voxels, so find the midpoint of each voxel cell
+    %in reconstructed_vox_pos_corners: these midpoints will be our 
+    %reconstructed voxel positions
     reconstructed_vox_pos = zeros((size(reconstructed_vox_pos_corners, 1)/8), 3);
     vox_cntr = 1;
     for vc = 1:8:(size(reconstructed_vox_pos_corners, 1) - 7)
         %Get the current set of 8 voxel corner coordinates
         vc_coords = reconstructed_vox_pos_corners((vc:(vc + 7)), :);
         %Find the mean of each of the 8 corner coordinates (x, y, and z
-        %separately): these mean values represent the centre (x, y, z) location
-        %of the current voxel
+        %separately): these mean values represent the centre (x, y, z)
+        %location of the current voxel
         reconstructed_vox_pos(vox_cntr, :) = mean(vc_coords, 1);
         vox_cntr = vox_cntr + 1;
     end
