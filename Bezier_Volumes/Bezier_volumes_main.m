@@ -12,7 +12,7 @@ ptcloud_name = 'boxer'; %Must be in PLY format
 %be b + 1. IMPORTANT: If using a voxelized point cloud as input, b must be 
 %equal to the voxelization level used to produce that point cloud, 
 %e.g., b = 10 for voxelized10 point clouds, b = 11 for voxelized11 clouds.
-b = 10;
+b = 7;
 %Full path to the input PLY file
 ptcloud_file = ['\\pandora\builds\test\Data\Compression\PLY\Point_Clouds\8i\voxelized' num2str(b) '_WithNormals\' ptcloud_name '_voxelized' num2str(b) '.ply'];
 %Octree level(s) to use (one at a time, if there is more than one listed
@@ -26,8 +26,8 @@ start_OT_lvl = 3;
 %at the encoder and for which the wavelet coefficients should be sent to 
 %the decoder. max_OT_lvl must go from (start_OT_lvl + 1), which must be
 %>= 4 (since before this level, there are no zero crossings in the octree 
-%cells), and can go up to 8. 
-max_OT_lvl = [4 5 6 7 8 9 10];
+%cells), and can go up to b + 1. 
+max_OT_lvl = [8 7 6 5 4];  %Write numbers in descending order, because file ..._distorted01.ply must correspond to the best reconstruction (and highest bitrate)
 %Quantization stepsize for uniform scalar quantization of the control 
 %points at the chosen base level (start_lvl) and of all the wavelet
 %coefficients that will be computed at the encoder

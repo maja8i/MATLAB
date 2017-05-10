@@ -55,7 +55,7 @@ SI_dict(8, :) = [1 1 1];    %(+x, +y, +z)
 
 %For each octree level ...
 %for lvl = 1:b
-for lvl = 1:max_lvl
+for lvl = 1:(max_lvl - 1)
     disp(['Processing octree level ' num2str(lvl) ':']);
     %Counter for all children of all occupied nodes at this level
     total_child_cntr = 1;
@@ -459,10 +459,10 @@ disp(' ');
 for lvl = max_lvl
     disp(['Reconstructing voxels for level ' num2str(lvl) ' control points ...']);
     disp(' ');
-    subcell_coords_all = cell((b + 1), numel(OccupancyCode{lvl}));    %Cell array to store the coordinates of octree cells at all levels from (lvl + 1) to the leaves, which contain zero crossings
+    subcell_coords_all = cell((b + 1), size(SpatialIndex{lvl}, 1));    %Cell array to store the coordinates of octree cells at all levels from (lvl + 1) to the leaves, which contain zero crossings
     %For each occupied cell at the current octree level, lvl ...
-    for occ_cell = 1:numel(OccupancyCode{lvl}) %We can only use this for levels for which we know how many occupied cells there are
-        disp(['Reconstructing voxels for occ_cell ' num2str(occ_cell) '/' num2str(numel(OccupancyCode{lvl})) ':']);
+    for occ_cell = 1:size(SpatialIndex{lvl}, 1) %We can only use this for levels for which we know how many occupied cells there are
+        disp(['Reconstructing voxels for occ_cell ' num2str(occ_cell) '/' num2str(size(SpatialIndex{lvl}, 1)) ':']);
         %Get the control points for all 8 corners of this cell
         current_ctrlpts = reconstruction_decoder{lvl}(ctrl_pts_pointers{lvl}((occ_cell*8 - 7):(occ_cell*8)));
         %Get the corner coordinates for each of the 8 corners of this cell
@@ -476,217 +476,226 @@ for lvl = max_lvl
             disp('No zero crossings in this cell');
             disp('------------------------------------------------------------');
             continue;  
-        else
+        else 
             %If no (i.e., if there is a sign change within the cell), this 
             %indicates that the surface of the 3D object cuts through this cell
             %(i.e., there is a zero crossing in this cell), so this cell will 
-            %need to be subdivided further; that is, we will need to look at 
+            %need to be subdivided further if it's not at the leaf level 
+            %(that is, we will need to look at 
             %the interpolated control points of all of this cell's children, 
             %grandchildren and other descendants, to check for zero crossings 
             %and thereby figure out which cells are occupied at each octree 
-            %level, down to the leaves
-            for lvl_d = (lvl + 1):(b + 1) %For each descendant of the current occ_cell, right down to the leaves     
-                disp(['--Processing sub-cells at level ' num2str(lvl_d)]);
-                %Find the unique minimum, unique maximum, and midpoint
-                %coordinates for the x, y, and z dimensions of the sub-cells at 
-                %this level
-                if lvl_d == (lvl + 1)
-                    unq_min_x = min(unique(current_corner_coords(:, 1)));
-                    unq_min_y = min(unique(current_corner_coords(:, 2)));
-                    unq_min_z = min(unique(current_corner_coords(:, 3)));
-                    unq_max_x = max(unique(current_corner_coords(:, 1)));
-                    unq_max_y = max(unique(current_corner_coords(:, 2)));
-                    unq_max_z = max(unique(current_corner_coords(:, 3)));
-                    mid_x = (unq_min_x + unq_max_x)/2;
-                    mid_y = (unq_min_y + unq_max_y)/2;
-                    mid_z = (unq_min_z + unq_max_z)/2;
-                else
-                    %There will be one unq_min, one unq_max, and one mid point
-                    %(for x, y, z separately) per 8 sub-cells at this level 
-                    %(there are 8 sub-cells (not necessarily occupied) per 
-                    %occupied cell at the previous level). The coordinates of 
-                    %occupied cells at the previous level are stored in 
-                    %subcell_coords_all(lvl_d - 1).
-                    unq_min_x = zeros((size(subcell_coords_all{(lvl_d - 1), occ_cell}, 1))/8, 1);
-                    unq_min_y = zeros((size(subcell_coords_all{(lvl_d - 1), occ_cell}, 1))/8, 1);
-                    unq_min_z = zeros((size(subcell_coords_all{(lvl_d - 1), occ_cell}, 1))/8, 1);
-                    unq_max_x = zeros((size(subcell_coords_all{(lvl_d - 1), occ_cell}, 1))/8, 1);
-                    unq_max_y = zeros((size(subcell_coords_all{(lvl_d - 1), occ_cell}, 1))/8, 1);
-                    unq_max_z = zeros((size(subcell_coords_all{(lvl_d - 1), occ_cell}, 1))/8, 1);
-                    mid_x = zeros((size(subcell_coords_all{(lvl_d - 1), occ_cell}, 1))/8, 1);
-                    mid_y = zeros((size(subcell_coords_all{(lvl_d - 1), occ_cell}, 1))/8, 1);
-                    mid_z = zeros((size(subcell_coords_all{(lvl_d - 1), occ_cell}, 1))/8, 1);
+            %level, down to the leaves)
+            if lvl == (b + 1)
+                %Just get the current occupied cell's (voxel's) corner 
+                %coordinates 
+                subcell_coords_all{lvl, occ_cell} = current_corner_coords;
+            else %lvl ~= max_lvl
+                %For each descendant of the current occ_cell, right down to
+                %the leaves ...
+                for lvl_d = (lvl + 1):(b + 1)      
+                    disp(['--Processing sub-cells at level ' num2str(lvl_d)]);
+                    %Find the unique minimum, unique maximum, and midpoint
+                    %coordinates for the x, y, and z dimensions of the sub-cells at 
+                    %this level
+                    if lvl_d == (lvl + 1)
+                        unq_min_x = min(unique(current_corner_coords(:, 1)));
+                        unq_min_y = min(unique(current_corner_coords(:, 2)));
+                        unq_min_z = min(unique(current_corner_coords(:, 3)));
+                        unq_max_x = max(unique(current_corner_coords(:, 1)));
+                        unq_max_y = max(unique(current_corner_coords(:, 2)));
+                        unq_max_z = max(unique(current_corner_coords(:, 3)));
+                        mid_x = (unq_min_x + unq_max_x)/2;
+                        mid_y = (unq_min_y + unq_max_y)/2;
+                        mid_z = (unq_min_z + unq_max_z)/2;
+                    else
+                        %There will be one unq_min, one unq_max, and one mid point
+                        %(for x, y, z separately) per 8 sub-cells at this level 
+                        %(there are 8 sub-cells (not necessarily occupied) per 
+                        %occupied cell at the previous level). The coordinates of 
+                        %occupied cells at the previous level are stored in 
+                        %subcell_coords_all(lvl_d - 1).
+                        unq_min_x = zeros((size(subcell_coords_all{(lvl_d - 1), occ_cell}, 1))/8, 1);
+                        unq_min_y = zeros((size(subcell_coords_all{(lvl_d - 1), occ_cell}, 1))/8, 1);
+                        unq_min_z = zeros((size(subcell_coords_all{(lvl_d - 1), occ_cell}, 1))/8, 1);
+                        unq_max_x = zeros((size(subcell_coords_all{(lvl_d - 1), occ_cell}, 1))/8, 1);
+                        unq_max_y = zeros((size(subcell_coords_all{(lvl_d - 1), occ_cell}, 1))/8, 1);
+                        unq_max_z = zeros((size(subcell_coords_all{(lvl_d - 1), occ_cell}, 1))/8, 1);
+                        mid_x = zeros((size(subcell_coords_all{(lvl_d - 1), occ_cell}, 1))/8, 1);
+                        mid_y = zeros((size(subcell_coords_all{(lvl_d - 1), occ_cell}, 1))/8, 1);
+                        mid_z = zeros((size(subcell_coords_all{(lvl_d - 1), occ_cell}, 1))/8, 1);
+                        cell_cntr = 1;
+                        for sub_cell_8set = 1:8:((size(subcell_coords_all{(lvl_d - 1), occ_cell}, 1)) - 7)
+                            %unq_min_x(cell_cntr) = min(unique(subcell_coords_all{(lvl_d - 1), occ_cell}((sub_cell_8set:(sub_cell_8set + 7)), 1))) + 2^(b + 1 - lvl_d)*(sub_cell_8set - 1);
+                            unq_min_x(cell_cntr) = min(unique(subcell_coords_all{(lvl_d - 1), occ_cell}((sub_cell_8set:(sub_cell_8set + 7)), 1)));
+                            unq_min_y(cell_cntr) = min(unique(subcell_coords_all{(lvl_d - 1), occ_cell}((sub_cell_8set:(sub_cell_8set + 7)), 2)));
+                            unq_min_z(cell_cntr) = min(unique(subcell_coords_all{(lvl_d - 1), occ_cell}((sub_cell_8set:(sub_cell_8set + 7)), 3)));
+                            unq_max_x(cell_cntr) = max(unique(subcell_coords_all{(lvl_d - 1), occ_cell}((sub_cell_8set:(sub_cell_8set + 7)), 1)));
+                            unq_max_y(cell_cntr) = max(unique(subcell_coords_all{(lvl_d - 1), occ_cell}((sub_cell_8set:(sub_cell_8set + 7)), 2)));
+                            unq_max_z(cell_cntr) = max(unique(subcell_coords_all{(lvl_d - 1), occ_cell}((sub_cell_8set:(sub_cell_8set + 7)), 3)));
+                            mid_x(cell_cntr) = (unq_min_x(cell_cntr) + unq_max_x(cell_cntr))/2;
+                            mid_y(cell_cntr) = (unq_min_y(cell_cntr) + unq_max_y(cell_cntr))/2;
+                            mid_z(cell_cntr) = (unq_min_z(cell_cntr) + unq_max_z(cell_cntr))/2;
+                            cell_cntr = cell_cntr + 1;
+                        end
+                    end                  
+                    %Compute the 8 corner coordinates for each of the 8 sub-cells
+                    %resulting from subdividing each of the occupied cells whose
+                    %coordinates are stored in subcell_coords_all (if lvl_d > lvl +
+                    %1) or in current_corner_coords (if lvl_d = lvl + 1)
+                    if (lvl_d == lvl + 1)
+                        zc_coords = current_corner_coords;  %"zc" stands for zero crossing
+                    elseif (lvl_d > lvl + 1)
+                        zc_coords = subcell_coords_all{(lvl_d - 1), occ_cell};
+                    end
+                    subcell_coords = zeros(size(zc_coords, 1)*8, 3); %Matrix to store the corner coordinates of each sub-cell at the current level 
+                    scc_cntr = 1;   %Counter for corner coordinates of the sub-cells at the current level
                     cell_cntr = 1;
-                    for sub_cell_8set = 1:8:((size(subcell_coords_all{(lvl_d - 1), occ_cell}, 1)) - 7)
-                        %unq_min_x(cell_cntr) = min(unique(subcell_coords_all{(lvl_d - 1), occ_cell}((sub_cell_8set:(sub_cell_8set + 7)), 1))) + 2^(b + 1 - lvl_d)*(sub_cell_8set - 1);
-                        unq_min_x(cell_cntr) = min(unique(subcell_coords_all{(lvl_d - 1), occ_cell}((sub_cell_8set:(sub_cell_8set + 7)), 1)));
-                        unq_min_y(cell_cntr) = min(unique(subcell_coords_all{(lvl_d - 1), occ_cell}((sub_cell_8set:(sub_cell_8set + 7)), 2)));
-                        unq_min_z(cell_cntr) = min(unique(subcell_coords_all{(lvl_d - 1), occ_cell}((sub_cell_8set:(sub_cell_8set + 7)), 3)));
-                        unq_max_x(cell_cntr) = max(unique(subcell_coords_all{(lvl_d - 1), occ_cell}((sub_cell_8set:(sub_cell_8set + 7)), 1)));
-                        unq_max_y(cell_cntr) = max(unique(subcell_coords_all{(lvl_d - 1), occ_cell}((sub_cell_8set:(sub_cell_8set + 7)), 2)));
-                        unq_max_z(cell_cntr) = max(unique(subcell_coords_all{(lvl_d - 1), occ_cell}((sub_cell_8set:(sub_cell_8set + 7)), 3)));
-                        mid_x(cell_cntr) = (unq_min_x(cell_cntr) + unq_max_x(cell_cntr))/2;
-                        mid_y(cell_cntr) = (unq_min_y(cell_cntr) + unq_max_y(cell_cntr))/2;
-                        mid_z(cell_cntr) = (unq_min_z(cell_cntr) + unq_max_z(cell_cntr))/2;
+                    disp(['  Computing corner coordinates for each sub-cell at this level (' num2str(size(zc_coords, 1)) ' sub-cells in total)']);
+                    for sub_cell_8set = 1:8:(size(zc_coords, 1) - 7)
+                        %Sub-cell 1
+                        if lvl_d == (lvl + 1)
+                            subcell_coords((scc_cntr:(scc_cntr + 7)), :) = [unq_min_x unq_min_y unq_min_z; mid_x unq_min_y unq_min_z; mid_x mid_y unq_min_z; unq_min_x mid_y unq_min_z; unq_min_x unq_min_y mid_z; mid_x unq_min_y mid_z; mid_x mid_y mid_z; unq_min_x mid_y mid_z];   
+                        else
+                            subcell_coords((scc_cntr:(scc_cntr + 7)), :) = [unq_min_x(cell_cntr) unq_min_y(cell_cntr) unq_min_z(cell_cntr); mid_x(cell_cntr) unq_min_y(cell_cntr) unq_min_z(cell_cntr); mid_x(cell_cntr) mid_y(cell_cntr) unq_min_z(cell_cntr); unq_min_x(cell_cntr) mid_y(cell_cntr) unq_min_z(cell_cntr); unq_min_x(cell_cntr) unq_min_y(cell_cntr) mid_z(cell_cntr); mid_x(cell_cntr) unq_min_y(cell_cntr) mid_z(cell_cntr); mid_x(cell_cntr) mid_y(cell_cntr) mid_z(cell_cntr); unq_min_x(cell_cntr) mid_y(cell_cntr) mid_z(cell_cntr)];   
+                        end
+                        %Sub-cell 2
+                        subcell_coords(((scc_cntr + 8):(scc_cntr + 15)), :) = subcell_coords((scc_cntr:(scc_cntr + 7)), :) + [2^(b + 1 - lvl_d) 0 0];
+                        %Sub-cell 3
+                        subcell_coords(((scc_cntr + 16):(scc_cntr + 23)), :) = subcell_coords((scc_cntr:(scc_cntr + 7)), :) + [2^(b + 1 - lvl_d) 2^(b + 1 - lvl_d) 0];
+                        %Sub-cell 4
+                        subcell_coords(((scc_cntr + 24):(scc_cntr + 31)), :) = subcell_coords((scc_cntr:(scc_cntr + 7)), :) + [0 2^(b + 1 - lvl_d) 0];
+                        %Sub-cell 5
+                        subcell_coords(((scc_cntr + 32):(scc_cntr + 39)), :) = subcell_coords((scc_cntr:(scc_cntr + 7)), :) + [0 0 2^(b + 1 - lvl_d)];
+                        %Sub-cell 6
+                        subcell_coords(((scc_cntr + 40):(scc_cntr + 47)), :) = subcell_coords((scc_cntr:(scc_cntr + 7)), :) + [2^(b + 1 - lvl_d) 0 2^(b + 1 - lvl_d)];
+                        %Sub-cell 7
+                        subcell_coords(((scc_cntr + 48):(scc_cntr + 55)), :) = subcell_coords((scc_cntr:(scc_cntr + 7)), :) + [2^(b + 1 - lvl_d) 2^(b + 1 - lvl_d) 2^(b + 1 - lvl_d)];
+                        %Sub-cell 8
+                        subcell_coords(((scc_cntr + 56):(scc_cntr + 63)), :) = subcell_coords((scc_cntr:(scc_cntr + 7)), :) + [0 2^(b + 1 - lvl_d) 2^(b + 1 - lvl_d)];
+                        %Increment scc_cntr for the next set of 8 sub-cells
+                        scc_cntr = scc_cntr + 64; 
                         cell_cntr = cell_cntr + 1;
                     end
-                end                  
-                %Compute the 8 corner coordinates for each of the 8 sub-cells
-                %resulting from subdividing each of the occupied cells whose
-                %coordinates are stored in subcell_coords_all (if lvl_d > lvl +
-                %1) or in current_corner_coords (if lvl_d = lvl + 1)
-                if (lvl_d == lvl + 1)
-                    zc_coords = current_corner_coords;  %"zc" stands for zero crossing
-                elseif (lvl_d > lvl + 1)
-                    zc_coords = subcell_coords_all{(lvl_d - 1), occ_cell};
-                end
-                subcell_coords = zeros(size(zc_coords, 1)*8, 3); %Matrix to store the corner coordinates of each sub-cell at the current level 
-                scc_cntr = 1;   %Counter for corner coordinates of the sub-cells at the current level
-                cell_cntr = 1;
-                disp(['  Computing corner coordinates for each sub-cell at this level (' num2str(size(zc_coords, 1)) ' sub-cells in total)']);
-                for sub_cell_8set = 1:8:(size(zc_coords, 1) - 7)
-                    %Sub-cell 1
-                    if lvl_d == (lvl + 1)
-                        subcell_coords((scc_cntr:(scc_cntr + 7)), :) = [unq_min_x unq_min_y unq_min_z; mid_x unq_min_y unq_min_z; mid_x mid_y unq_min_z; unq_min_x mid_y unq_min_z; unq_min_x unq_min_y mid_z; mid_x unq_min_y mid_z; mid_x mid_y mid_z; unq_min_x mid_y mid_z];   
-                    else
-                        subcell_coords((scc_cntr:(scc_cntr + 7)), :) = [unq_min_x(cell_cntr) unq_min_y(cell_cntr) unq_min_z(cell_cntr); mid_x(cell_cntr) unq_min_y(cell_cntr) unq_min_z(cell_cntr); mid_x(cell_cntr) mid_y(cell_cntr) unq_min_z(cell_cntr); unq_min_x(cell_cntr) mid_y(cell_cntr) unq_min_z(cell_cntr); unq_min_x(cell_cntr) unq_min_y(cell_cntr) mid_z(cell_cntr); mid_x(cell_cntr) unq_min_y(cell_cntr) mid_z(cell_cntr); mid_x(cell_cntr) mid_y(cell_cntr) mid_z(cell_cntr); unq_min_x(cell_cntr) mid_y(cell_cntr) mid_z(cell_cntr)];   
-                    end
-                    %Sub-cell 2
-                    subcell_coords(((scc_cntr + 8):(scc_cntr + 15)), :) = subcell_coords((scc_cntr:(scc_cntr + 7)), :) + [2^(b + 1 - lvl_d) 0 0];
-                    %Sub-cell 3
-                    subcell_coords(((scc_cntr + 16):(scc_cntr + 23)), :) = subcell_coords((scc_cntr:(scc_cntr + 7)), :) + [2^(b + 1 - lvl_d) 2^(b + 1 - lvl_d) 0];
-                    %Sub-cell 4
-                    subcell_coords(((scc_cntr + 24):(scc_cntr + 31)), :) = subcell_coords((scc_cntr:(scc_cntr + 7)), :) + [0 2^(b + 1 - lvl_d) 0];
-                    %Sub-cell 5
-                    subcell_coords(((scc_cntr + 32):(scc_cntr + 39)), :) = subcell_coords((scc_cntr:(scc_cntr + 7)), :) + [0 0 2^(b + 1 - lvl_d)];
-                    %Sub-cell 6
-                    subcell_coords(((scc_cntr + 40):(scc_cntr + 47)), :) = subcell_coords((scc_cntr:(scc_cntr + 7)), :) + [2^(b + 1 - lvl_d) 0 2^(b + 1 - lvl_d)];
-                    %Sub-cell 7
-                    subcell_coords(((scc_cntr + 48):(scc_cntr + 55)), :) = subcell_coords((scc_cntr:(scc_cntr + 7)), :) + [2^(b + 1 - lvl_d) 2^(b + 1 - lvl_d) 2^(b + 1 - lvl_d)];
-                    %Sub-cell 8
-                    subcell_coords(((scc_cntr + 56):(scc_cntr + 63)), :) = subcell_coords((scc_cntr:(scc_cntr + 7)), :) + [0 2^(b + 1 - lvl_d) 2^(b + 1 - lvl_d)];
-                    %Increment scc_cntr for the next set of 8 sub-cells
-                    scc_cntr = scc_cntr + 64; 
-                    cell_cntr = cell_cntr + 1;
-                end
-                %For each corner coordinate in subcell_coords, compute the
-                %control point associated with this corner, by interpolating 
-                %(tri-linear interpolation) between the original parent control
-                %points, current_ctrlpts. Then, for each set of 8 corner coordinates
-                %(i.e., for each sub-cell), check if all 8 of this cell's
-                %interpolated control points have the same sign: if they don't, store this
-                %sub-cell's coordinates in subcell_coords_all for the current
-                %level, "lvl_d"; if they do have the same sign, do nothing
-                %further, as this sub-cell will not be a candidate for further
-                %subdivision at the next octree level.
-                disp(['  Computing and checking the signs of interpolated control points for each sub-cell at this level (8 control points per sub-cell, ' num2str(size(subcell_coords, 1)/8) ' sub-cells in total)']);
-                zcc_coords_cntr = 1;    %Counter for coordinates of cells at level "lvl_d", which contain zero crossings
-                for sub_cell_8set = 1:8:(size(subcell_coords, 1) - 7)
-                    %Get all 8 corner coordinates for the current sub-cell
-                    sc_coords = subcell_coords((sub_cell_8set:(sub_cell_8set + 7)), :);
-                    %Normalize sc_coords to be in the range [0, 1], because the
-                    %trilinear interpolation formula (used below) expects the
-                    %(x, y, z) values to be in this range
-                    sc_coords_orig = sc_coords;
-                    %sc_coords = (sc_coords - sc_coords(1, :))/(2^(b + 1 - lvl_d));   %Subtract the origin of the current sub-cell, and divide by the cell width
-                    sc_coords = (sc_coords - current_corner_coords(1, :))/(2^(b + 1 - lvl));
-                    %Initialize an array to store the interpolated control
-                    %points for all 8 corners of the current sub-cell
-                    subcell_ctrlpts = zeros(8, 1);
-                    %Compute all 8 control points for the corners of the 
-                    %current sub-cell
-                    mult_matrix = [(1 - sc_coords(1, 1))*(1 - sc_coords(1, 2))*(1 - sc_coords(1, 3));
-                        sc_coords(1, 1)*(1 - sc_coords(1, 2))*(1 - sc_coords(1, 3));
-                        sc_coords(1, 1)*sc_coords(1, 2)*(1 - sc_coords(1, 3));
-                        (1 - sc_coords(1, 1))*sc_coords(1, 2)*(1 - sc_coords(1, 3));
-                        (1 - sc_coords(1, 1))*(1 - sc_coords(1, 2))*sc_coords(1, 3);
-                        sc_coords(1, 1)*(1 - sc_coords(1, 2))*sc_coords(1, 3);
-                        sc_coords(1, 1)*sc_coords(1, 2)*sc_coords(1, 3);
-                        (1 - sc_coords(1, 1))*sc_coords(1, 2)*sc_coords(1, 3);  %End corner 1
-                        (1 - sc_coords(2, 1))*(1 - sc_coords(2, 2))*(1 - sc_coords(2, 3));
-                        sc_coords(2, 1)*(1 - sc_coords(2, 2))*(1 - sc_coords(2, 3));
-                        sc_coords(2, 1)*sc_coords(2, 2)*(1 - sc_coords(2, 3));
-                        (1 - sc_coords(2, 1))*sc_coords(2, 2)*(1 - sc_coords(2, 3));
-                        (1 - sc_coords(2, 1))*(1 - sc_coords(2, 2))*sc_coords(2, 3);
-                        sc_coords(2, 1)*(1 - sc_coords(2, 2))*sc_coords(2, 3);
-                        sc_coords(2, 1)*sc_coords(2, 2)*sc_coords(2, 3);
-                        (1 - sc_coords(2, 1))*sc_coords(2, 2)*sc_coords(2, 3);  %End corner 2
-                        (1 - sc_coords(3, 1))*(1 - sc_coords(3, 2))*(1 - sc_coords(3, 3));
-                        sc_coords(3, 1)*(1 - sc_coords(3, 2))*(1 - sc_coords(3, 3));
-                        sc_coords(3, 1)*sc_coords(3, 2)*(1 - sc_coords(3, 3));
-                        (1 - sc_coords(3, 1))*sc_coords(3, 2)*(1 - sc_coords(3, 3));
-                        (1 - sc_coords(3, 1))*(1 - sc_coords(3, 2))*sc_coords(3, 3);
-                        sc_coords(3, 1)*(1 - sc_coords(3, 2))*sc_coords(3, 3);
-                        sc_coords(3, 1)*sc_coords(3, 2)*sc_coords(3, 3);
-                        (1 - sc_coords(3, 1))*sc_coords(3, 2)*sc_coords(3, 3);  %End corner 3
-                        (1 - sc_coords(4, 1))*(1 - sc_coords(4, 2))*(1 - sc_coords(4, 3));
-                        sc_coords(4, 1)*(1 - sc_coords(4, 2))*(1 - sc_coords(4, 3));
-                        sc_coords(4, 1)*sc_coords(4, 2)*(1 - sc_coords(4, 3));
-                        (1 - sc_coords(4, 1))*sc_coords(4, 2)*(1 - sc_coords(4, 3));
-                        (1 - sc_coords(4, 1))*(1 - sc_coords(4, 2))*sc_coords(4, 3);
-                        sc_coords(4, 1)*(1 - sc_coords(4, 2))*sc_coords(4, 3);
-                        sc_coords(4, 1)*sc_coords(4, 2)*sc_coords(4, 3);
-                        (1 - sc_coords(4, 1))*sc_coords(4, 2)*sc_coords(4, 3);  %End corner 4
-                        (1 - sc_coords(5, 1))*(1 - sc_coords(5, 2))*(1 - sc_coords(5, 3));
-                        sc_coords(5, 1)*(1 - sc_coords(5, 2))*(1 - sc_coords(5, 3));
-                        sc_coords(5, 1)*sc_coords(5, 2)*(1 - sc_coords(5, 3));
-                        (1 - sc_coords(5, 1))*sc_coords(5, 2)*(1 - sc_coords(5, 3));
-                        (1 - sc_coords(5, 1))*(1 - sc_coords(5, 2))*sc_coords(5, 3);
-                        sc_coords(5, 1)*(1 - sc_coords(5, 2))*sc_coords(5, 3);
-                        sc_coords(5, 1)*sc_coords(5, 2)*sc_coords(5, 3);
-                        (1 - sc_coords(5, 1))*sc_coords(5, 2)*sc_coords(5, 3);  %End corner 5
-                        (1 - sc_coords(6, 1))*(1 - sc_coords(6, 2))*(1 - sc_coords(6, 3));
-                        sc_coords(6, 1)*(1 - sc_coords(6, 2))*(1 - sc_coords(6, 3));
-                        sc_coords(6, 1)*sc_coords(6, 2)*(1 - sc_coords(6, 3));
-                        (1 - sc_coords(6, 1))*sc_coords(6, 2)*(1 - sc_coords(6, 3));
-                        (1 - sc_coords(6, 1))*(1 - sc_coords(6, 2))*sc_coords(6, 3);
-                        sc_coords(6, 1)*(1 - sc_coords(6, 2))*sc_coords(6, 3);
-                        sc_coords(6, 1)*sc_coords(6, 2)*sc_coords(6, 3);
-                        (1 - sc_coords(6, 1))*sc_coords(6, 2)*sc_coords(6, 3);  %End corner 6
-                        (1 - sc_coords(7, 1))*(1 - sc_coords(7, 2))*(1 - sc_coords(7, 3));
-                        sc_coords(7, 1)*(1 - sc_coords(7, 2))*(1 - sc_coords(7, 3));
-                        sc_coords(7, 1)*sc_coords(7, 2)*(1 - sc_coords(7, 3));
-                        (1 - sc_coords(7, 1))*sc_coords(7, 2)*(1 - sc_coords(7, 3));
-                        (1 - sc_coords(7, 1))*(1 - sc_coords(7, 2))*sc_coords(7, 3);
-                        sc_coords(7, 1)*(1 - sc_coords(7, 2))*sc_coords(7, 3);
-                        sc_coords(7, 1)*sc_coords(7, 2)*sc_coords(7, 3);
-                        (1 - sc_coords(7, 1))*sc_coords(7, 2)*sc_coords(7, 3);  %End corner 7
-                        (1 - sc_coords(8, 1))*(1 - sc_coords(8, 2))*(1 - sc_coords(8, 3));
-                        sc_coords(8, 1)*(1 - sc_coords(8, 2))*(1 - sc_coords(8, 3));
-                        sc_coords(8, 1)*sc_coords(8, 2)*(1 - sc_coords(8, 3));
-                        (1 - sc_coords(8, 1))*sc_coords(8, 2)*(1 - sc_coords(8, 3));
-                        (1 - sc_coords(8, 1))*(1 - sc_coords(8, 2))*sc_coords(8, 3);
-                        sc_coords(8, 1)*(1 - sc_coords(8, 2))*sc_coords(8, 3);
-                        sc_coords(8, 1)*sc_coords(8, 2)*sc_coords(8, 3);
-                        (1 - sc_coords(8, 1))*sc_coords(8, 2)*sc_coords(8, 3)]; %End corner 8
-                    temp = repmat(current_ctrlpts, 8, 1).*mult_matrix;
-                    subcell_ctrlpts_cntr = 1;
-                    for c = 1:8:(size(temp, 1) - 7)
-                        subcell_ctrlpts(subcell_ctrlpts_cntr) = sum(temp(c:(c + 7)));
-                        subcell_ctrlpts_cntr = subcell_ctrlpts_cntr + 1;
-                    end
-                    subcell_ctrlpts = subcell_ctrlpts'; %Want a column vector
-    %                 for c = 1:8
-    %                     subcell_ctrlpts(c) = current_ctrlpts(1)*(1 - sc_coords(c, 1))*(1 - sc_coords(c, 2))*(1 - sc_coords(c, 3)) ...
-    %                         + current_ctrlpts(2)*sc_coords(c, 1)*(1 - sc_coords(c, 2))*(1 - sc_coords(c, 3)) ...
-    %                         + current_ctrlpts(3)*sc_coords(c, 1)*sc_coords(c, 2)*(1 - sc_coords(c, 3)) ...
-    %                         + current_ctrlpts(4)*(1 - sc_coords(c, 1))*sc_coords(c, 2)*(1 - sc_coords(c, 3)) ...
-    %                         + current_ctrlpts(5)*(1 - sc_coords(c, 1))*(1 - sc_coords(c, 2))*sc_coords(c, 3) ...
-    %                         + current_ctrlpts(6)*sc_coords(c, 1)*(1 - sc_coords(c, 2))*sc_coords(c, 3) ...
-    %                         + current_ctrlpts(7)*sc_coords(c, 1)*sc_coords(c, 2)*sc_coords(c, 3) ...
-    %                         + current_ctrlpts(8)*(1 - sc_coords(c, 1))*sc_coords(c, 2)*sc_coords(c, 3);
-    %                 end
-                    %Check interpolated control point signs
-                    if (sum(sign(subcell_ctrlpts)) == length(subcell_ctrlpts))||(sum(sign(subcell_ctrlpts)) == -length(subcell_ctrlpts))
-                        %If all control points have the same sign
-                        continue;
-                    else
-                        %If control points do not all have the same sign
-                        subcell_coords_all{lvl_d, occ_cell}((zcc_coords_cntr:(zcc_coords_cntr + 7)), 1:3) = sc_coords_orig;
-                        zcc_coords_cntr = zcc_coords_cntr + 8;
-                    end
-                end      
-            end %End lvl_d
+                    %For each corner coordinate in subcell_coords, compute the
+                    %control point associated with this corner, by interpolating 
+                    %(tri-linear interpolation) between the original parent control
+                    %points, current_ctrlpts. Then, for each set of 8 corner coordinates
+                    %(i.e., for each sub-cell), check if all 8 of this cell's
+                    %interpolated control points have the same sign: if they don't, store this
+                    %sub-cell's coordinates in subcell_coords_all for the current
+                    %level, "lvl_d"; if they do have the same sign, do nothing
+                    %further, as this sub-cell will not be a candidate for further
+                    %subdivision at the next octree level.
+                    disp(['  Computing and checking the signs of interpolated control points for each sub-cell at this level (8 control points per sub-cell, ' num2str(size(subcell_coords, 1)/8) ' sub-cells in total)']);
+                    zcc_coords_cntr = 1;    %Counter for coordinates of cells at level "lvl_d", which contain zero crossings
+                    for sub_cell_8set = 1:8:(size(subcell_coords, 1) - 7)
+                        %Get all 8 corner coordinates for the current sub-cell
+                        sc_coords = subcell_coords((sub_cell_8set:(sub_cell_8set + 7)), :);
+                        %Normalize sc_coords to be in the range [0, 1], because the
+                        %trilinear interpolation formula (used below) expects the
+                        %(x, y, z) values to be in this range
+                        sc_coords_orig = sc_coords;
+                        %sc_coords = (sc_coords - sc_coords(1, :))/(2^(b + 1 - lvl_d));   %Subtract the origin of the current sub-cell, and divide by the cell width
+                        sc_coords = (sc_coords - current_corner_coords(1, :))/(2^(b + 1 - lvl));
+                        %Initialize an array to store the interpolated control
+                        %points for all 8 corners of the current sub-cell
+                        subcell_ctrlpts = zeros(8, 1);
+                        %Compute all 8 control points for the corners of the 
+                        %current sub-cell
+                        mult_matrix = [(1 - sc_coords(1, 1))*(1 - sc_coords(1, 2))*(1 - sc_coords(1, 3));
+                            sc_coords(1, 1)*(1 - sc_coords(1, 2))*(1 - sc_coords(1, 3));
+                            sc_coords(1, 1)*sc_coords(1, 2)*(1 - sc_coords(1, 3));
+                            (1 - sc_coords(1, 1))*sc_coords(1, 2)*(1 - sc_coords(1, 3));
+                            (1 - sc_coords(1, 1))*(1 - sc_coords(1, 2))*sc_coords(1, 3);
+                            sc_coords(1, 1)*(1 - sc_coords(1, 2))*sc_coords(1, 3);
+                            sc_coords(1, 1)*sc_coords(1, 2)*sc_coords(1, 3);
+                            (1 - sc_coords(1, 1))*sc_coords(1, 2)*sc_coords(1, 3);  %End corner 1
+                            (1 - sc_coords(2, 1))*(1 - sc_coords(2, 2))*(1 - sc_coords(2, 3));
+                            sc_coords(2, 1)*(1 - sc_coords(2, 2))*(1 - sc_coords(2, 3));
+                            sc_coords(2, 1)*sc_coords(2, 2)*(1 - sc_coords(2, 3));
+                            (1 - sc_coords(2, 1))*sc_coords(2, 2)*(1 - sc_coords(2, 3));
+                            (1 - sc_coords(2, 1))*(1 - sc_coords(2, 2))*sc_coords(2, 3);
+                            sc_coords(2, 1)*(1 - sc_coords(2, 2))*sc_coords(2, 3);
+                            sc_coords(2, 1)*sc_coords(2, 2)*sc_coords(2, 3);
+                            (1 - sc_coords(2, 1))*sc_coords(2, 2)*sc_coords(2, 3);  %End corner 2
+                            (1 - sc_coords(3, 1))*(1 - sc_coords(3, 2))*(1 - sc_coords(3, 3));
+                            sc_coords(3, 1)*(1 - sc_coords(3, 2))*(1 - sc_coords(3, 3));
+                            sc_coords(3, 1)*sc_coords(3, 2)*(1 - sc_coords(3, 3));
+                            (1 - sc_coords(3, 1))*sc_coords(3, 2)*(1 - sc_coords(3, 3));
+                            (1 - sc_coords(3, 1))*(1 - sc_coords(3, 2))*sc_coords(3, 3);
+                            sc_coords(3, 1)*(1 - sc_coords(3, 2))*sc_coords(3, 3);
+                            sc_coords(3, 1)*sc_coords(3, 2)*sc_coords(3, 3);
+                            (1 - sc_coords(3, 1))*sc_coords(3, 2)*sc_coords(3, 3);  %End corner 3
+                            (1 - sc_coords(4, 1))*(1 - sc_coords(4, 2))*(1 - sc_coords(4, 3));
+                            sc_coords(4, 1)*(1 - sc_coords(4, 2))*(1 - sc_coords(4, 3));
+                            sc_coords(4, 1)*sc_coords(4, 2)*(1 - sc_coords(4, 3));
+                            (1 - sc_coords(4, 1))*sc_coords(4, 2)*(1 - sc_coords(4, 3));
+                            (1 - sc_coords(4, 1))*(1 - sc_coords(4, 2))*sc_coords(4, 3);
+                            sc_coords(4, 1)*(1 - sc_coords(4, 2))*sc_coords(4, 3);
+                            sc_coords(4, 1)*sc_coords(4, 2)*sc_coords(4, 3);
+                            (1 - sc_coords(4, 1))*sc_coords(4, 2)*sc_coords(4, 3);  %End corner 4
+                            (1 - sc_coords(5, 1))*(1 - sc_coords(5, 2))*(1 - sc_coords(5, 3));
+                            sc_coords(5, 1)*(1 - sc_coords(5, 2))*(1 - sc_coords(5, 3));
+                            sc_coords(5, 1)*sc_coords(5, 2)*(1 - sc_coords(5, 3));
+                            (1 - sc_coords(5, 1))*sc_coords(5, 2)*(1 - sc_coords(5, 3));
+                            (1 - sc_coords(5, 1))*(1 - sc_coords(5, 2))*sc_coords(5, 3);
+                            sc_coords(5, 1)*(1 - sc_coords(5, 2))*sc_coords(5, 3);
+                            sc_coords(5, 1)*sc_coords(5, 2)*sc_coords(5, 3);
+                            (1 - sc_coords(5, 1))*sc_coords(5, 2)*sc_coords(5, 3);  %End corner 5
+                            (1 - sc_coords(6, 1))*(1 - sc_coords(6, 2))*(1 - sc_coords(6, 3));
+                            sc_coords(6, 1)*(1 - sc_coords(6, 2))*(1 - sc_coords(6, 3));
+                            sc_coords(6, 1)*sc_coords(6, 2)*(1 - sc_coords(6, 3));
+                            (1 - sc_coords(6, 1))*sc_coords(6, 2)*(1 - sc_coords(6, 3));
+                            (1 - sc_coords(6, 1))*(1 - sc_coords(6, 2))*sc_coords(6, 3);
+                            sc_coords(6, 1)*(1 - sc_coords(6, 2))*sc_coords(6, 3);
+                            sc_coords(6, 1)*sc_coords(6, 2)*sc_coords(6, 3);
+                            (1 - sc_coords(6, 1))*sc_coords(6, 2)*sc_coords(6, 3);  %End corner 6
+                            (1 - sc_coords(7, 1))*(1 - sc_coords(7, 2))*(1 - sc_coords(7, 3));
+                            sc_coords(7, 1)*(1 - sc_coords(7, 2))*(1 - sc_coords(7, 3));
+                            sc_coords(7, 1)*sc_coords(7, 2)*(1 - sc_coords(7, 3));
+                            (1 - sc_coords(7, 1))*sc_coords(7, 2)*(1 - sc_coords(7, 3));
+                            (1 - sc_coords(7, 1))*(1 - sc_coords(7, 2))*sc_coords(7, 3);
+                            sc_coords(7, 1)*(1 - sc_coords(7, 2))*sc_coords(7, 3);
+                            sc_coords(7, 1)*sc_coords(7, 2)*sc_coords(7, 3);
+                            (1 - sc_coords(7, 1))*sc_coords(7, 2)*sc_coords(7, 3);  %End corner 7
+                            (1 - sc_coords(8, 1))*(1 - sc_coords(8, 2))*(1 - sc_coords(8, 3));
+                            sc_coords(8, 1)*(1 - sc_coords(8, 2))*(1 - sc_coords(8, 3));
+                            sc_coords(8, 1)*sc_coords(8, 2)*(1 - sc_coords(8, 3));
+                            (1 - sc_coords(8, 1))*sc_coords(8, 2)*(1 - sc_coords(8, 3));
+                            (1 - sc_coords(8, 1))*(1 - sc_coords(8, 2))*sc_coords(8, 3);
+                            sc_coords(8, 1)*(1 - sc_coords(8, 2))*sc_coords(8, 3);
+                            sc_coords(8, 1)*sc_coords(8, 2)*sc_coords(8, 3);
+                            (1 - sc_coords(8, 1))*sc_coords(8, 2)*sc_coords(8, 3)]; %End corner 8
+                        temp = repmat(current_ctrlpts, 8, 1).*mult_matrix;
+                        subcell_ctrlpts_cntr = 1;
+                        for c = 1:8:(size(temp, 1) - 7)
+                            subcell_ctrlpts(subcell_ctrlpts_cntr) = sum(temp(c:(c + 7)));
+                            subcell_ctrlpts_cntr = subcell_ctrlpts_cntr + 1;
+                        end
+                        subcell_ctrlpts = subcell_ctrlpts'; %Want a column vector
+        %                 for c = 1:8
+        %                     subcell_ctrlpts(c) = current_ctrlpts(1)*(1 - sc_coords(c, 1))*(1 - sc_coords(c, 2))*(1 - sc_coords(c, 3)) ...
+        %                         + current_ctrlpts(2)*sc_coords(c, 1)*(1 - sc_coords(c, 2))*(1 - sc_coords(c, 3)) ...
+        %                         + current_ctrlpts(3)*sc_coords(c, 1)*sc_coords(c, 2)*(1 - sc_coords(c, 3)) ...
+        %                         + current_ctrlpts(4)*(1 - sc_coords(c, 1))*sc_coords(c, 2)*(1 - sc_coords(c, 3)) ...
+        %                         + current_ctrlpts(5)*(1 - sc_coords(c, 1))*(1 - sc_coords(c, 2))*sc_coords(c, 3) ...
+        %                         + current_ctrlpts(6)*sc_coords(c, 1)*(1 - sc_coords(c, 2))*sc_coords(c, 3) ...
+        %                         + current_ctrlpts(7)*sc_coords(c, 1)*sc_coords(c, 2)*sc_coords(c, 3) ...
+        %                         + current_ctrlpts(8)*(1 - sc_coords(c, 1))*sc_coords(c, 2)*sc_coords(c, 3);
+        %                 end
+                        %Check interpolated control point signs
+                        if (sum(sign(subcell_ctrlpts)) == length(subcell_ctrlpts))||(sum(sign(subcell_ctrlpts)) == -length(subcell_ctrlpts))
+                            %If all control points have the same sign
+                            continue;
+                        else
+                            %If control points do not all have the same sign
+                            subcell_coords_all{lvl_d, occ_cell}((zcc_coords_cntr:(zcc_coords_cntr + 7)), 1:3) = sc_coords_orig;
+                            zcc_coords_cntr = zcc_coords_cntr + 8;
+                        end
+                    end      
+                end %End lvl_d
+            end %End check if lvl == (b + 1)  
         end %End check if control points for current occ_cell have same signs
         disp('------------------------------------------------------------');
     end %End occ_cell

@@ -132,7 +132,7 @@ disp('************************************************************');
 
 % %--------------- Visualization of Octree Cell Subdivision ----------------%
 % 
-% vis_levels_ot = 4;
+% vis_levels_ot = max_lvl;
 % 
 % disp(' ');
 % disp('Displaying octree subdivision ...'); 
@@ -169,7 +169,8 @@ disp('************************************************************');
 %     end
 % end
 % 
-% for lvl = 1:vis_levels_ot
+% %for lvl = 1:vis_levels_ot
+% for lvl = max_lvl
 %     %Plot all the unique corner points at the current octree level, over
 %     %the top of the input 3D point cloud
 %     scatter3(unique_coords{lvl}(:, 1), unique_coords{lvl}(:, 2), unique_coords{lvl}(:, 3), 10, colours(lvl, :), 'filled');
@@ -374,12 +375,12 @@ disp('************************************************************');
 % 
 % % Read in the input point cloud (assume PLY format)
 % [~, ptcloud, ~] = plyRead(ptcloud_file);
-% 
-% %for lvl = 1:vis_levels_ctrlpts   
-% for lvl = 3   
-%     %For each unique corner coordinate ...
-%     %for c = 1:size(unique_coords{lvl}, 1)
-%     for c = 12
+% % 
+% % %for lvl = 1:vis_levels_ctrlpts   
+% for lvl = max_lvl   
+%      %For each unique corner coordinate ...
+%      %for c = 1:size(unique_coords{lvl}, 1)
+%      for c = [36278 36285 36222 36186 36277 36284 36221 36182]
 %         %Display the input point cloud
 %         figure;
 %         scatter3(ptcloud(:, 1), ptcloud(:, 2), ptcloud(:, 3), 5, [ptcloud(:, 7)./255, ptcloud(:, 8)./255, ptcloud(:, 9)./255], 'filled');
@@ -485,7 +486,7 @@ disp('************************************************************');
 %         h(5) = quiver3(nearest_voxels{lvl}(c, 1), nearest_voxels{lvl}(c, 2), nearest_voxels{lvl}(c, 3), difference_vectors{lvl}(c, 1), difference_vectors{lvl}(c, 2), difference_vectors{lvl}(c, 3), 'LineWidth', 2, 'Color', 'm', 'MaxHeadSize', 0.8);
 %         legend(h, ['Current corner point (' red_or_green ')'], 'Shared octree cells (at current octree level)', 'Nearest voxel point', 'Normal direction for nearest voxel', 'Difference vector', 'Location', 'best');
 %         hold off;
-%     end %End current unique corner at level "lvl"
+%      end %End current unique corner at level "lvl"
 % end %End octree level "lvl"
 
 %------------------------- Wavelet Decomposition -------------------------%
@@ -506,7 +507,8 @@ disp(' ');
 %octree blocks and levels, starting from start_lvl and going up to one
 %level before the leaves
 %wavelet_coeffs = cell((b + 1 - start_lvl), 1);  %These will be quantized coefficients
-wavelet_coeffs = cell(b, 1);  %These will be quantized coefficients
+%wavelet_coeffs = cell(b, 1);  %These will be quantized coefficients
+wavelet_coeffs = cell((b + 1), 1);  %These will be quantized coefficients
 %Initialize a cell array to store the reconstructed signal at each vertex
 %of each octree cell at every level from start_lvl to one level before the
 %leaves
@@ -727,8 +729,8 @@ for lvl = start_lvl:(max_lvl - 1)
                     all_ctrlpts_ptrs = ctrl_pts_pointers{lvl}((occ_cell*8 - 7):occ_cell*8, :);
                     ctrlpt1_ptr = all_ctrlpts_ptrs(parent_row_inds(1));
                     ctrlpt2_ptr = all_ctrlpts_ptrs(parent_row_inds(2));
-                    ctrlpt1 = control_points{lvl}(ctrlpt1_ptr);
-                    ctrlpt2 = control_points{lvl}(ctrlpt2_ptr);
+                    ctrlpt1 = reconstructed_control_points{lvl}(ctrlpt1_ptr);
+                    ctrlpt2 = reconstructed_control_points{lvl}(ctrlpt2_ptr);
                     %Average the signal (Bezier control points) on the 2
                     %vertices of the parent edge
                     avg_signal = (ctrlpt1 + ctrlpt2)/2;
@@ -751,10 +753,10 @@ for lvl = start_lvl:(max_lvl - 1)
                     ctrlpt2_ptr = all_ctrlpts_ptrs(parent_row_inds(2));
                     ctrlpt3_ptr = all_ctrlpts_ptrs(parent_row_inds(3));
                     ctrlpt4_ptr = all_ctrlpts_ptrs(parent_row_inds(4));
-                    ctrlpt1 = control_points{lvl}(ctrlpt1_ptr);
-                    ctrlpt2 = control_points{lvl}(ctrlpt2_ptr);
-                    ctrlpt3 = control_points{lvl}(ctrlpt3_ptr);
-                    ctrlpt4 = control_points{lvl}(ctrlpt4_ptr);
+                    ctrlpt1 = reconstructed_control_points{lvl}(ctrlpt1_ptr);
+                    ctrlpt2 = reconstructed_control_points{lvl}(ctrlpt2_ptr);
+                    ctrlpt3 = reconstructed_control_points{lvl}(ctrlpt3_ptr);
+                    ctrlpt4 = reconstructed_control_points{lvl}(ctrlpt4_ptr);
                     %Average the signal (Bezier control points) on the 4 
                     %vertices of the parent face
                     avg_signal = (ctrlpt1 + ctrlpt2 + ctrlpt3 + ctrlpt4)/4;  
@@ -772,7 +774,7 @@ for lvl = start_lvl:(max_lvl - 1)
                     %Get the Bezier control points stored at each of the 8
                     %corner vertices of the parent cell
                     ctrlpts_pointers = ctrl_pts_pointers{lvl}((occ_cell*8 - 7):occ_cell*8, :);
-                    ctrlpts = control_points{lvl}(ctrlpts_pointers);
+                    ctrlpts = reconstructed_control_points{lvl}(ctrlpts_pointers);
                     %Average the signal (Bezier control points) on the 8
                     %vertices of the parent block
                     avg_signal = mean(ctrlpts);
@@ -860,28 +862,28 @@ disp(' ');
 
 %Get the octree occupancy codes that will be transmitted to the decoder
 occupancy_codes_forDec = cell(b, 1);
-for i = 1:max_lvl
+for i = 1:(max_lvl - 1)
     occupancy_codes_forDec{i} = myOT.OccupancyCode{i};
 end
 %Concatenate all of the occupancy codes (decimal values) at all octree 
-%levels from the root to max_lvl, into one long array
+%levels from the root to (max_lvl - 1), into one long array
 oc_cntr = 1;
 occ_codes_array = [];
-for l = 1:max_lvl
+for l = 1:(max_lvl - 1)
     occ_codes_array(oc_cntr:(oc_cntr + numel(occupancy_codes_forDec{l}) - 1)) = occupancy_codes_forDec{l};
     oc_cntr = oc_cntr + numel(occupancy_codes_forDec{l});
 end
 %Plot a histogram of the occupancy codes inside occ_codes_array
 figure;
 histogram(occ_codes_array);
-title(['Histogram of Octree Occupancy Codes from Level 1-' num2str(max_lvl)]);
+title(['Histogram of Octree Occupancy Codes from Level 1-' num2str(max_lvl - 1)]);
 %Save the above histogram as a MATLAB figure and as a PDF image in our
 %network directory (NB: The '-bestfit' option maximizes the size of the 
 %figure to fill the page, but preserves the aspect ratio of the figure. 
 %The figure might not fill the entire page. This option leaves a 
 %minimum page margin of .25 inches).
-savefig(['\\Pandora\builds\test\Data\Compression\PLY\Codec_Results\' ptcloud_name '\voxelized' num2str(b) '\BezierVolume\transmitted_histogram_occ_codes_lvl1-' num2str(max_lvl)]);
-print('-bestfit', ['\\Pandora\builds\test\Data\Compression\PLY\Codec_Results\' ptcloud_name '\voxelized' num2str(b) '\BezierVolume\transmitted_histogram_occ_codes_lvl1-' num2str(max_lvl)], '-dpdf');
+savefig(['\\Pandora\builds\test\Data\Compression\PLY\Codec_Results\' ptcloud_name '\voxelized' num2str(b) '\BezierVolume\transmitted_histogram_occ_codes_lvl1-' num2str(max_lvl - 1)]);
+print('-bestfit', ['\\Pandora\builds\test\Data\Compression\PLY\Codec_Results\' ptcloud_name '\voxelized' num2str(b) '\BezierVolume\transmitted_histogram_occ_codes_lvl1-' num2str(max_lvl - 1)], '-dpdf');
 %Compute the number of bits required for these occupancy codes
 bits_occ_codes_persymbol = entropy_calc(occ_codes_array);    %Avg. minimum no. of bits per symbol
 bits_occ_codes = bits_occ_codes_persymbol*length(occ_codes_array);    %Total no. of bits for all symbols

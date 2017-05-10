@@ -44,7 +44,7 @@ voxelizedN = '10';
 %files in the corresponding codec_results_path\pt_cloud_name\voxelizedN\codec_name 
 %directory. Note that each number must be written as a string (i.e., inside 
 %quotation marks '').
-nbr_reconstructions = {'7', '17'};    %Each column represents a different codec, each row a different input point cloud
+nbr_reconstructions = {'6', '17'};    %Each column represents a different codec, each row a different input point cloud
 nbr_reconstructions = repmat(nbr_reconstructions, numel(ptcloud_names), 1);    %Since each column must represent a different codec, and each row a different input point cloud (assume that a given codec produces the same no. of reconstructions for any given input point cloud)
 
 %-------------------------------------------------------------------------%
