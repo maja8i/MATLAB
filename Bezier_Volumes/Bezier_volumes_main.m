@@ -14,20 +14,25 @@ ptcloud_name = 'boxer'; %Must be in PLY format
 %e.g., b = 10 for voxelized10 point clouds, b = 11 for voxelized11 clouds.
 b = 7;
 %Full path to the input PLY file
-ptcloud_file = ['\\pandora\builds\test\Data\Compression\PLY\Point_Clouds\8i\voxelized' num2str(b) '_WithNormals\' ptcloud_name '_voxelized' num2str(b) '.ply'];
+ptcloud_file = ['\\pandora\builds\test\Data\Compression\PLY\Point_Clouds\8i\voxelized' num2str(b) '_WithNormalsAndCentroids\' ptcloud_name '_voxelized' num2str(b) '.ply'];
+%ptcloud_file = ['\\pandora\builds\test\Data\Compression\PLY\Point_Clouds\8i\voxelized' num2str(b) '_WithNormals\' ptcloud_name '_voxelized' num2str(b) '.ply'];
+%ptcloud_file = ['\\pandora\storage\users\phil\maja\voxelized7_Test\' ptcloud_name '_voxelized' num2str(b) '.ply'];
 %Octree level(s) to use (one at a time, if there is more than one listed
 %below) as the base level for transmitting control points, and from which
-%to start the wavelet analysis. start_OT_lvl can go from the root 
+%to start the wavelet analysis. start_OT_lvl can theoretically go from the root 
 %(start_OT_lvl = 1) up to 2 levels before the leaves (start_OT_lvl = b - 1)), 
-%or up to (max_lvl - 1) if max_lvl is not the leaf level, but start_OT_lvl 
-%must be at least (max_OT_lvl - 1). 
+%or up to (max_lvl - 1) if max_lvl is not the leaf level. But because the 
+%lowest octree levels don't contain zero crossings (since the octree cells
+%here are quite large and so all the cell corners are outside the point
+%cloud), start_OT_lvl should be adjusted to start at the lowest level that
+%contains zero crossings. 
 start_OT_lvl = 3;
 %Highest octree level at which the Bezier control points should be computed
 %at the encoder and for which the wavelet coefficients should be sent to 
 %the decoder. max_OT_lvl must go from (start_OT_lvl + 1), which must be
 %>= 4 (since before this level, there are no zero crossings in the octree 
 %cells), and can go up to b + 1. 
-max_OT_lvl = [8 7 6 5 4];  %Write numbers in descending order, because file ..._distorted01.ply must correspond to the best reconstruction (and highest bitrate)
+max_OT_lvl = [8];  %Write numbers in descending order, because file ..._distorted01.ply must correspond to the best reconstruction (and highest bitrate)
 %Quantization stepsize for uniform scalar quantization of the control 
 %points at the chosen base level (start_lvl) and of all the wavelet
 %coefficients that will be computed at the encoder
@@ -105,10 +110,10 @@ for start_lvl = start_OT_lvl
         disp(['max_lvl = ' num2str(max_lvl)]);
     
         %Run encoder
-        [occupancy_codes_forDec, rec_ctrlpts_forDec, wavelet_coeffs_forDec, total_geom_bits, total_geom_bpv] = Bezier_volumes_encoder(ptcloud_file, b, start_lvl, max_lvl, q_stepsize, ptcloud_name);
+        [occupancy_codes_forDec, rec_ctrlpts_forDec, wavelet_coeffs_forDec, total_geom_bits, total_geom_bpv, reconstructed_control_points] = Bezier_volumes_encoder(ptcloud_file, b, start_lvl, max_lvl, q_stepsize, ptcloud_name);
 
         %Run decoder
-        [reconstruction_decoder, reconstructed_vox_pos] = Bezier_volumes_decoder(occupancy_codes_forDec, rec_ctrlpts_forDec, wavelet_coeffs_forDec, start_lvl, max_lvl, q_stepsize, b, ptcloud_name);
+        [reconstruction_decoder, reconstructed_vox_pos] = Bezier_volumes_decoder(occupancy_codes_forDec, rec_ctrlpts_forDec, wavelet_coeffs_forDec, start_lvl, max_lvl, q_stepsize, b, ptcloud_name, ptcloud_file, reconstructed_control_points);
 
         %Read in the input point cloud, so that we can extract properties of
         %the PLY file

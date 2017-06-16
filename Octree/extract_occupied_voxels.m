@@ -24,6 +24,16 @@
 %                same order as their corresponding (x, y, z) location
 %                values.
 
+%centroids_sorted: Input centroids (also (x, y, z) triplets) arranged in 
+%                  the same order as their corresponding (x, y, z) location
+%                  values.
+
+%original_points_per_voxel: The original (x, y, z) points that were
+%                           quantized to each voxel.
+
+%original_normals_per_voxel: The normal vectors corresponding to the 
+%                            original_points_per_voxel.
+
 %---- OUTPUTS ----
 
 %occupied_Morton_codes: Cell array containing Morton codes for the occupied
@@ -34,13 +44,19 @@
 %                       the occupied voxels in each occupied cell, at each
 %                       level of the octree.
 
+%Optional outputs:
+
 %occupied_voxel_normals: Cell array containing the x, y, z coordinates of
 %                        the normals of each of the occupied voxels in each
 %                        occupied cell, at each level of the octree.
 
+%occupied_voxel_centroids: Cell array containing the x, y, z coordinates of
+%                          the centroids of each of the occupied voxels in 
+%                          each occupied cell, at each level of the octree.
+
 %-------------------------------------------------------------------------%
 
-function [occupied_Morton_codes, occupied_voxel_coords, occupied_voxel_normals] = extract_occupied_voxels(myOT, mortonCodes_sorted, xyz_sorted, varargin)
+function [occupied_Morton_codes, occupied_voxel_coords, occupied_voxel_normals, occupied_voxel_centroids] = extract_occupied_voxels(myOT, mortonCodes_sorted, xyz_sorted, varargin)
 
 %Initialize cell arrays to store Morton codes and corresponding x, y, z
 %coordinates for occupied voxels in each occupied cell at each level of the
@@ -50,7 +66,7 @@ occupied_voxel_coords = cell((myOT.Depth + 1), max(myOT.NodeCount));
 
 %If the input point cloud has normals and these have been passed to the
 %current function
-if numel(varargin) == 1
+if numel(varargin) >= 1
     normals_sorted = varargin{1};
     %Initialize a cell array to store the normals for all of the occupied
     %voxels in each occupied cell at each level of the octree, in the same
@@ -59,12 +75,23 @@ if numel(varargin) == 1
     occupied_voxel_normals = cell((myOT.Depth + 1), max(myOT.NodeCount));
 end
 
+%If the input point cloud has centroids and these have been passed to the
+%current function
+if numel(varargin) >= 2
+    centroids_sorted = varargin{2}; %Assume normals are passed to the function before centroids
+    %Initialize a cell array to store the centroids for all of the occupied
+    %voxels in each occupied cell at each level of the octree, in the same
+    %order as their corresponding voxel coordinates and Morton codes in the 
+    %occupied_voxel_coords and occupied_Morton_codes cell arrays above
+    occupied_voxel_centroids = cell((myOT.Depth + 1), max(myOT.NodeCount));
+end
+
 %For each level of the octree myOT ...
 for lvl = 1:(myOT.Depth + 1)  
     if numel(varargin) == 1
-        disp(['Extracting occupied voxel coordinates and associated normal vectors in all occupied cells at octree level ' num2str(lvl) ' ...']);
+        disp(['Extracting occupied voxel coordinates, centroids and associated normal vectors in all occupied cells at octree level ' num2str(lvl) ' ...']);
     else
-         disp(['Extracting occupied voxel coordinates in all occupied cells at octree level ' num2str(lvl) ' ...']);
+        disp(['Extracting occupied voxel coordinates and centroids in all occupied cells at octree level ' num2str(lvl) ' ...']);
     end
     disp(['Total no. of occupied cells to process: ' num2str(myOT.NodeCount(lvl))]);
     disp('------------------------------------------------------------');
@@ -83,11 +110,16 @@ for lvl = 1:(myOT.Depth + 1)
         %Get the corresponding x, y, z location values for the Morton codes
         %in current_Morton_set
         current_voxel_set = xyz_sorted(begin:(begin + count - 1), :);
-        occupied_voxel_coords{lvl, n} = current_voxel_set;
-        if numel(varargin) == 1
+        occupied_voxel_coords{lvl, n} = current_voxel_set;        
+        if numel(varargin) >= 1
             %Get the corresponding normal x, y, z values for the occupied
             %voxels found above
             occupied_voxel_normals{lvl, n} = normals_sorted(begin:(begin + count - 1), :);
+        end
+        if numel(varargin) >= 2
+            %Get the corresponding centroid x, y, z values for the occupied
+            %voxels found above
+            occupied_voxel_centroids{lvl, n} = centroids_sorted(begin:(begin + count - 1), :);
         end
     end
 end
