@@ -56,13 +56,17 @@
 %-------------------------------------------------------------------------%
 
 %function [myOT, mortonCodes_sorted, xyz_sorted, normals_sorted, centroids_sorted, original_points_per_voxel, original_normals_per_voxel] = construct_octree(ptcloud_file, b, ptcloud_name)
-function [myOT, mortonCodes_sorted, xyz_sorted, normals_sorted, centroids_sorted] = construct_octree(ptcloud_file, b, ptcloud_name)
+function [myOT, mortonCodes_sorted, xyz_sorted, normals_sorted, varargout] = construct_octree(ptcloud_file, b, varargin)
 
 disp(['b = ' num2str(b)]);
 disp(' ');
 
+if numel(varargin) == 1
+    ptcloud_name = varargin{1};
+end
+
 %Read in input PLY point cloud
-[plyStruct, ptcloud, ~] = plyRead(ptcloud_file);
+[~, ptcloud, ~] = plyRead(ptcloud_file);
 
 %Get Morton codes for all x, y, z coordinates in the input point cloud
 mortonCodes = xyzToMorton(ptcloud(:, 1:3), b);   %b bits for each Morton code
@@ -84,6 +88,7 @@ end
 if size(ptcloud, 2) == 12
     centroids_sorted = ptcloud(I, 10:12);   %Assuming centroids are in columns 10:12
     disp('Centroids sorted');
+    varargout{1} = centroids_sorted;
 end
 
 %Construct an octree based on the sorted Morton codes computed above
@@ -92,74 +97,72 @@ disp('Constructing octree ...');
 myOT = octreeClass(mortonCodes_sorted, b);    %b-level octree
 disp('Octree constructed');
 
-% %If the input point cloud in ptcloud_file was a voxelized point cloud, read 
-% %in the original, unvoxelized version of that point cloud, and figure out,
-% %for each voxel, which (x, y, z) points in the original file were mapped to
-% %this voxel
-% if b ~= 0
-%     disp(' ');
-%     %Read in the original, unvoxelized point cloud
-%     ptcloud_file_orig = ['\\pandora\builds\test\Data\Compression\PLY\Point_Clouds\8i\OriginalPLY_WithNormals\' ptcloud_name '.ply'];
-%     disp('Reading in corresponding unvoxelized point cloud ...');
-%     [~, ptcloud_orig, ~] = plyRead(ptcloud_file_orig);
-%     
-%     %Extract just the (x, y, z) values of the points in ptcloud_orig
-%     xyz_orig = single(ptcloud_orig(:, 1:3));
-%     %Extract the normal (x, y, z) values for each point in xyz_orig
-%     if size(ptcloud_orig, 2) >= 9
-%         xyz_normals = single(ptcloud_orig(:, 7:9));
-%     end
-%     
-%     disp('Computing integer (voxel) coordinates ...');
-%     %Get the minimum x, y, and z values in xyz_orig
-%     minv = min(xyz_orig);
-%     %Get the maximum x, y, and z values in xyz_orig
-%     maxv = max(xyz_orig);
-%     %Get the maximum difference between any of the (maxv - minv) x, y, or z
-%     %values
-%     width = max(maxv - minv);
-%     %Compute the integer location values for each original x, y, z value
-%     frame_to_world_scale = width/(2^b - 1);
-%     xyz_rounded = double(round((xyz_orig - repmat(minv, size(xyz_orig, 1), 1))/frame_to_world_scale));
-%     
-%     %Get Morton codes for all x, y, z coordinates in xyz_rounded
-%     mortonCodes2 = xyzToMorton(xyz_rounded, b);   %b bits for each Morton code
-%     disp('Morton codes computed for integer x, y, z');
-%     %Sort the Morton codes obtained above, in ascending order
-%     [mortonCodes2_sorted, I2] = sort(mortonCodes2);
-%     disp('Morton codes sorted');
-%     
-%     %Arrange the rows of xyz_rounded in the same order as their sorted
-%     %Morton codes above
-%     xyz_rounded_sorted = xyz_rounded(I2, 1:3);
-%     disp('Integer x, y, z sorted');
-%     
-%     %All the points that have been quantized to the same coordinate values 
-%     %belong to one voxel
-%     [xyz_rounded_sorted_unique, ~, voxel_inds] = unique(xyz_rounded_sorted, 'rows', 'stable');
-%     %Arrange the voxel indices in voxel_inds in the same order as their
-%     %corresponding xyz_rounded_sorted values
-%     voxel_inds_sorted = voxel_inds(I2);
-%     
-%     %Get all the original (x, y, z) points that belong to each voxel as
-%     %indicated by voxel_inds_sorted, and, if the input point cloud has
-%     %normals, then also get the corresponding normal vectors for the points
-%     %in original_points_per_voxel, sorted in the same order
-%     original_points_per_voxel = cell(size(xyz_rounded_sorted_unique, 1), 1);
-%     if size(ptcloud_orig, 2) >= 9
-%         original_normals_per_voxel = cell(size(xyz_rounded_sorted_unique, 1), 1);
-%     end
-%     disp('Extracting original (x, y, z) points and normals that were mapped to each voxel ...');
-%     for vox = 1:size(xyz_rounded_sorted_unique, 1)
-%         original_points_per_voxel{vox} = xyz_orig((voxel_inds_sorted == vox), :);
-%         original_normals_per_voxel{vox} = xyz_normals((voxel_inds_sorted == vox), :);
-% %         %Get the corresponding normal vectors for the points in
-% %         %original_points_per_voxel, sorted in the same order
-% %         if size(ptcloud_orig, 2) >= 9
-% %             original_normals_per_voxel{vox} = xyz_normals((voxel_inds_sorted == vox), :);
-% %         end
-%         disp(['Finished voxel ' num2str(vox) '/' num2str(size(xyz_rounded_sorted_unique, 1))]);
-%     end
+if numel(varargin) == 1
+    %If the input point cloud in ptcloud_file was a voxelized point cloud,
+    %read in the original, unvoxelized version of that point cloud, and 
+    %figure out, for each voxel, which (x, y, z) points in the original 
+    %file were mapped to this voxel
+    if b ~= 0
+        disp(' ');
+        %Read in the original, unvoxelized point cloud
+        ptcloud_file_orig = ['\\pandora\builds\test\Data\Compression\PLY\Point_Clouds\8i\OriginalPLY_WithNormals\' ptcloud_name '.ply'];
+        disp('Reading in corresponding unvoxelized point cloud ...');
+        [~, ptcloud_orig, ~] = plyRead(ptcloud_file_orig);
+
+        %Extract the (x, y, z) values of the points in ptcloud_orig
+        xyz_orig = single(ptcloud_orig(:, 1:3));
+        %Extract the normal (x, y, z) values for each point in xyz_orig
+        if size(ptcloud_orig, 2) >= 9
+            xyz_normals = single(ptcloud_orig(:, 7:9));
+        end
+
+        disp('Computing integer (voxel) coordinates ...');
+        %Get the minimum x, y, and z values in xyz_orig
+        minv = min(xyz_orig);
+        %Get the maximum x, y, and z values in xyz_orig
+        maxv = max(xyz_orig);
+        %Get the maximum difference between any of the (maxv - minv) x, y, 
+        %or z values
+        width = max(maxv - minv);
+        %Compute the integer location values for each original x, y, z 
+        %value
+        frame_to_world_scale = width/(2^b - 1);
+        xyz_rounded = double(round((xyz_orig - repmat(minv, size(xyz_orig, 1), 1))/frame_to_world_scale));
+
+        %Get Morton codes for all x, y, z coordinates in xyz_rounded
+        mortonCodes2 = xyzToMorton(xyz_rounded, b);   %b bits for each Morton code
+        disp('Morton codes computed for integer x, y, z');
+        %Sort the Morton codes obtained above, in ascending order
+        [~, I2] = sort(mortonCodes2);
+        disp('Morton codes sorted');
+        %Arrange the rows of xyz_rounded in the same order as their sorted
+        %Morton codes above
+        xyz_rounded_sorted = xyz_rounded(I2, 1:3);
+        disp('Integer x, y, z sorted');
+
+        %All the points that have been quantized to the same coordinate 
+        %values belong to one voxel
+        [xyz_rounded_sorted_unique, ~, voxel_inds] = unique(xyz_rounded_sorted, 'rows', 'stable');
+        %Arrange the voxel indices in voxel_inds in the same order as their
+        %corresponding xyz_rounded_sorted values
+        voxel_inds_sorted = voxel_inds(I2);
+
+        %Get all the original (x, y, z) points that belong to each voxel as
+        %indicated by voxel_inds_sorted, and, if the input point cloud has
+        %normals, then also get the corresponding normal vectors for the 
+        %points in original_points_per_voxel, sorted in the same order
+        original_points_per_voxel = cell(size(xyz_rounded_sorted_unique, 1), 1);
+        if size(ptcloud_orig, 2) >= 9
+            original_normals_per_voxel = cell(size(xyz_rounded_sorted_unique, 1), 1);
+        end
+        disp('Extracting original (x, y, z) points and normals that were mapped to each voxel ...');
+        for vox = 1:size(xyz_rounded_sorted_unique, 1)
+            original_points_per_voxel{vox} = xyz_orig((voxel_inds_sorted == vox), :);
+            original_normals_per_voxel{vox} = xyz_normals((voxel_inds_sorted == vox), :);
+            disp(['Finished voxel ' num2str(vox) '/' num2str(size(xyz_rounded_sorted_unique, 1))]);
+        end
+    end %End check if b ~= 0
+end %End check if numel(varargin) == 1
     
 %     %Extract the transform parameters
 %     disp('Extracting transform parameters ...');

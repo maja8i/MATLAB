@@ -138,32 +138,9 @@ ctrl_pts_pointers = cell((b + 1), 1);
 tic;
 %for lvl = start_lvl:(b + 1)
 for lvl = start_lvl:max_lvl
-%     %Counter to keep track of how many corner coordinates we have stored at
-%     %the current octree level
-%     corner_coords_cntr = 1;
-%     %For each occupied cell at the current level
-%     for occ_cell = 1:numel(OccupancyCode{lvl})
-%         %Initialize a matrix to store the (x, y, z) coordinates of all the
-%         %corners of the current octree cell
-%         corners = zeros(8, 3);
-%         %Find the (x, y, z) coordinates of the origin of this cell (found
-%         %at the bottom left-hand corner farthest from the viewer)
-%         corners(1, :) = double(SpatialIndex{lvl}(occ_cell, :))*(2^(b + 1 - lvl)) - [0.5 0.5 0.5];
-%         %Find the (x, y, z) coordinates of the other 7 corners of this cell
-%         corners(2, :) = corners(1, :) + [2^(b + 1 - lvl) 0 0];
-%         corners(3, :) = corners(1, :) + [2^(b + 1 - lvl) 2^(b + 1 - lvl) 0];
-%         corners(4, :) = corners(1, :) + [0 2^(b + 1 - lvl) 0];
-%         corners(5, :) = corners(1, :) + [0 0 2^(b + 1 - lvl)];
-%         corners(6, :) = corners(1, :) + [2^(b + 1 - lvl) 0 2^(b + 1 - lvl)];
-%         corners(7, :) = corners(1, :) + [2^(b + 1 - lvl) 2^(b + 1 - lvl) 2^(b + 1 - lvl)];
-%         corners(8, :) = corners(1, :) + [0 2^(b + 1 - lvl) 2^(b + 1 - lvl)];
-%         %Store all the corner coordinates for the current cell in their
-%         %corresponding locations inside corner_coords
-%         corner_coords_decoder{lvl}(corner_coords_cntr:(corner_coords_cntr + 7), 1:3) = corners;   
-%         corner_coords_cntr = corner_coords_cntr + 8;
-%     end
-
+    
     disp(['Processing octree level ' num2str(lvl) ':']); 
+    
     disp('Computing corner coordinates for each occupied cell ...');
     disp('------------------------------------------------------------');
     
@@ -470,11 +447,9 @@ for lvl = [4, 5, 6, 7, 8]
     disp(['Reconstructing voxels for level ' num2str(lvl) ' control points ...']);
     disp(' ');
     %Cell array to store the coordinates of octree cells at all levels from 
-    %(lvl + 1) to the leaves, which contain zero crossings
+    %(lvl + 1) to the leaves, which are candidates for further subdivision
+    %or, at the leaf level, contain zero crossings
     subcell_coords_all = cell((b + 1), size(SpatialIndex{lvl}, 1));  
-    %Counter to keep track of octree cells that are identified as being
-    %unoccupied when they should be occupied
-    unocc_cells_detected = 0;
     %For each occupied cell at the current octree level, lvl ...
     for occ_cell = 1:size(SpatialIndex{lvl}, 1) %We can only use this for levels for which we know how many occupied cells there are
         disp(['Reconstructing voxels for occ_cell ' num2str(occ_cell) '/' num2str(size(SpatialIndex{lvl}, 1)) ':']);
@@ -482,45 +457,19 @@ for lvl = [4, 5, 6, 7, 8]
         current_ctrlpts = reconstruction_decoder{lvl}(ctrl_pts_pointers{lvl}((occ_cell*8 - 7):(occ_cell*8)));
         %Get the corner coordinates for each of the 8 corners of this cell
         current_corner_coords = corner_coords_decoder{lvl}(((occ_cell*8 - 7):(occ_cell*8)), :);
-        %Don't need to do the below, because we know that the encoder has 
-        %ONLY transmitted control points for occupied cells, so each
-        %occupied cell will be "occupied"
-%         if lvl == (max_lvl - 1)
-%         if lvl >= (max_lvl - 1)
-%             %Check if all 8 control points for this cell have the same sign 
-%             if (sum(sign(current_ctrlpts)) == length(current_ctrlpts))||(sum(sign(current_ctrlpts)) == -length(current_ctrlpts))
-%                 %If yes, this indicates that the surface of the 3D object does not 
-%                 %pass through this octree block (i.e., there is no zero crossing 
-%                 %here), so this cell is not a candidate for further subdivision; do
-%                 %nothing further 
-%                 unocc_cells_detected = unocc_cells_detected + 1;
-%                 disp('No zero crossings in this cell');
-%                 disp('------------------------------------------------------------');
-%                 continue;  
-%             end
-%         end
-        %else 
-        %If no (i.e., if there is a sign change within the cell), this 
-        %indicates that the surface of the 3D object cuts through this cell
-        %(i.e., there is a zero crossing in this cell), so this cell will 
-        %need to be subdivided further if it's not at the leaf level 
-        %(that is, we will need to look at 
-        %the interpolated control points of all of this cell's children, 
-        %grandchildren and other descendants, to check for zero crossings 
-        %and thereby figure out which cells are occupied at each octree 
-        %level, down to the leaves)
+        %If we are at the leaf level ...
         if lvl == (b + 1)
-            %Just get the current occupied cell's (voxel's) corner 
-            %coordinates 
+            %Just get the current occupied voxel's corner coordinates 
             subcell_coords_all{lvl, occ_cell} = current_corner_coords;
-        else %lvl ~= leaf level
+        %If we are NOT at the leaf level
+        else 
             %For each descendant of the current occ_cell, right down to
             %the leaves ...
             for lvl_d = (lvl + 1):(b + 1)      
                 disp(['--Processing sub-cells at level ' num2str(lvl_d)]);
                 %Find the unique minimum, unique maximum, and midpoint
-                %coordinates for the x, y, and z dimensions of the sub-cells at 
-                %this level
+                %coordinates for the x, y, and z dimensions of the 
+                %sub-cells at this level
                 if lvl_d == (lvl + 1)
                     unq_min_x = min(unique(current_corner_coords(:, 1)));
                     unq_min_y = min(unique(current_corner_coords(:, 2)));
@@ -532,11 +481,12 @@ for lvl = [4, 5, 6, 7, 8]
                     mid_y = (unq_min_y + unq_max_y)/2;
                     mid_z = (unq_min_z + unq_max_z)/2;
                 else
-                    %There will be one unq_min, one unq_max, and one mid point
-                    %(for x, y, z separately) per 8 sub-cells at this level 
-                    %(there are 8 sub-cells (not necessarily occupied) per 
-                    %occupied cell at the previous level). The coordinates of 
-                    %occupied cells at the previous level are stored in 
+                    %There will be one unq_min, one unq_max, and one mid 
+                    %point (for x, y, z separately) per 8 sub-cells at this
+                    %level (there are 8 sub-cells (not necessarily 
+                    %occupied) per occupied cell at the previous level). 
+                    %The coordinates of cells at the previous level, which 
+                    %are candidates for further subdivision, are stored in 
                     %subcell_coords_all(lvl_d - 1).
                     unq_min_x = zeros((size(subcell_coords_all{(lvl_d - 1), occ_cell}, 1))/8, 1);
                     unq_min_y = zeros((size(subcell_coords_all{(lvl_d - 1), occ_cell}, 1))/8, 1);
@@ -561,11 +511,12 @@ for lvl = [4, 5, 6, 7, 8]
                         mid_z(cell_cntr) = (unq_min_z(cell_cntr) + unq_max_z(cell_cntr))/2;
                         cell_cntr = cell_cntr + 1;
                     end
-                end                  
-                %Compute the 8 corner coordinates for each of the 8 sub-cells
-                %resulting from subdividing each of the occupied cells whose
-                %coordinates are stored in subcell_coords_all (if lvl_d > lvl +
-                %1) or in current_corner_coords (if lvl_d = lvl + 1)
+                end %End check if lvl_d == (lvl + 1)                  
+                %Compute the 8 corner coordinates for each of the 8 
+                %sub-cells resulting from subdividing each of the cells 
+                %whose coordinates are stored in subcell_coords_all 
+                %(if lvl_d > lvl + 1) or in current_corner_coords (if 
+                %lvl_d = lvl + 1)
                 if (lvl_d == lvl + 1)
                     zc_coords = current_corner_coords;  %"zc" stands for zero crossing
                 elseif (lvl_d > lvl + 1)
@@ -599,25 +550,19 @@ for lvl = [4, 5, 6, 7, 8]
                     %Increment scc_cntr for the next set of 8 sub-cells
                     scc_cntr = scc_cntr + 64; 
                     cell_cntr = cell_cntr + 1;
-                end
+                end %End sub_cell_8set
                 %For each corner coordinate in subcell_coords, compute the
-                %control point associated with this corner, by interpolating 
-                %(tri-linear interpolation) between the original parent control
-                %points, current_ctrlpts. Then, for each set of 8 corner coordinates
-                %(i.e., for each sub-cell), check if all 8 of this cell's
-                %interpolated control points have the same sign: if they don't, store this
-                %sub-cell's coordinates in subcell_coords_all for the current
-                %level, "lvl_d"; if they do have the same sign, do nothing
-                %further, as this sub-cell will not be a candidate for further
-                %subdivision at the next octree level.
-                disp(['  Computing and checking the signs of interpolated control points for each sub-cell at this level (8 control points per sub-cell, ' num2str(size(subcell_coords, 1)/8) ' sub-cells in total)']);
-                zcc_coords_cntr = 1;    %Counter for coordinates of cells at level "lvl_d", which contain zero crossings
+                %control point associated with this corner, by 
+                %interpolating (tri-linear interpolation) between the 
+                %original parent control points, current_ctrlpts
+                disp(['  Computing interpolated control points for each sub-cell at this level (8 control points per sub-cell, ' num2str(size(subcell_coords, 1)/8) ' sub-cells in total)']);
+                zcc_coords_cntr = 1;    %Counter for coordinates of cells at lvl_d, which will be candidates for further subdivision
                 for sub_cell_8set = 1:8:(size(subcell_coords, 1) - 7)
                     %Get all 8 corner coordinates for the current sub-cell
                     sc_coords = subcell_coords((sub_cell_8set:(sub_cell_8set + 7)), :);
-                    %Normalize sc_coords to be in the range [0, 1], because the
-                    %trilinear interpolation formula (used below) expects the
-                    %(x, y, z) values to be in this range
+                    %Normalize sc_coords to be in the range [0, 1], because 
+                    %the trilinear interpolation formula (used below) 
+                    %expects the (x, y, z) values to be in this range
                     sc_coords_orig = sc_coords;
                     %sc_coords = (sc_coords - sc_coords(1, :))/(2^(b + 1 - lvl_d));   %Subtract the origin of the current sub-cell, and divide by the cell width
                     sc_coords = (sc_coords - current_corner_coords(1, :))/(2^(b + 1 - lvl));
@@ -697,26 +642,17 @@ for lvl = [4, 5, 6, 7, 8]
                         subcell_ctrlpts_cntr = subcell_ctrlpts_cntr + 1;
                     end
                     subcell_ctrlpts = subcell_ctrlpts'; %Want a column vector
-    %                 for c = 1:8
-    %                     subcell_ctrlpts(c) = current_ctrlpts(1)*(1 - sc_coords(c, 1))*(1 - sc_coords(c, 2))*(1 - sc_coords(c, 3)) ...
-    %                         + current_ctrlpts(2)*sc_coords(c, 1)*(1 - sc_coords(c, 2))*(1 - sc_coords(c, 3)) ...
-    %                         + current_ctrlpts(3)*sc_coords(c, 1)*sc_coords(c, 2)*(1 - sc_coords(c, 3)) ...
-    %                         + current_ctrlpts(4)*(1 - sc_coords(c, 1))*sc_coords(c, 2)*(1 - sc_coords(c, 3)) ...
-    %                         + current_ctrlpts(5)*(1 - sc_coords(c, 1))*(1 - sc_coords(c, 2))*sc_coords(c, 3) ...
-    %                         + current_ctrlpts(6)*sc_coords(c, 1)*(1 - sc_coords(c, 2))*sc_coords(c, 3) ...
-    %                         + current_ctrlpts(7)*sc_coords(c, 1)*sc_coords(c, 2)*sc_coords(c, 3) ...
-    %                         + current_ctrlpts(8)*(1 - sc_coords(c, 1))*sc_coords(c, 2)*sc_coords(c, 3);
-    %                 end
+
                     %If we are one level before the leaf level
                     if lvl_d == b
                         %Check interpolated control point signs
                         if (sum(sign(subcell_ctrlpts)) == length(subcell_ctrlpts))||(sum(sign(subcell_ctrlpts)) == -length(subcell_ctrlpts))
-                            %If all control points have the same sign,
+                            %If all the control points have the same sign,
                             %consider the current sub-cell unoccupied: it
                             %will not be subdivided further
                             continue;
                         else
-                            %If control points do not all have the same
+                            %If the control points do not all have the same
                             %sign, consider the current sub-cell occupied:
                             %it will be subdivided further
                             subcell_coords_all{lvl_d, occ_cell}((zcc_coords_cntr:(zcc_coords_cntr + 7)), 1:3) = sc_coords_orig;
@@ -728,27 +664,17 @@ for lvl = [4, 5, 6, 7, 8]
                         subcell_coords_all{lvl_d, occ_cell}((zcc_coords_cntr:(zcc_coords_cntr + 7)), 1:3) = sc_coords_orig;
                         zcc_coords_cntr = zcc_coords_cntr + 8;
                     end
-                end      
+                end %End sub_cell_8set      
             end %End lvl_d
         end %End check if lvl == (b + 1)  
-    %end %End check if control points for current occ_cell have same signs
-    disp('------------------------------------------------------------');
+        disp('------------------------------------------------------------');
     end %End occ_cell
-    disp(['No. of cells incorrectly identified as unoccupied at level ' num2str(lvl) ': ' num2str(unocc_cells_detected) '/' num2str(size(SpatialIndex{lvl}, 1))]);
-    disp('------------------------------------------------------------');
 
-    disp(['Collecting all reconstructed voxels for each occupied cell at level ' num2str(lvl) ' and finding their centre coordinates ...']);
     %Collect all of the sub-cell coordinates stored at the leaf levels of
     %subcell_coords_all, for each occ_cell at level "lvl": these represent
     %our reconstructed voxel (x, y, z) corner coordinates obtained from the 
     %reconstructed control points at level "lvl".
-%     v_cntr = 1;
-%     for sca = 1:size(subcell_coords_all, 2)
-%         if ~isempty(subcell_coords_all{end, sca})
-%             reconstructed_vox_pos_corners(v_cntr:(v_cntr + size(subcell_coords_all{end, sca}, 1) - 1), 1:3) = subcell_coords_all{end, sca};
-%             v_cntr = v_cntr + size(subcell_coords_all{end, sca}, 1);
-%         end
-%     end
+    disp(['Collecting all reconstructed voxels for each occupied cell at level ' num2str(lvl) ' and finding their centre coordinates ...']);
     reconstructed_vox_pos_corners = cat(1, subcell_coords_all{end, :});
     %Our input point cloud's voxel coordinates were considered to be the 
     %centres of the 1x1x1 voxels, so find the midpoint of each voxel cell
@@ -786,18 +712,25 @@ for lvl = [4, 5, 6, 7, 8]
     figure;
     %NOTE: Below, we are only reading in the original PLY file in order to
     %get the corresponding colours assigned to each reconstructed voxel
-    %(this can be done when the same number of voxels is reconstructed as
-    %in the original point cloud, and these voxels are in the same order as
-    %the original, which was done above)
+    %(the code below will only work when the same number of voxels is 
+    %reconstructed as in the original point cloud, and these voxels are in 
+    %the same order as the original voxels, which was done above)
     [~, ptcloud, ~] = plyRead(ptcloud_file);
     if size(reconstructed_vox_pos, 1) == size(ptcloud, 1)
+        %Plot the reconstructed point cloud with the original colours
+        %assigned to each reconstructed voxel
         scatter3(reconstructed_vox_pos(:, 1), reconstructed_vox_pos(:, 2), reconstructed_vox_pos(:, 3), 5, [ptcloud(:, 7)./255, ptcloud(:, 8)./255, ptcloud(:, 9)./255], 'filled');
     else
+        %Plot the reconstructed point cloud using a default colour for all
+        %voxels, since the reconstruction does not contain the same number 
+        %of voxels as the original point cloud 
         scatter3(reconstructed_vox_pos(:, 1), reconstructed_vox_pos(:, 2), reconstructed_vox_pos(:, 3), 5, 'filled');
     end
     axis equal; axis off;
-    if lvl ~= max_lvl
+    %If we are not at the leaf level ...
+    if lvl ~= (b + 1)
         title({'Voxel Reconstruction Using Only Reconstructed Control Points', ['at Octree Level ' num2str(lvl) ' and Interpolating at Higher Levels']});
+    %If we are at the leaf level ...
     else
         title({'Voxel Reconstruction Using Only Reconstructed Control Points', ['at Octree Level ' num2str(lvl) ' (Leaf Level) - No Interpolation Required']});
     end
@@ -811,11 +744,12 @@ for lvl = [4, 5, 6, 7, 8]
     disp('Saving reconstructed voxels figure ...');
     disp('------------------------------------------------------------');
     
-    if lvl == max_lvl
-        %For debugging purposes, if we are at the leaf level, check if there 
-        %are any voxels in the original voxelized point cloud that have not 
-        %been reconstructed (i.e., are not present in reconstructed_vox_pos),
-        %and if so then plot these 
+    %For debugging purposes ...
+    if lvl == (b + 1)
+        %For debugging purposes, if we are at the leaf level, check if 
+        %there are any voxels in the original voxelized point cloud that 
+        %have not been reconstructed (i.e., are not present in 
+        %reconstructed_vox_pos), and if so then plot these 
         test_vox_diffs = setdiff(ptcloud(:, 1:3), reconstructed_vox_pos, 'rows');
         disp(['Number of missing voxels in leaf level reconstruction: ' num2str(size(test_vox_diffs, 1)) '/' num2str(size(ptcloud, 1)) ' (' num2str((size(test_vox_diffs, 1)/size(ptcloud, 1))*100) '%)']);
         if ~isempty(test_vox_diffs)
@@ -828,9 +762,10 @@ for lvl = [4, 5, 6, 7, 8]
             disp('Saving missing voxels figure ...');
             disp('------------------------------------------------------------');
         end
-        %For debugging purposes, if we are at the leaf level, also check if any
-        %voxels are present in reconstructed_vox_pos that were NOT present in 
-        %the original voxelized point cloud, and if so then plot these
+        %For debugging purposes, if we are at the leaf level, also check if 
+        %any voxels are present in reconstructed_vox_pos that were NOT 
+        %present in the original voxelized point cloud, and if so then plot 
+        %these
         test_vox_diffs2 = setdiff(reconstructed_vox_pos, ptcloud(:, 1:3), 'rows');
         disp(['Number of incorrectly reconstructed voxels at leaf level: ' num2str(size(test_vox_diffs2, 1))]);
         if ~isempty(test_vox_diffs2)
@@ -843,7 +778,7 @@ for lvl = [4, 5, 6, 7, 8]
             disp('Saving incorrect voxels figure ...');
             disp('------------------------------------------------------------');
         end
-    end
+    end %End check if lvl == (b + 1) for debugging purposes    
     
 end %End "lvl"
 disp(' ');

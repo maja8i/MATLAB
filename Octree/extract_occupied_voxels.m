@@ -56,7 +56,8 @@
 
 %-------------------------------------------------------------------------%
 
-function [occupied_Morton_codes, occupied_voxel_coords, occupied_voxel_normals, occupied_voxel_centroids] = extract_occupied_voxels(myOT, mortonCodes_sorted, xyz_sorted, varargin)
+%function [occupied_Morton_codes, occupied_voxel_coords, occupied_voxel_normals, occupied_voxel_centroids] = extract_occupied_voxels(myOT, mortonCodes_sorted, xyz_sorted, varargin)
+function [occupied_Morton_codes, occupied_voxel_coords, varargout] = extract_occupied_voxels(myOT, mortonCodes_sorted, xyz_sorted, varargin)
 
 %Initialize cell arrays to store Morton codes and corresponding x, y, z
 %coordinates for occupied voxels in each occupied cell at each level of the
@@ -123,6 +124,15 @@ for lvl = 1:(myOT.Depth + 1)
         end
     end
 end
+
+if numel(varargin) >= 1
+    varargout{1} = occupied_voxel_normals;
+end
+
+if numel(varargin) >= 2
+    varargout{2} = occupied_voxel_centroids;
+end
+
 
 % %For each level of the octree myOT ...
 % for lvl = 1:(myOT.Depth + 1)
