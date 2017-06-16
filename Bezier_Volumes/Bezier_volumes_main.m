@@ -14,8 +14,8 @@ ptcloud_name = 'boxer'; %Must be in PLY format
 %e.g., b = 10 for voxelized10 point clouds, b = 11 for voxelized11 clouds.
 b = 7;
 %Full path to the input PLY file
-ptcloud_file = ['\\pandora\builds\test\Data\Compression\PLY\Point_Clouds\8i\voxelized' num2str(b) '_WithNormalsAndCentroids\' ptcloud_name '_voxelized' num2str(b) '.ply'];
-%ptcloud_file = ['\\pandora\builds\test\Data\Compression\PLY\Point_Clouds\8i\voxelized' num2str(b) '_WithNormals\' ptcloud_name '_voxelized' num2str(b) '.ply'];
+%ptcloud_file = ['\\pandora\builds\test\Data\Compression\PLY\Point_Clouds\8i\voxelized' num2str(b) '_WithNormalsAndCentroids\' ptcloud_name '_voxelized' num2str(b) '.ply'];
+ptcloud_file = ['\\pandora\builds\test\Data\Compression\PLY\Point_Clouds\8i\voxelized' num2str(b) '_WithNormals\' ptcloud_name '_voxelized' num2str(b) '.ply'];
 %ptcloud_file = ['\\pandora\storage\users\phil\maja\voxelized7_Test\' ptcloud_name '_voxelized' num2str(b) '.ply'];
 %Octree level(s) to use (one at a time, if there is more than one listed
 %below) as the base level for transmitting control points, and from which
