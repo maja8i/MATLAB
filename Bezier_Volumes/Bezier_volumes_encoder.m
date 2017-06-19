@@ -149,7 +149,7 @@ shared_edge_inds = cell(b, 1);
 % end
 % 
 % %for lvl = 1:vis_levels_ot
-for lvl = [4]
+for lvl = [4, 5]
 %     %Plot all the unique corner points at the current octree level, over
 %     %the top of the input 3D point cloud
 %     scatter3(unique_coords{lvl}(:, 1), unique_coords{lvl}(:, 2), unique_coords{lvl}(:, 3), 10, colours(lvl, :), 'filled');
@@ -530,13 +530,14 @@ for lvl = [4]
         %outline; if the control point is positive, plot the control point
         %in green with a black outline.
         if (control_points{lvl}(c) < 0)
-            scatter3(unique_coords{lvl}(c, 1), unique_coords{lvl}(c, 2), unique_coords{lvl}(c, 3), 80, 'MarkerEdgeColor', 'k', 'LineWidth', 1.5, 'MarkerFaceColor', 'r');
+            h_cp(1) = scatter3(unique_coords{lvl}(c, 1), unique_coords{lvl}(c, 2), unique_coords{lvl}(c, 3), 80, 'MarkerEdgeColor', 'k', 'LineWidth', 1.5, 'MarkerFaceColor', 'r');
         elseif (control_points{lvl}(c) > 0)
-            scatter3(unique_coords{lvl}(c, 1), unique_coords{lvl}(c, 2), unique_coords{lvl}(c, 3), 80, 'MarkerEdgeColor', 'k', 'LineWidth', 1.5, 'MarkerFaceColor', 'g');
+            h_cp(2) = scatter3(unique_coords{lvl}(c, 1), unique_coords{lvl}(c, 2), unique_coords{lvl}(c, 3), 80, 'MarkerEdgeColor', 'k', 'LineWidth', 1.5, 'MarkerFaceColor', 'g');
         end
         hold on;
     end
     hold off;
+    legend(h_cp, 'Has -ive control point', 'Has +ive control point', 'Location', 'best');
     title(['Control Points at Octree Level ' num2str(lvl)]);
     savefig(['\\Pandora\builds\test\Data\Compression\PLY\Codec_Results\' ptcloud_name '\voxelized' num2str(b) '\BezierVolume\ctrl_pts_visualization_lvl' num2str(lvl)]);
     print('-bestfit', ['\\Pandora\builds\test\Data\Compression\PLY\Codec_Results\' ptcloud_name '\voxelized' num2str(b) '\BezierVolume\ctrl_pts_visualization_lvl' num2str(lvl)], '-dpdf');
@@ -903,6 +904,96 @@ for lvl = start_lvl:(max_lvl - 1)
     %minimum page margin of .25 inches).
     savefig(['\\Pandora\builds\test\Data\Compression\PLY\Codec_Results\' ptcloud_name '\voxelized' num2str(b) '\BezierVolume\histogram_wavcfs_lvls' num2str(lvl) '-' num2str(lvl + 1)]);
     print('-bestfit', ['\\Pandora\builds\test\Data\Compression\PLY\Codec_Results\' ptcloud_name '\voxelized' num2str(b) '\BezierVolume\histogram_wavcfs_lvls' num2str(lvl) '-' num2str(lvl + 1)], '-dpdf');
+end
+
+%---------------- Checking for Zero Wavelet Coefficients -----------------%
+
+disp(' ');
+disp('------- Checking for All Zero Wavelet Coefficients  --------');
+disp(' ');
+
+%Cell array to store the indices of the occupied octree cells at each level
+%that have zero wavelet coefficients on all of their corners
+all_zero_wav_cfs = cell((max_lvl - start_lvl), 1);
+%Cell array to store the midpoints of the occupied octree cells at each
+%level that have zero wavelet coefficients on all of their corners (only
+%needed for display purposes, later)
+all_zero_cell_midpoints = cell((max_lvl - start_lvl), 1);
+
+%At each octree level, check which occupied octree cells (if any) have zero
+%wavelet coefficients on all of their corners
+for lvl = (start_lvl + 1):max_lvl
+    disp(['Processing octree level ' num2str(lvl) ' ...']);
+    %Counter for number of occupied cells at this level, which contain all
+    %zero wavelet coefficients
+    zw_cntr = 1;
+    for occ_cell = 1:myOT.NodeCount(lvl)
+        %Get the wavelet coefficient for each of the 8 corners of this cell
+        current_wavelet_coeffs = wavelet_coeffs{lvl}(ctrl_pts_pointers{lvl}((occ_cell*8 - 7):(occ_cell*8)));
+        if sum(current_wavelet_coeffs) == 0
+            disp(['All zero wavelet coefficients for occupied cell ' num2str(occ_cell)]);
+            all_zero_wav_cfs{lvl}(zw_cntr) = occ_cell; 
+            %Get the midpoints of the current cell (only needed for display
+            %purposes, later)
+            all_zero_cell_midpoints{lvl}(zw_cntr, 1:3) = mean(corner_coords{lvl}(((occ_cell*8 - 7):(occ_cell*8)), :), 1);
+            zw_cntr = zw_cntr + 1;
+        end
+    end
+    disp('------------------------------------------------------------');
+end
+
+%---------- Visualization of Zero Wavelet Coefficient Locations ----------%
+
+disp(' ');
+disp('Visualizing locations of zero wavelet coefficients on octree cell corners ...'); 
+disp('------------------------------------------------------------');
+
+% Read in the input point cloud (assume PLY format)
+[~, ptcloud, ~] = plyRead(ptcloud_file);
+%For each octree level ...
+for lvl = [4, 5]  
+    %Display the input point cloud
+    figure;
+    scatter3(ptcloud(:, 1), ptcloud(:, 2), ptcloud(:, 3), 5, [ptcloud(:, 7)./255, ptcloud(:, 8)./255, ptcloud(:, 9)./255], 'filled');
+    axis equal; axis off;
+    hold on; 
+    %For each unique corner at this level ...
+    for c = 1:size(unique_coords{lvl}, 1)
+        %Display all the octree cells at this level ...
+        %Get the list of vertex indices that share an edge with the 
+        %current vertex
+        edge_pts_indices = shared_edge_inds{lvl, c};
+        %Get the (x, y, z) coordinates corresponding to all the
+        %edge_pts_indices
+        edge_pts_coords = unique_coords{lvl}(edge_pts_indices, :);
+        %Connect the current vertex to all the edge_pts_coords with 
+        %straight lines
+        for nv = 1:length(edge_pts_indices) %"nv" stands for neighbouring vertex
+            plot3([unique_coords{lvl}(c, 1) edge_pts_coords(nv, 1)], [unique_coords{lvl}(c, 2) edge_pts_coords(nv, 2)], [unique_coords{lvl}(c, 3) edge_pts_coords(nv, 3)], 'Color', 'k');
+            hold on;
+        end
+        %If this corner has a zero wavelet coefficient, plot the corner 
+        %point in red with a black outline; otherwise, don't plot the
+        %corner point
+        if (wavelet_coeffs{lvl}(c) == 0)
+            h_zw(1) = scatter3(unique_coords{lvl}(c, 1), unique_coords{lvl}(c, 2), unique_coords{lvl}(c, 3), 80, 'MarkerEdgeColor', 'k', 'LineWidth', 1.5, 'MarkerFaceColor', 'r');
+        end
+        hold on;
+    end
+    if ~isempty(all_zero_wav_cfs{lvl})
+        %Display the occupied cell index in the centre of each occupied 
+        %cell at this level that contains all zero wavelet coefficients
+        for ocz = 1:length(all_zero_wav_cfs{lvl})
+            text(all_zero_cell_midpoints{lvl}(ocz, 1), all_zero_cell_midpoints{lvl}(ocz, 2), all_zero_cell_midpoints{lvl}(ocz, 3), num2str(all_zero_wav_cfs{lvl}(ocz)), 'Color', 'b', 'FontSize', 18);
+        end
+    end   
+    hold off;
+    legend(h_zw, 'Has zero wavelet coefficient', 'Location', 'best');
+    title(['Locations of Zero Wavelet Coefficients at Octree Level ' num2str(lvl)]);
+    savefig(['\\Pandora\builds\test\Data\Compression\PLY\Codec_Results\' ptcloud_name '\voxelized' num2str(b) '\BezierVolume\zero_wavelet_coeffs_lvl' num2str(lvl)]);
+    print('-bestfit', ['\\Pandora\builds\test\Data\Compression\PLY\Codec_Results\' ptcloud_name '\voxelized' num2str(b) '\BezierVolume\zero_wavelet_coeffs_lvl' num2str(lvl)], '-dpdf');
+    disp(['Level ' num2str(lvl) ' done']);
+    disp('------------------------------------------------------------');
 end
 
 %------------------------------- Encoding --------------------------------%
