@@ -919,6 +919,10 @@ all_zero_wav_cfs = cell((max_lvl - start_lvl), 1);
 %level that have zero wavelet coefficients on all of their corners (only
 %needed for display purposes, later)
 all_zero_cell_midpoints = cell((max_lvl - start_lvl), 1);
+%Cell array to store the indices of ctrl_pts_pointers for the occupied
+%octree cells at each level that have zero wavelet coefficients on all of
+%their corners (only needed for display purposes, later)
+all_zero_cell_ctrlpts_ptrs = cell((max_lvl - start_lvl), 1);
 
 %At each octree level, check which occupied octree cells (if any) have zero
 %wavelet coefficients on all of their corners
@@ -930,15 +934,20 @@ for lvl = (start_lvl + 1):max_lvl
     for occ_cell = 1:myOT.NodeCount(lvl)
         %Get the wavelet coefficient for each of the 8 corners of this cell
         current_wavelet_coeffs = wavelet_coeffs{lvl}(ctrl_pts_pointers{lvl}((occ_cell*8 - 7):(occ_cell*8)));
-        if sum(current_wavelet_coeffs) == 0
+        %If the wavelet coefficients at all the corners of this cell are 0
+        if isempty(find(current_wavelet_coeffs ~= 0))
             disp(['All zero wavelet coefficients for occupied cell ' num2str(occ_cell)]);
             all_zero_wav_cfs{lvl}(zw_cntr) = occ_cell; 
             %Get the midpoints of the current cell (only needed for display
             %purposes, later)
             all_zero_cell_midpoints{lvl}(zw_cntr, 1:3) = mean(corner_coords{lvl}(((occ_cell*8 - 7):(occ_cell*8)), :), 1);
+            %Store the control points pointers for each corner of this cell
+            %(only needed for display purposes, later)
+            all_zero_cell_ctrlpts_ptrs{lvl}(zw_cntr, 1:8) = ctrl_pts_pointers{lvl}((occ_cell*8 - 7):(occ_cell*8));
             zw_cntr = zw_cntr + 1;
         end
     end
+    disp(['TOTAL no. of occupied cells with all zero wavelet coefficients at this level: ' num2str(length(all_zero_wav_cfs{lvl}))]);
     disp('------------------------------------------------------------');
 end
 
@@ -981,14 +990,54 @@ for lvl = [4, 5]
         hold on;
     end
     if ~isempty(all_zero_wav_cfs{lvl})
-        %Display the occupied cell index in the centre of each occupied 
-        %cell at this level that contains all zero wavelet coefficients
+        %For each octree cell at this level, which has all zero wavelet
+        %coefficients
         for ocz = 1:length(all_zero_wav_cfs{lvl})
+            %Get the coordinates of all 8 corners of this cell
+            current_cell_coords = corner_coords{lvl}(((all_zero_wav_cfs{lvl}(ocz)*8 - 7):(all_zero_wav_cfs{lvl}(ocz)*8)), :);
+            %Connect the corners that share an edge, with thick red lines
+            %(see p86 in Logbook1 for the corner ordering used below)
+            %Connect corner 1 to corners 2, 4, and 5
+            for cnr2 = [2, 4, 5]
+                h_zw(2) = plot3([current_cell_coords(1, 1) current_cell_coords(cnr2, 1)], [current_cell_coords(1, 2) current_cell_coords(cnr2, 2)], [current_cell_coords(1, 3) current_cell_coords(cnr2, 3)], 'Color', 'r', 'LineWidth', 3);
+                hold on;
+            end
+            %Connect corner 2 to corners 3 and 6
+            for cnr2 = [3, 6]
+                h_zw(2) = plot3([current_cell_coords(2, 1) current_cell_coords(cnr2, 1)], [current_cell_coords(2, 2) current_cell_coords(cnr2, 2)], [current_cell_coords(2, 3) current_cell_coords(cnr2, 3)], 'Color', 'r', 'LineWidth', 3);
+                hold on;
+            end
+            %Connect corner 3 to corners 4 and 7
+            for cnr2 = [4, 7]
+                h_zw(2) = plot3([current_cell_coords(3, 1) current_cell_coords(cnr2, 1)], [current_cell_coords(3, 2) current_cell_coords(cnr2, 2)], [current_cell_coords(3, 3) current_cell_coords(cnr2, 3)], 'Color', 'r', 'LineWidth', 3);
+                hold on;
+            end
+            %Connect corner 4 to corner 8
+            h_zw(2) = plot3([current_cell_coords(4, 1) current_cell_coords(8, 1)], [current_cell_coords(4, 2) current_cell_coords(8, 2)], [current_cell_coords(4, 3) current_cell_coords(8, 3)], 'Color', 'r', 'LineWidth', 3);
+            hold on;
+            %Connect corner 5 to corners 6 and 8
+            for cnr2 = [6, 8]
+                h_zw(2) = plot3([current_cell_coords(5, 1) current_cell_coords(cnr2, 1)], [current_cell_coords(5, 2) current_cell_coords(cnr2, 2)], [current_cell_coords(5, 3) current_cell_coords(cnr2, 3)], 'Color', 'r', 'LineWidth', 3);
+                hold on;
+            end
+            %Connect corner 6 to corner 7
+            h_zw(2) = plot3([current_cell_coords(6, 1) current_cell_coords(7, 1)], [current_cell_coords(6, 2) current_cell_coords(7, 2)], [current_cell_coords(6, 3) current_cell_coords(7, 3)], 'Color', 'r', 'LineWidth', 3);
+            hold on;
+            %Connect corner 7 to corner 8
+            h_zw(2) = plot3([current_cell_coords(7, 1) current_cell_coords(8, 1)], [current_cell_coords(7, 2) current_cell_coords(8, 2)], [current_cell_coords(7, 3) current_cell_coords(8, 3)], 'Color', 'r', 'LineWidth', 3);
+            hold on;
+            %Display the occupied cell index in the centre of each occupied 
+            %cell at this level that contains all zero wavelet coefficients
             text(all_zero_cell_midpoints{lvl}(ocz, 1), all_zero_cell_midpoints{lvl}(ocz, 2), all_zero_cell_midpoints{lvl}(ocz, 3), num2str(all_zero_wav_cfs{lvl}(ocz)), 'Color', 'b', 'FontSize', 18);
+            hold on;
         end
     end   
     hold off;
-    legend(h_zw, 'Has zero wavelet coefficient', 'Location', 'best');
+    if ~isempty(all_zero_wav_cfs{lvl})
+        legend(h_zw, 'Has zero wavelet coefficient', 'Cell with all zero wavelet coefficients', 'Location', 'best');
+    else
+        legend(h_zw, 'Has zero wavelet coefficient', 'Location', 'best');
+    end
     title(['Locations of Zero Wavelet Coefficients at Octree Level ' num2str(lvl)]);
     savefig(['\\Pandora\builds\test\Data\Compression\PLY\Codec_Results\' ptcloud_name '\voxelized' num2str(b) '\BezierVolume\zero_wavelet_coeffs_lvl' num2str(lvl)]);
     print('-bestfit', ['\\Pandora\builds\test\Data\Compression\PLY\Codec_Results\' ptcloud_name '\voxelized' num2str(b) '\BezierVolume\zero_wavelet_coeffs_lvl' num2str(lvl)], '-dpdf');
