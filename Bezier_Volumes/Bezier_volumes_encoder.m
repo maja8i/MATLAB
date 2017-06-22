@@ -494,56 +494,56 @@ disp('************************************************************');
 %      end %End current unique corner at level "lvl"
 % end %End octree level "lvl"
 
-%---- Visualization of OT Cell Occupancy According to Control Points -----%
-
-disp(' ');
-disp('Visualizing octree cell occupancy according to control points ...'); 
-disp('------------------------------------------------------------');
-
-% Read in the input point cloud (assume PLY format)
-[~, ptcloud, ~] = plyRead(ptcloud_file);
-%For each octree level ...
-for lvl = [4]  
-    %Display the input point cloud
-    figure;
-    scatter3(ptcloud(:, 1), ptcloud(:, 2), ptcloud(:, 3), 5, [ptcloud(:, 7)./255, ptcloud(:, 8)./255, ptcloud(:, 9)./255], 'filled');
-    axis equal; axis off;
-    hold on; 
-    %For each unique corner at this level ...
-    for c = 1:size(unique_coords{lvl}, 1)
-        %Display all the octree cells at this level ...
-        %Get the list of vertex indices that share an edge with the 
-        %current vertex
-        edge_pts_indices = shared_edge_inds{lvl, c};
-        %Get the (x, y, z) coordinates corresponding to all the
-        %edge_pts_indices
-        edge_pts_coords = unique_coords{lvl}(edge_pts_indices, :);
-        %Connect the current vertex to all the edge_pts_coords with 
-        %straight lines
-        for nv = 1:length(edge_pts_indices) %"nv" stands for neighbouring vertex
-            plot3([unique_coords{lvl}(c, 1) edge_pts_coords(nv, 1)], [unique_coords{lvl}(c, 2) edge_pts_coords(nv, 2)], [unique_coords{lvl}(c, 3) edge_pts_coords(nv, 3)], 'Color', 'k');
-            hold on;
-        end
-        %Plot the current corner point on top of the input 3D point cloud 
-        %and the octree grid. If the control point associated with this
-        %corner is negative, plot the corner point in red with a black 
-        %outline; if the control point is positive, plot the control point
-        %in green with a black outline.
-        if (control_points{lvl}(c) < 0)
-            h_cp(1) = scatter3(unique_coords{lvl}(c, 1), unique_coords{lvl}(c, 2), unique_coords{lvl}(c, 3), 80, 'MarkerEdgeColor', 'k', 'LineWidth', 1.5, 'MarkerFaceColor', 'r');
-        elseif (control_points{lvl}(c) > 0)
-            h_cp(2) = scatter3(unique_coords{lvl}(c, 1), unique_coords{lvl}(c, 2), unique_coords{lvl}(c, 3), 80, 'MarkerEdgeColor', 'k', 'LineWidth', 1.5, 'MarkerFaceColor', 'g');
-        end
-        hold on;
-    end
-    hold off;
-    legend(h_cp, 'Has -ive control point', 'Has +ive control point', 'Location', 'best');
-    title(['Control Points at Octree Level ' num2str(lvl)]);
-    savefig(['\\Pandora\builds\test\Data\Compression\PLY\Codec_Results\' ptcloud_name '\voxelized' num2str(b) '\BezierVolume\ctrl_pts_visualization_lvl' num2str(lvl)]);
-    print('-bestfit', ['\\Pandora\builds\test\Data\Compression\PLY\Codec_Results\' ptcloud_name '\voxelized' num2str(b) '\BezierVolume\ctrl_pts_visualization_lvl' num2str(lvl)], '-dpdf');
-    disp(['Level ' num2str(lvl) ' done']);
-    disp('------------------------------------------------------------');
-end
+% %---- Visualization of OT Cell Occupancy According to Control Points -----%
+% 
+% disp(' ');
+% disp('Visualizing octree cell occupancy according to control points ...'); 
+% disp('------------------------------------------------------------');
+% 
+% % Read in the input point cloud (assume PLY format)
+% [~, ptcloud, ~] = plyRead(ptcloud_file);
+% %For each octree level ...
+% for lvl = [4]  
+%     %Display the input point cloud
+%     figure;
+%     scatter3(ptcloud(:, 1), ptcloud(:, 2), ptcloud(:, 3), 5, [ptcloud(:, 7)./255, ptcloud(:, 8)./255, ptcloud(:, 9)./255], 'filled');
+%     axis equal; axis off;
+%     hold on; 
+%     %For each unique corner at this level ...
+%     for c = 1:size(unique_coords{lvl}, 1)
+%         %Display all the octree cells at this level ...
+%         %Get the list of vertex indices that share an edge with the 
+%         %current vertex
+%         edge_pts_indices = shared_edge_inds{lvl, c};
+%         %Get the (x, y, z) coordinates corresponding to all the
+%         %edge_pts_indices
+%         edge_pts_coords = unique_coords{lvl}(edge_pts_indices, :);
+%         %Connect the current vertex to all the edge_pts_coords with 
+%         %straight lines
+%         for nv = 1:length(edge_pts_indices) %"nv" stands for neighbouring vertex
+%             plot3([unique_coords{lvl}(c, 1) edge_pts_coords(nv, 1)], [unique_coords{lvl}(c, 2) edge_pts_coords(nv, 2)], [unique_coords{lvl}(c, 3) edge_pts_coords(nv, 3)], 'Color', 'k');
+%             hold on;
+%         end
+%         %Plot the current corner point on top of the input 3D point cloud 
+%         %and the octree grid. If the control point associated with this
+%         %corner is negative, plot the corner point in red with a black 
+%         %outline; if the control point is positive, plot the control point
+%         %in green with a black outline.
+%         if (control_points{lvl}(c) < 0)
+%             h_cp(1) = scatter3(unique_coords{lvl}(c, 1), unique_coords{lvl}(c, 2), unique_coords{lvl}(c, 3), 80, 'MarkerEdgeColor', 'k', 'LineWidth', 1.5, 'MarkerFaceColor', 'r');
+%         elseif (control_points{lvl}(c) > 0)
+%             h_cp(2) = scatter3(unique_coords{lvl}(c, 1), unique_coords{lvl}(c, 2), unique_coords{lvl}(c, 3), 80, 'MarkerEdgeColor', 'k', 'LineWidth', 1.5, 'MarkerFaceColor', 'g');
+%         end
+%         hold on;
+%     end
+%     hold off;
+%     legend(h_cp, 'Has -ive control point', 'Has +ive control point', 'Location', 'best');
+%     title(['Control Points at Octree Level ' num2str(lvl)]);
+%     savefig(['\\Pandora\builds\test\Data\Compression\PLY\Codec_Results\' ptcloud_name '\voxelized' num2str(b) '\BezierVolume\ctrl_pts_visualization_lvl' num2str(lvl)]);
+%     print('-bestfit', ['\\Pandora\builds\test\Data\Compression\PLY\Codec_Results\' ptcloud_name '\voxelized' num2str(b) '\BezierVolume\ctrl_pts_visualization_lvl' num2str(lvl)], '-dpdf');
+%     disp(['Level ' num2str(lvl) ' done']);
+%     disp('------------------------------------------------------------');
+% end
 
 %------------------------- Wavelet Decomposition -------------------------%
 
@@ -951,99 +951,178 @@ for lvl = (start_lvl + 1):max_lvl
     disp('------------------------------------------------------------');
 end
 
-%---------- Visualization of Zero Wavelet Coefficient Locations ----------%
+% %---------- Visualization of Zero Wavelet Coefficient Locations ----------%
+% 
+% disp(' ');
+% disp('Visualizing locations of zero wavelet coefficients on octree cell corners ...'); 
+% disp('------------------------------------------------------------');
+% 
+% % Read in the input point cloud (assume PLY format)
+% [~, ptcloud, ~] = plyRead(ptcloud_file);
+% %For each octree level ...
+% for lvl = [4, 5]  
+%     %Display the input point cloud
+%     figure;
+%     scatter3(ptcloud(:, 1), ptcloud(:, 2), ptcloud(:, 3), 5, [ptcloud(:, 7)./255, ptcloud(:, 8)./255, ptcloud(:, 9)./255], 'filled');
+%     axis equal; axis off;
+%     hold on; 
+%     %For each unique corner at this level ...
+%     for c = 1:size(unique_coords{lvl}, 1)
+%         %Display all the octree cells at this level ...
+%         %Get the list of vertex indices that share an edge with the 
+%         %current vertex
+%         edge_pts_indices = shared_edge_inds{lvl, c};
+%         %Get the (x, y, z) coordinates corresponding to all the
+%         %edge_pts_indices
+%         edge_pts_coords = unique_coords{lvl}(edge_pts_indices, :);
+%         %Connect the current vertex to all the edge_pts_coords with 
+%         %straight lines
+%         for nv = 1:length(edge_pts_indices) %"nv" stands for neighbouring vertex
+%             plot3([unique_coords{lvl}(c, 1) edge_pts_coords(nv, 1)], [unique_coords{lvl}(c, 2) edge_pts_coords(nv, 2)], [unique_coords{lvl}(c, 3) edge_pts_coords(nv, 3)], 'Color', 'k');
+%             hold on;
+%         end
+%         %If this corner has a zero wavelet coefficient, plot the corner 
+%         %point in red with a black outline; otherwise, don't plot the
+%         %corner point
+%         if (wavelet_coeffs{lvl}(c) == 0)
+%             h_zw(1) = scatter3(unique_coords{lvl}(c, 1), unique_coords{lvl}(c, 2), unique_coords{lvl}(c, 3), 50, 'MarkerEdgeColor', 'k', 'LineWidth', 1.5, 'MarkerFaceColor', 'r');
+%         end
+%         hold on;
+%     end
+%     if ~isempty(all_zero_wav_cfs{lvl})
+%         %For each octree cell at this level, which has all zero wavelet
+%         %coefficients
+%         for ocz = 1:length(all_zero_wav_cfs{lvl})
+%             %Get the coordinates of all 8 corners of this cell
+%             current_cell_coords = corner_coords{lvl}(((all_zero_wav_cfs{lvl}(ocz)*8 - 7):(all_zero_wav_cfs{lvl}(ocz)*8)), :);
+%             %Connect the corners that share an edge, with thick red lines
+%             %(see p86 in Logbook1 for the corner ordering used below)
+%             %Connect corner 1 to corners 2, 4, and 5
+%             for cnr2 = [2, 4, 5]
+%                 h_zw(2) = plot3([current_cell_coords(1, 1) current_cell_coords(cnr2, 1)], [current_cell_coords(1, 2) current_cell_coords(cnr2, 2)], [current_cell_coords(1, 3) current_cell_coords(cnr2, 3)], 'Color', 'r', 'LineWidth', 3);
+%                 hold on;
+%             end
+%             %Connect corner 2 to corners 3 and 6
+%             for cnr2 = [3, 6]
+%                 h_zw(2) = plot3([current_cell_coords(2, 1) current_cell_coords(cnr2, 1)], [current_cell_coords(2, 2) current_cell_coords(cnr2, 2)], [current_cell_coords(2, 3) current_cell_coords(cnr2, 3)], 'Color', 'r', 'LineWidth', 3);
+%                 hold on;
+%             end
+%             %Connect corner 3 to corners 4 and 7
+%             for cnr2 = [4, 7]
+%                 h_zw(2) = plot3([current_cell_coords(3, 1) current_cell_coords(cnr2, 1)], [current_cell_coords(3, 2) current_cell_coords(cnr2, 2)], [current_cell_coords(3, 3) current_cell_coords(cnr2, 3)], 'Color', 'r', 'LineWidth', 3);
+%                 hold on;
+%             end
+%             %Connect corner 4 to corner 8
+%             h_zw(2) = plot3([current_cell_coords(4, 1) current_cell_coords(8, 1)], [current_cell_coords(4, 2) current_cell_coords(8, 2)], [current_cell_coords(4, 3) current_cell_coords(8, 3)], 'Color', 'r', 'LineWidth', 3);
+%             hold on;
+%             %Connect corner 5 to corners 6 and 8
+%             for cnr2 = [6, 8]
+%                 h_zw(2) = plot3([current_cell_coords(5, 1) current_cell_coords(cnr2, 1)], [current_cell_coords(5, 2) current_cell_coords(cnr2, 2)], [current_cell_coords(5, 3) current_cell_coords(cnr2, 3)], 'Color', 'r', 'LineWidth', 3);
+%                 hold on;
+%             end
+%             %Connect corner 6 to corner 7
+%             h_zw(2) = plot3([current_cell_coords(6, 1) current_cell_coords(7, 1)], [current_cell_coords(6, 2) current_cell_coords(7, 2)], [current_cell_coords(6, 3) current_cell_coords(7, 3)], 'Color', 'r', 'LineWidth', 3);
+%             hold on;
+%             %Connect corner 7 to corner 8
+%             h_zw(2) = plot3([current_cell_coords(7, 1) current_cell_coords(8, 1)], [current_cell_coords(7, 2) current_cell_coords(8, 2)], [current_cell_coords(7, 3) current_cell_coords(8, 3)], 'Color', 'r', 'LineWidth', 3);
+%             hold on;
+%             %Display the occupied cell index in the centre of each occupied 
+%             %cell at this level that contains all zero wavelet coefficients
+%             text(all_zero_cell_midpoints{lvl}(ocz, 1), all_zero_cell_midpoints{lvl}(ocz, 2), all_zero_cell_midpoints{lvl}(ocz, 3), num2str(all_zero_wav_cfs{lvl}(ocz)), 'Color', 'b', 'FontSize', 18);
+%             hold on;
+%         end
+%     end   
+%     hold off;
+%     if ~isempty(all_zero_wav_cfs{lvl})
+%         legend(h_zw, 'Has zero wavelet coefficient', 'Cell with all zero wavelet coefficients', 'Location', 'best');
+%     else
+%         legend(h_zw, 'Has zero wavelet coefficient', 'Location', 'best');
+%     end
+%     title(['Locations of Zero Wavelet Coefficients at Octree Level ' num2str(lvl)]);
+%     savefig(['\\Pandora\builds\test\Data\Compression\PLY\Codec_Results\' ptcloud_name '\voxelized' num2str(b) '\BezierVolume\zero_wavelet_coeffs_lvl' num2str(lvl)]);
+%     print('-bestfit', ['\\Pandora\builds\test\Data\Compression\PLY\Codec_Results\' ptcloud_name '\voxelized' num2str(b) '\BezierVolume\zero_wavelet_coeffs_lvl' num2str(lvl)], '-dpdf');
+%     disp(['Level ' num2str(lvl) ' done']);
+%     disp('------------------------------------------------------------');
+% end
+
+%------------- Pruning Wavelet Coefficient Tree and Octree ---------------%
 
 disp(' ');
-disp('Visualizing locations of zero wavelet coefficients on octree cell corners ...'); 
-disp('------------------------------------------------------------');
+disp('-------- Pruning Wavelet Coeff. Tree and Octree ------------');
+disp(' ');
 
-% Read in the input point cloud (assume PLY format)
-[~, ptcloud, ~] = plyRead(ptcloud_file);
-%For each octree level ...
-for lvl = [4, 5]  
-    %Display the input point cloud
-    figure;
-    scatter3(ptcloud(:, 1), ptcloud(:, 2), ptcloud(:, 3), 5, [ptcloud(:, 7)./255, ptcloud(:, 8)./255, ptcloud(:, 9)./255], 'filled');
-    axis equal; axis off;
-    hold on; 
-    %For each unique corner at this level ...
-    for c = 1:size(unique_coords{lvl}, 1)
-        %Display all the octree cells at this level ...
-        %Get the list of vertex indices that share an edge with the 
-        %current vertex
-        edge_pts_indices = shared_edge_inds{lvl, c};
-        %Get the (x, y, z) coordinates corresponding to all the
-        %edge_pts_indices
-        edge_pts_coords = unique_coords{lvl}(edge_pts_indices, :);
-        %Connect the current vertex to all the edge_pts_coords with 
-        %straight lines
-        for nv = 1:length(edge_pts_indices) %"nv" stands for neighbouring vertex
-            plot3([unique_coords{lvl}(c, 1) edge_pts_coords(nv, 1)], [unique_coords{lvl}(c, 2) edge_pts_coords(nv, 2)], [unique_coords{lvl}(c, 3) edge_pts_coords(nv, 3)], 'Color', 'k');
-            hold on;
-        end
-        %If this corner has a zero wavelet coefficient, plot the corner 
-        %point in red with a black outline; otherwise, don't plot the
-        %corner point
-        if (wavelet_coeffs{lvl}(c) == 0)
-            h_zw(1) = scatter3(unique_coords{lvl}(c, 1), unique_coords{lvl}(c, 2), unique_coords{lvl}(c, 3), 80, 'MarkerEdgeColor', 'k', 'LineWidth', 1.5, 'MarkerFaceColor', 'r');
-        end
-        hold on;
-    end
+%Create a copy of the wavelet_coeffs cell array, which will contain the 
+%pruned set of wavelet coefficients
+pruned_wavelet_coeffs = wavelet_coeffs;
+%Create a copy of the myOT.OccupancyCode cell array, which will contain the
+%pruned set of occupancy codes
+pruned_occupancy_codes = myOT.OccupancyCode;
+%Create a supplementary cell array that will eventually be the same size as 
+%the final pruned_occupancy_codes and pruned_wavelet_coeffs cell arrays. 
+%This supplementary cell array will contain a 1 where the corresponding 
+%occupied cell is a leaf node (after pruning) and a 0 where the 
+%corresponding occupied cell is internal (not a leaf node).
+post_pruning_array = cell(size(myOT.OccupancyCode));
+
+%For each octree level that contains wavelet coefficients, except the 
+%leaves ...
+for lvl = (start_lvl + 1):(max_lvl - 1) %Here assume max_lvl = b + 1
+    %If this level contains any occupied cells that have all zero wavelet
+    %coefficients ...
     if ~isempty(all_zero_wav_cfs{lvl})
-        %For each octree cell at this level, which has all zero wavelet
-        %coefficients
-        for ocz = 1:length(all_zero_wav_cfs{lvl})
-            %Get the coordinates of all 8 corners of this cell
-            current_cell_coords = corner_coords{lvl}(((all_zero_wav_cfs{lvl}(ocz)*8 - 7):(all_zero_wav_cfs{lvl}(ocz)*8)), :);
-            %Connect the corners that share an edge, with thick red lines
-            %(see p86 in Logbook1 for the corner ordering used below)
-            %Connect corner 1 to corners 2, 4, and 5
-            for cnr2 = [2, 4, 5]
-                h_zw(2) = plot3([current_cell_coords(1, 1) current_cell_coords(cnr2, 1)], [current_cell_coords(1, 2) current_cell_coords(cnr2, 2)], [current_cell_coords(1, 3) current_cell_coords(cnr2, 3)], 'Color', 'r', 'LineWidth', 3);
-                hold on;
-            end
-            %Connect corner 2 to corners 3 and 6
-            for cnr2 = [3, 6]
-                h_zw(2) = plot3([current_cell_coords(2, 1) current_cell_coords(cnr2, 1)], [current_cell_coords(2, 2) current_cell_coords(cnr2, 2)], [current_cell_coords(2, 3) current_cell_coords(cnr2, 3)], 'Color', 'r', 'LineWidth', 3);
-                hold on;
-            end
-            %Connect corner 3 to corners 4 and 7
-            for cnr2 = [4, 7]
-                h_zw(2) = plot3([current_cell_coords(3, 1) current_cell_coords(cnr2, 1)], [current_cell_coords(3, 2) current_cell_coords(cnr2, 2)], [current_cell_coords(3, 3) current_cell_coords(cnr2, 3)], 'Color', 'r', 'LineWidth', 3);
-                hold on;
-            end
-            %Connect corner 4 to corner 8
-            h_zw(2) = plot3([current_cell_coords(4, 1) current_cell_coords(8, 1)], [current_cell_coords(4, 2) current_cell_coords(8, 2)], [current_cell_coords(4, 3) current_cell_coords(8, 3)], 'Color', 'r', 'LineWidth', 3);
-            hold on;
-            %Connect corner 5 to corners 6 and 8
-            for cnr2 = [6, 8]
-                h_zw(2) = plot3([current_cell_coords(5, 1) current_cell_coords(cnr2, 1)], [current_cell_coords(5, 2) current_cell_coords(cnr2, 2)], [current_cell_coords(5, 3) current_cell_coords(cnr2, 3)], 'Color', 'r', 'LineWidth', 3);
-                hold on;
-            end
-            %Connect corner 6 to corner 7
-            h_zw(2) = plot3([current_cell_coords(6, 1) current_cell_coords(7, 1)], [current_cell_coords(6, 2) current_cell_coords(7, 2)], [current_cell_coords(6, 3) current_cell_coords(7, 3)], 'Color', 'r', 'LineWidth', 3);
-            hold on;
-            %Connect corner 7 to corner 8
-            h_zw(2) = plot3([current_cell_coords(7, 1) current_cell_coords(8, 1)], [current_cell_coords(7, 2) current_cell_coords(8, 2)], [current_cell_coords(7, 3) current_cell_coords(8, 3)], 'Color', 'r', 'LineWidth', 3);
-            hold on;
-            %Display the occupied cell index in the centre of each occupied 
-            %cell at this level that contains all zero wavelet coefficients
-            text(all_zero_cell_midpoints{lvl}(ocz, 1), all_zero_cell_midpoints{lvl}(ocz, 2), all_zero_cell_midpoints{lvl}(ocz, 3), num2str(all_zero_wav_cfs{lvl}(ocz)), 'Color', 'b', 'FontSize', 18);
-            hold on;
-        end
-    end   
-    hold off;
-    if ~isempty(all_zero_wav_cfs{lvl})
-        legend(h_zw, 'Has zero wavelet coefficient', 'Cell with all zero wavelet coefficients', 'Location', 'best');
-    else
-        legend(h_zw, 'Has zero wavelet coefficient', 'Location', 'best');
+        %In post_pruning_array at the current level, put a 1 in the
+        %location(s) corresponding to the occupied cell(s) found above, and
+        %0 in the other locations (1 indicates that the corresponding cells
+        %are leaf cells after pruning, and 0 indicates that the
+        %corresponding cells are internal)
+        post_pruning_array{lvl} = zeros(length(myOT.OccupancyCode{lvl}), 1);
+        post_pruning_array{lvl}(all_zero_wav_cfs{lvl}) = 1;
     end
-    title(['Locations of Zero Wavelet Coefficients at Octree Level ' num2str(lvl)]);
-    savefig(['\\Pandora\builds\test\Data\Compression\PLY\Codec_Results\' ptcloud_name '\voxelized' num2str(b) '\BezierVolume\zero_wavelet_coeffs_lvl' num2str(lvl)]);
-    print('-bestfit', ['\\Pandora\builds\test\Data\Compression\PLY\Codec_Results\' ptcloud_name '\voxelized' num2str(b) '\BezierVolume\zero_wavelet_coeffs_lvl' num2str(lvl)], '-dpdf');
-    disp(['Level ' num2str(lvl) ' done']);
-    disp('------------------------------------------------------------');
 end
+
+%For each octree level that contains wavelet coefficients, except the
+%leaves ...
+for lvl = (start_lvl + 1):(max_lvl - 2) %Here assume max_lvl = b + 1
+    %For each cell at this level, which contains all zero wavelet
+    %coefficients ...
+    for pruned_cell = all_zero_wav_cfs{lvl}
+        %If this cell has children ... 
+        if myOT.ChildCount{lvl}(pruned_cell) ~= 0
+            %Remove the occupancy codes for all the children of this cell, from
+            %pruned_occupancy_codes
+            pruned_occupancy_codes{lvl + 1}((myOT.FirstChildPtr{lvl}(pruned_cell)):(myOT.FirstChildPtr{lvl}(pruned_cell) + uint32((myOT.ChildCount{lvl}(pruned_cell))) - 1)) = [];
+            %Prune the post_pruning_array accordingly
+            post_pruning_array{lvl + 1}((myOT.FirstChildPtr{lvl}(pruned_cell)):(myOT.FirstChildPtr{lvl}(pruned_cell) + uint32((myOT.ChildCount{lvl}(pruned_cell))) - 1)) = [];
+            %For each higher octree level, except the leaves ...
+            parent_cells = ((myOT.FirstChildPtr{lvl}(pruned_cell)):(myOT.FirstChildPtr{lvl}(pruned_cell) + uint32((myOT.ChildCount{lvl}(pruned_cell)))));
+            for lvl2 = (lvl + 1):(max_lvl - 2)
+                %Get the descendants of the current pruned_cell, at level lvl2
+                descendants = zeros(sum(myOT.ChildCount{lvl2}(parent_cells)), 1);
+                first_children = myOT.FirstChildPtr{lvl2}(parent_cells);
+                desc_cntr = 1;
+                for fc = 1:length(first_children)
+                    descendants(desc_cntr:(desc_cntr + myOT.ChildCount{lvl2}(parent_cells(fc)) - 1)) = first_children(fc):(first_children(fc) + uint32(myOT.ChildCount{lvl2}(parent_cells(fc)) - 1));
+                    desc_cntr = desc_cntr + myOT.ChildCount{lvl2}(parent_cells(fc));
+                end
+                %Remove the occupancy codes of each of the descendants, from
+                %pruned_occupancy_codes
+                pruned_occupancy_codes{lvl2 + 1}(descendants) = [];
+                %Prune the post_pruning_array accordingly
+                post_pruning_array{lvl2 + 1}(descendants) = [];
+                %The new parent_cells, at the next octree level, will be the
+                %current "descendants"
+                parent_cells = descendants;
+            end %End lvl2 
+        end  
+    end %End pruned_cell    
+end %End lvl
+
+
+
+
+
+
+
 
 %------------------------------- Encoding --------------------------------%
 
@@ -1055,10 +1134,13 @@ disp(' ');
 %total number of input voxels
 [~, ptcloud, ~] = plyRead(ptcloud_file);
 
+%---- Occupancy Codes ----
+
 %Get the octree occupancy codes that will be transmitted to the decoder
 occupancy_codes_forDec = cell(b, 1);
 for i = 1:(max_lvl - 1)
-    occupancy_codes_forDec{i} = myOT.OccupancyCode{i};
+    %occupancy_codes_forDec{i} = myOT.OccupancyCode{i};
+    occupancy_codes_forDec{i} = pruned_occupancy_codes{i};
 end
 %Concatenate all of the occupancy codes (decimal values) at all octree 
 %levels from the root to (max_lvl - 1), into one long array
@@ -1086,6 +1168,42 @@ disp(['Total entropy bits for occupancy codes: ' num2str(bits_occ_codes) ' (' nu
 disp(['Occupancy codes bpv (bits per input voxel): ' num2str(bits_occ_codes/size(ptcloud, 1))]);
 disp(' ');
 
+%---- Post Pruning Array ----
+
+%Get the (parts of the) post_pruning_array that will be transmitted to the 
+%decoder
+post_pruning_array_forDec = cell(b, 1);
+for i = 1:(max_lvl - 1)
+    post_pruning_array_forDec{i} = post_pruning_array{i};
+end
+%Concatenate all of the bits from post_pruning_array_forDec, at all octree 
+%levels from the root to (max_lvl - 1), into one long array
+pp_cntr = 1;
+pp_array = [];
+for l = 1:(max_lvl - 1)
+    pp_array(pp_cntr:(pp_cntr + numel(post_pruning_array_forDec{l}) - 1)) = post_pruning_array_forDec{l};
+    pp_cntr = pp_cntr + numel(post_pruning_array_forDec{l});
+end
+%Plot a histogram of the bits inside pp_array
+figure;
+histogram(pp_array);
+title({'Histogram of Bits Indicating Leaf/Non-Leaf Octree Cell', ['from Level 1-' num2str(max_lvl - 1)]});
+%Save the above histogram as a MATLAB figure and as a PDF image in our
+%network directory (NB: The '-bestfit' option maximizes the size of the 
+%figure to fill the page, but preserves the aspect ratio of the figure. 
+%The figure might not fill the entire page. This option leaves a 
+%minimum page margin of .25 inches).
+savefig(['\\Pandora\builds\test\Data\Compression\PLY\Codec_Results\' ptcloud_name '\voxelized' num2str(b) '\BezierVolume\transmitted_histogram_pp_bits_lvl1-' num2str(max_lvl - 1)]);
+print('-bestfit', ['\\Pandora\builds\test\Data\Compression\PLY\Codec_Results\' ptcloud_name '\voxelized' num2str(b) '\BezierVolume\transmitted_histogram_pp_bits_lvl1-' num2str(max_lvl - 1)], '-dpdf');
+%Compute the number of bits required for pp_array
+bits_pp_array_persymbol = entropy_calc(pp_array);    %Avg. minimum no. of bits per symbol
+bits_pp_array = bits_pp_array_persymbol*length(pp_array);    %Total no. of bits for all symbols
+disp(['Total entropy bits for post-pruning array: ' num2str(bits_pp_array) ' (' num2str(bits_pp_array_persymbol) ' bits per symbol)']);
+disp(['pp_array bpv (bits per input voxel): ' num2str(bits_pp_array/size(ptcloud, 1))]);
+disp(' ');
+
+%---- Control Points at start_lvl ----
+
 %Get the quantized reconstructed control points (at start_lvl) that will be 
 %transmitted to the decoder
 rec_ctrlpts_forDec = reconstructed_control_points{start_lvl};
@@ -1106,6 +1224,8 @@ bits_ctrlpts = bits_ctrlpts_persymbol*length(rec_ctrlpts_forDec);    %Total no. 
 disp(['Total entropy bits for control points at start_lvl: ' num2str(bits_ctrlpts) ' (' num2str(bits_ctrlpts_persymbol) ' bits per symbol)']);
 disp(['start_lvl control points bpv (bits per input voxel): ' num2str(bits_ctrlpts/size(ptcloud, 1))]);
 disp(' ');
+
+%---- Wavelet Coefficients ----
 
 %Get the quantized wavelet coefficients that will be transmitted to the
 %decoder
@@ -1140,8 +1260,10 @@ disp(['Total entropy bits for wavelet coefficients: ' num2str(bits_wavelet_cfs) 
 disp(['Wavelet coefficients bpv (bits per input voxel): ' num2str(bits_wavelet_cfs/size(ptcloud, 1))]);
 disp(' ');
 
+%---- TOTALS ----
+
 %Compute total geometry bits for transmission
-total_geom_bits = bits_occ_codes + bits_ctrlpts + bits_wavelet_cfs;
+total_geom_bits = bits_occ_codes + bits_pp_array + bits_ctrlpts + bits_wavelet_cfs;
 total_geom_bpv = total_geom_bits/size(ptcloud, 1);
 disp(['TOTAL bits: ' num2str(total_geom_bits)]);
 disp(['TOTAL bpv: ' num2str(total_geom_bpv)]);

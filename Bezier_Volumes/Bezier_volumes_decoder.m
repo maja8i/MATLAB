@@ -64,8 +64,8 @@ for lvl = 1:(max_lvl - 1)
         %Convert the OccupancyCode decimal value for this cell's children,
         %into its binary representation
         bin_vec = dec2bin(OccupancyCode{lvl}(occ_cell), 8);
-        %The number of "1"s in bin_vec indicates the number of children
-        %that this octree cell has
+        %The number of "1"s in bin_vec indicates the number of occupied 
+        %children that this octree cell has
         ChildCount{lvl}(occ_cell) = numel(strfind(bin_vec, '1'));    
         %Find the locations in bin_vec where the vector contains '1's
         ones_inds = strfind(bin_vec, '1');
