@@ -11,7 +11,7 @@
 % vis_levels_ot = 5; %No. of octree levels for which we want to visualize the octree cell subdivision
 % vis_levels_ctrlpts = 2; %No. of octree levels for which we want to visualize the control point computation
 
-function [occupancy_codes_forDec, post_pruning_array_forDec, rec_ctrlpts_forDec, wavelet_coeffs_forDec, total_geom_bits, total_geom_bpv, reconstructed_control_points] = Bezier_volumes_encoder(ptcloud_file, b, start_lvl, max_lvl, q_stepsize, ptcloud_name)
+function [occupancy_codes_forDec, rec_ctrlpts_forDec, wavelet_coeffs_forDec, total_geom_bits, total_geom_bpv, reconstructed_control_points, varargout] = Bezier_volumes_encoder(ptcloud_file, b, start_lvl, max_lvl, q_stepsize, ptcloud_name, prune_flag)
 
 disp(' ');
 disp('============================================================');
@@ -916,15 +916,15 @@ disp(' ');
 
 %Cell array to store the indices of the occupied octree cells at each level
 %that have zero wavelet coefficients on all of their corners
-all_zero_wav_cfs = cell((max_lvl - start_lvl), 1);
+all_zero_wav_cfs = cell(size(wavelet_coeffs));
 %Cell array to store the midpoints of the occupied octree cells at each
 %level that have zero wavelet coefficients on all of their corners (only
 %needed for display purposes, later)
-all_zero_cell_midpoints = cell((max_lvl - start_lvl), 1);
+all_zero_cell_midpoints = cell(size(wavelet_coeffs));
 %Cell array to store the indices of ctrl_pts_pointers for the occupied
 %octree cells at each level that have zero wavelet coefficients on all of
 %their corners (only needed for display purposes, later)
-all_zero_cell_ctrlpts_ptrs = cell((max_lvl - start_lvl), 1);
+all_zero_cell_ctrlpts_ptrs = cell(size(wavelet_coeffs));
 
 %At each octree level, check which occupied octree cells (if any) have zero
 %wavelet coefficients on all of their corners
@@ -1047,129 +1047,234 @@ end
 %     disp('------------------------------------------------------------');
 % end
 
-%---------------------------- Pruning Octree -----------------------------%
+%Determine if octree and wavelet coefficient tree pruning is needed
+if prune_flag == 1
+    %-------------------------- Pruning Octree ---------------------------%
 
-disp(' ');
-disp('-------------------- Pruning Octree ------------------------');
-disp(' ');
+    disp(' ');
+    disp('-------------------- Pruning Octree ------------------------');
+    disp(' ');
 
-%Create a copy of the myOT.OccupancyCode cell array, which will contain the
-%pruned set of occupancy codes
-pruned_occupancy_codes = myOT.OccupancyCode;
-%Create a supplementary cell array that will eventually be the same size as 
-%the final pruned_occupancy_codes cell array. This supplementary cell array 
-%will contain a 1 where the corresponding occupied cell is a leaf node 
-%(after pruning) and a 0 where the corresponding occupied cell is internal 
-%(not a leaf node).
-post_pruning_array = cell(size(myOT.OccupancyCode));
+    %Create a copy of the myOT.OccupancyCode cell array, which will contain
+    %the pruned set of occupancy codes
+    pruned_occupancy_codes = myOT.OccupancyCode;
+    %Create a supplementary cell array that will eventually be the same 
+    %size as the final pruned_occupancy_codes cell array. This supp. cell 
+    %array will contain a 1 where the corresponding occupied cell is a leaf
+    %node (after pruning) and a 0 where the corresponding occupied cell is 
+    %internal (not a leaf node).
+    post_pruning_array = cell(size(myOT.OccupancyCode));
+    %Create a cell array that will contain the indices of the octree cells 
+    %whose occupancy codes are to be pruned away at each octree level, from
+    %pruned_occupancy_codes
+    toprune = cell(size(myOT.OccupancyCode));
+    %Create a cell array that will contain the indices of just the 
+    %descendants of cells in all_zero_wav_cfs at each level, which will be
+    %pruned away from post_pruning_array. NOTE: pruned_occupancy_codes and
+    %post_pruning_array will not be the same size at the end:
+    %pruned_occupancy_codes will contain one occupancy code per INTERNAL
+    %octree cell at each octree level, whereas post_pruning_array will
+    %contain a 1 or 0 bit for EACH of the remaining octree cells after 
+    %pruning, including the internal cells AND the leaves (except the 
+    %leaves at level b + 1).
+    toprune2 = cell(size(myOT.OccupancyCode));
 
-%For each octree level that contains wavelet coefficients, except the 
-%leaves ...
-for lvl = (start_lvl + 1):(max_lvl - 1) %Here assume max_lvl = b + 1
-    %If this level contains any occupied cells that have all zero wavelet
-    %coefficients ...
-    if ~isempty(all_zero_wav_cfs{lvl})
-        %In post_pruning_array at the current level, put a 1 in the
-        %location(s) corresponding to the occupied cell(s) found above, and
-        %0 in the other locations (1 indicates that the corresponding cells
-        %are leaf cells after pruning, and 0 indicates that the
-        %corresponding cells are internal)
-        post_pruning_array{lvl} = zeros(length(myOT.OccupancyCode{lvl}), 1);
-        post_pruning_array{lvl}(all_zero_wav_cfs{lvl}) = 1;
+    %For each octree level that contains wavelet coefficients, except the 
+    %leaves ...
+    for lvl = (start_lvl + 1):(max_lvl - 1) %Here assume max_lvl = b + 1
+        %If this level contains any occupied cells that have all zero
+        %wavelet coefficients ...
+        if ~isempty(all_zero_wav_cfs{lvl})
+            %In post_pruning_array at the current level, put a 1 in the
+            %location(s) corresponding to the occupied cell(s) found above,
+            %and a 0 in the other locations (1 indicates that the 
+            %corresponding cells are leaf cells after pruning, and 0 
+            %indicates that the corresponding cells are internal)
+            post_pruning_array{lvl} = zeros(length(myOT.OccupancyCode{lvl}), 1);
+            post_pruning_array{lvl}(all_zero_wav_cfs{lvl}) = 1;
+        end
     end
-end
 
-%For each octree level that contains wavelet coefficients, except the
-%leaves ...
-for lvl = (start_lvl + 1):(max_lvl - 2) %Here assume max_lvl = b + 1
-    %If there exist any occupied octree cells at this level, which contain 
-    %all zero wavelet coefficients ...
-    if ~isempty(all_zero_wav_cfs{lvl})
-        %For each cell at this level, which contains all zero wavelet
-        %coefficients ...
-        for pruned_cell = all_zero_wav_cfs{lvl}
-            %If this cell has children ... 
-            if myOT.ChildCount{lvl}(pruned_cell) ~= 0
-                %Remove the occupancy codes for all the children of this cell, from
-                %pruned_occupancy_codes
-                pruned_occupancy_codes{lvl + 1}((myOT.FirstChildPtr{lvl}(pruned_cell)):(myOT.FirstChildPtr{lvl}(pruned_cell) + uint32((myOT.ChildCount{lvl}(pruned_cell))) - 1)) = [];
-                %Prune the post_pruning_array accordingly
-                post_pruning_array{lvl + 1}((myOT.FirstChildPtr{lvl}(pruned_cell)):(myOT.FirstChildPtr{lvl}(pruned_cell) + uint32((myOT.ChildCount{lvl}(pruned_cell))) - 1)) = [];
-                %For each higher octree level, except the leaves ...
-                parent_cells = ((myOT.FirstChildPtr{lvl}(pruned_cell)):(myOT.FirstChildPtr{lvl}(pruned_cell) + uint32((myOT.ChildCount{lvl}(pruned_cell)))));
-                for lvl2 = (lvl + 1):(max_lvl - 2)
-                    %Get the descendants of the current pruned_cell, at level lvl2
-                    descendants = zeros(sum(myOT.ChildCount{lvl2}(parent_cells)), 1);
-                    first_children = myOT.FirstChildPtr{lvl2}(parent_cells);
-                    desc_cntr = 1;
-                    for fc = 1:length(first_children)
-                        descendants(desc_cntr:(desc_cntr + myOT.ChildCount{lvl2}(parent_cells(fc)) - 1)) = first_children(fc):(first_children(fc) + uint32(myOT.ChildCount{lvl2}(parent_cells(fc)) - 1));
-                        desc_cntr = desc_cntr + myOT.ChildCount{lvl2}(parent_cells(fc));
+    %For each octree level that contains wavelet coefficients, except the
+    %leaves ...
+    for lvl = (start_lvl + 1):(max_lvl - 1) %Here assume max_lvl = b + 1
+        %If there exist any occupied octree cells at this level, which  
+        %contain all zero wavelet coefficients ...
+        if ~isempty(all_zero_wav_cfs{lvl})
+            %For each cell at this level, which contains all zero wavelet
+            %coefficients ...
+            for pruned_cell = all_zero_wav_cfs{lvl}
+                %Add this cell's index to the toprune array
+                toprune{lvl}(length(toprune{lvl}) + 1) = pruned_cell;
+                if lvl < (max_lvl - 1)
+                    %Add the indices of each of this cell's children to 
+                    %toprune
+                    toprune{lvl + 1}((length(toprune{lvl + 1}) + 1):(myOT.ChildCount{lvl}(pruned_cell) + length(toprune{lvl + 1}))) = ((myOT.FirstChildPtr{lvl}(pruned_cell)):(myOT.FirstChildPtr{lvl}(pruned_cell) + uint32((myOT.ChildCount{lvl}(pruned_cell))) - 1));
+                    %Add the same indices to toprune2
+                    toprune2{lvl + 1}((length(toprune2{lvl + 1}) + 1):(myOT.ChildCount{lvl}(pruned_cell) + length(toprune2{lvl + 1}))) = ((myOT.FirstChildPtr{lvl}(pruned_cell)):(myOT.FirstChildPtr{lvl}(pruned_cell) + uint32((myOT.ChildCount{lvl}(pruned_cell))) - 1));
+                    %The current child cells will be the starting point for
+                    %looking for the other descendants of the current 
+                    %pruned_cell, at the next higher octree level
+                    parent_cells = ((myOT.FirstChildPtr{lvl}(pruned_cell)):(myOT.FirstChildPtr{lvl}(pruned_cell) + uint32((myOT.ChildCount{lvl}(pruned_cell))) - 1));
+                    %For each higher octree level, except the leaves (since
+                    %there are no occupancy codes at level b + 1 in 
+                    %myOT.OccupancyCode, as the leaf occupancies are 
+                    %described at level b)
+                    for lvl2 = (lvl + 1):(max_lvl - 2)
+                        %Get the descendants of the current pruned_cell, at 
+                        %level lvl2
+                        descendants = zeros(sum(myOT.ChildCount{lvl2}(parent_cells)), 1);
+                        first_children = myOT.FirstChildPtr{lvl2}(parent_cells);
+                        desc_cntr = 1;
+                        for fc = 1:length(first_children)
+                            descendants(desc_cntr:(desc_cntr + myOT.ChildCount{lvl2}(parent_cells(fc)) - 1)) = first_children(fc):(first_children(fc) + uint32(myOT.ChildCount{lvl2}(parent_cells(fc)) - 1));
+                            desc_cntr = desc_cntr + myOT.ChildCount{lvl2}(parent_cells(fc));
+                        end
+                        %Add the indices of descendants at lvl2 to toprune
+                        toprune{lvl2 + 1}((length(toprune{lvl2 + 1}) + 1):(length(descendants) + length(toprune{lvl2 + 1}))) = descendants;
+                        %Add the same indices to toprune2
+                        toprune2{lvl2 + 1}((length(toprune2{lvl2 + 1}) + 1):(length(descendants) + length(toprune2{lvl2 + 1}))) = descendants;
+                        %The new parent_cells, at the next octree level 
+                        %(lvl2 + 1), will be the current "descendants"
+                        parent_cells = descendants;
+                    end %End lvl2  
+                end %End check if lvl < (max_lvl - 1)
+            end %End pruned_cell    
+            %Keep only the unique indices in toprune{lvl} and toprune2{lvl}
+            toprune{lvl} = unique(toprune{lvl}, 'stable');
+            toprune2{lvl} = unique(toprune2{lvl}, 'stable');
+            %Make toprune{lvl} and toprune2{lvl} column vectors rather than
+            %row vectors (only because they are easier to scroll through)
+            toprune{lvl} = toprune{lvl}';
+            toprune2{lvl} = toprune2{lvl}';
+            disp(['Level ' num2str(lvl) ' cells and their descendants have been marked for pruning']);
+            disp('------------------------------------------------------------');
+        end %End check if ~isempty(all_zero_wav_cfs{lvl})
+    end %End lvl
+
+    %For each octree level covered in toprune ...
+    for lvl = 1:size(toprune, 1)
+        if ~isempty(toprune{lvl})
+            %Prune the octree cells that have been marked
+            pruned_occupancy_codes{lvl}(toprune{lvl}) = [];
+            disp(['Level ' num2str(lvl) ' octree pruning done']);
+            disp('------------------------------------------------------------');
+        end
+    end
+
+    %For each octree level covered in toprune2 ...
+    for lvl = 1:size(toprune2, 1)
+        if ~isempty(toprune2{lvl})
+            %Prune the post_pruning_array accordingly
+            post_pruning_array{lvl}(toprune2{lvl}) = [];
+            disp(['Level ' num2str(lvl) ' post-pruning array pruning done']);
+            disp('------------------------------------------------------------');
+        end
+    end
+    
+    %----------------- Pruning Wavelet Coefficient Tree ------------------%
+
+    disp(' ');
+    disp('------------ Pruning Wavelet Coefficient Tree --------------');
+    disp(' ');
+
+    %Create a cell array that will contain indices of the wavelet 
+    %coefficients that will be pruned off at each octree level
+    wc_toprune = cell(size(wavelet_coeffs));
+    %Create a copy of the wavelet_coeffs cell array, which will contain the 
+    %pruned set of wavelet coefficients
+    pruned_wavelet_coeffs = wavelet_coeffs;
+    
+    %For each octree level at which there are wavelet coefficients ...
+    for lvl = (start_lvl + 1):max_lvl
+        %Counter to keep track of the number of wavelet coefficients at the
+        %current level, which will be pruned off
+        wc_toprune_cntr = 1;
+        %If we are not at the leaf level, we can look at the toprune cell
+        %array
+        if lvl < (b + 1)
+            %If this level contains any occupied cells whose occupancy
+            %codes have been pruned (either because these cells contain
+            %zero wavelet coefficients on all of their corners, or because 
+            %they are descendants of pruned cells at previous octree 
+            %levels) ...
+            if ~isempty(toprune2{lvl})
+                %Get the indices of these cells
+                pruned_cells = toprune2{lvl};
+                %For each unique corner at the current level ...
+                for c = 1:length(wavelet_coeffs{lvl})
+                    %Find the indices of the octree cells at this level, 
+                    %which share this corner
+                    current_shared_cells = shared_cells{lvl, c};
+                    %Check if any of the shared cells found above are 
+                    %inside pruned_cells: if ALL of the shared cells are 
+                    %inside pruned_cells, then the wavelet coefficient for 
+                    %this corner will be pruned off, so record its index
+                    test = find(ismember(current_shared_cells, pruned_cells)) == 1;
+                    if length(test) == length(current_shared_cells)
+                        wc_toprune{lvl}(wc_toprune_cntr) = c;
+                        wc_toprune_cntr = wc_toprune_cntr + 1;
                     end
-                    %Remove the occupancy codes of each of the descendants, from
-                    %pruned_occupancy_codes
-                    pruned_occupancy_codes{lvl2 + 1}(descendants) = [];
-                    %Prune the post_pruning_array accordingly
-                    post_pruning_array{lvl2 + 1}(descendants) = [];
-                    %The new parent_cells, at the next octree level, will be the
-                    %current "descendants"
-                    parent_cells = descendants;
-                end %End lvl2 
-            end  
-        end %End pruned_cell    
-        disp(['Descendants of level ' num2str(lvl) ' done']);
-        disp('------------------------------------------------------------');
-    end %End check if ~isempty(all_zero_wav_cfs{lvl})
-end %End lvl
-
-%------------------- Pruning Wavelet Coefficient Tree --------------------%
-
-disp(' ');
-disp('------------ Pruning Wavelet Coefficient Tree --------------');
-disp(' ');
-
-%Create a copy of the wavelet_coeffs cell array, which will contain the 
-%pruned set of wavelet coefficients
-pruned_wavelet_coeffs = wavelet_coeffs;
-%Create a cell array that will contain indices of the wavelet coefficients
-%that will be pruned off at each octree level
-wc_toprune = cell(size(wavelet_coeffs));
-
-%For each octree level at which there are wavelet coefficients ...
-for lvl = (start_lvl + 1):max_lvl
-    %Counter to keep track of the number of wavelet coefficients at the
-    %current level, which will be pruned off
-    wc_toprune_cntr = 1;
-    %If this level contains any occupied cells that have all zero wavelet
-    %coefficients ...
-    if ~isempty(all_zero_wav_cfs{lvl})
-        %Get the indices of these cells
-        zw_cells = all_zero_wav_cfs{lvl};
-        %For each unique corner at the current level ...
-        for c = 1:length(wavelet_coeffs{lvl})
-            %Find the indices of the octree cells at this level, which
-            %share this corner
-            current_shared_cells = shared_cells{lvl, c};
-            %Check if any of the shared cells found above are inside
-            %zw_cells: if ALL of the shared cells are inside zw_cells, then
-            %the wavelet coefficient for this corner will be pruned off, so
-            %record its index
-            if sum(ismember(zw_cells, current_shared_cells)) == length(zw_cells)
-                wc_toprune{lvl}(wc_toprune_cntr) = c;
-                wc_toprune_cntr = wc_toprune_cntr + 1;
-            end
-        end %End c 
+                end %End c
+            end %End check if ~isempty(toprune{lvl})
+        %If lvl == (b + 1)
+        else
+%             %The leaf level is not covered in the toprune2 array, so for 
+%             %this level consider only the octree cells (voxels) that have 
+%             %zero wavelet coefficients at all of their corners
+%             if ~isempty(all_zero_wav_cfs{lvl})
+%                 %Get the indices of these cells
+%                 zw_cells = all_zero_wav_cfs{lvl};
+%                 %For each unique corner at the current level ...
+%                 for c = 1:length(wavelet_coeffs{lvl})
+%                     %Find the indices of the octree cells at this level,
+%                     %which share this corner
+%                     current_shared_cells = shared_cells{lvl, c};
+%                     %Check if any of the shared cells found above are 
+%                     %inside zw_cells: if ALL of the shared cells are inside 
+%                     %zw_cells, then the wavelet coefficient for this corner 
+%                     %will be pruned off, so record its index
+%                     test = find(ismember(current_shared_cells, zw_cells)) == 1;
+%                     if length(test) == length(current_shared_cells)
+%                         wc_toprune{lvl}(wc_toprune_cntr) = c;
+%                         wc_toprune_cntr = wc_toprune_cntr + 1;
+%                     end
+%                 end %End c 
+%             end %End check if ~isempty(all_zero_wav_cfs{lvl})     
+            %The leaf level is not covered in the toprune2 array, so for
+            %this level consider only the cells (voxels) that are the
+            %descendants of octree cells that were pruned off at previous
+            %octree levels. For each unique corner at the current level ...
+            for c = 1:length(wavelet_coeffs{lvl})
+                %Find the indices of the octree cells at this level,
+                %which share this corner
+                current_shared_cells = shared_cells{lvl, c};
+                %Check if any of the current_shared_cells are children of
+                %cells that were pruned off at the previous octree level:
+                %if ALL of the shared cells are children of pruned-off
+                %cells, then the wavelet coefficient for this corner will
+                %be pruned off, so record its index
+                parents = myOT.ParentPtr{lvl}(current_shared_cells);
+                test = find(ismember(parents, toprune{lvl - 1})) == 1;
+                if length(test) == length(parents)
+                    wc_toprune{lvl}(wc_toprune_cntr) = c;
+                    wc_toprune_cntr = wc_toprune_cntr + 1;
+                end    
+            end %End c    
+        end %End check if lvl < (b + 1)
+        %Make wc_toprune{lvl} a column vector rather than a row vector
+        %(only because this is easier to scroll through)
+        wc_toprune{lvl} = wc_toprune{lvl}';
         %Prune off all the wavelet coefficients whose indices are inside
         %wc_toprune at the current octree level
-        pruned_wavelet_coeffs{lvl}(wc_toprune{lvl}) = [];
-        disp(['Level ' num2str(lvl) ' done']);
-        disp('------------------------------------------------------------');
-    end %End check if ~isempty(all_zero_wav_cfs{lvl})
-end %End lvl
-
-
-
-
+        if ~isempty(wc_toprune{lvl})
+            pruned_wavelet_coeffs{lvl}(wc_toprune{lvl}) = [];
+            disp(['Level ' num2str(lvl) ' done']);
+            disp('------------------------------------------------------------');
+        end
+    end %End lvl   
+end %End check if prune_flag == 1
+ 
 %------------------------------- Encoding --------------------------------%
 
 disp(' ');
@@ -1184,26 +1289,20 @@ disp(' ');
 
 %Get the octree occupancy codes that will be transmitted to the decoder
 occupancy_codes_forDec = cell(b, 1);
-%For comparison only
-occupancy_codes_wout_pruning = cell(b, 1);
 for i = 1:(max_lvl - 1)
-    occupancy_codes_forDec{i} = pruned_occupancy_codes{i};
-    %Do the below just for comparison of bitrates
-    occupancy_codes_wout_pruning{i} = myOT.OccupancyCode{i};
+    if prune_flag == 1
+        occupancy_codes_forDec{i} = pruned_occupancy_codes{i};
+    else
+        occupancy_codes_forDec{i} = myOT.OccupancyCode{i};
+    end
 end
 %Concatenate all of the occupancy codes (decimal values) at all octree 
 %levels from the root to (max_lvl - 1), into one long array
 oc_cntr = 1;
 occ_codes_array = [];
-%The below are just for comparison of bitrates
-oc_cntr_wout_pruning = 1;
-occ_codes_wout_pruning = [];
 for l = 1:(max_lvl - 1)
     occ_codes_array(oc_cntr:(oc_cntr + numel(occupancy_codes_forDec{l}) - 1)) = occupancy_codes_forDec{l};
     oc_cntr = oc_cntr + numel(occupancy_codes_forDec{l});
-    %Do the below just for comparison of bitrates
-    occ_codes_wout_pruning(oc_cntr_wout_pruning:(oc_cntr_wout_pruning + numel(occupancy_codes_wout_pruning{l}) - 1)) = occupancy_codes_wout_pruning{l};
-    oc_cntr_wout_pruning = oc_cntr_wout_pruning + numel(occupancy_codes_wout_pruning{l});
 end
 %Plot a histogram of the occupancy codes inside occ_codes_array
 figure;
@@ -1222,51 +1321,75 @@ bits_occ_codes = bits_occ_codes_persymbol*length(occ_codes_array);    %Total no.
 disp(['Total entropy bits for occupancy codes: ' num2str(bits_occ_codes) ' (' num2str(bits_occ_codes_persymbol) ' bits per symbol)']);
 disp(['Occupancy codes bpv (bits per input voxel): ' num2str(bits_occ_codes/size(ptcloud, 1))]);
 disp(' ');
-%For comparison only, compute the number of bits required for unpruned
-%occupancy codes
-disp('******** FOR COMPARISON ONLY ********');
-disp(' ');
-bits_unpruned_occ_codes_persymbol = entropy_calc(occ_codes_wout_pruning);    %Avg. minimum no. of bits per symbol
-bits_unpruned_occ_codes = bits_unpruned_occ_codes_persymbol*length(occ_codes_wout_pruning);    %Total no. of bits for all symbols
-disp(['Total entropy bits for unpruned occupancy codes: ' num2str(bits_unpruned_occ_codes) ' (' num2str(bits_unpruned_occ_codes_persymbol) ' bits per symbol)']);
-disp(['Unpruned occupancy codes bpv (bits per input voxel): ' num2str(bits_unpruned_occ_codes/size(ptcloud, 1))]);
-disp(' ');
-disp('*************************************');
-disp(' ');
 
-%---- Post Pruning Array ----
+%Do the below for comparison only, of the number of bits required for
+%unpruned vs pruned occupancy codes
+if prune_flag == 1
+    %Get the unpruned occupancy codes that would be transmitted to the 
+    %decoder
+    occupancy_codes_wout_pruning = cell(b, 1);
+    for i = 1:(max_lvl - 1)
+        occupancy_codes_wout_pruning{i} = myOT.OccupancyCode{i};
+    end
+    %Concatenate all of the occupancy codes (decimal values) at all octree 
+    %levels from the root to (max_lvl - 1), into one long array
+    oc_cntr_wout_pruning = 1;
+    occ_codes_wout_pruning = [];
+    for l = 1:(max_lvl - 1)
+        occ_codes_wout_pruning(oc_cntr_wout_pruning:(oc_cntr_wout_pruning + numel(occupancy_codes_wout_pruning{l}) - 1)) = occupancy_codes_wout_pruning{l};
+        oc_cntr_wout_pruning = oc_cntr_wout_pruning + numel(occupancy_codes_wout_pruning{l});
+    end
+    %Compute the number of bits that would be required for the unpruned
+    %occupancy codes
+    disp('******** FOR COMPARISON ONLY ********');
+    disp(' ');
+    bits_unpruned_occ_codes_persymbol = entropy_calc(occ_codes_wout_pruning);    %Avg. minimum no. of bits per symbol
+    bits_unpruned_occ_codes = bits_unpruned_occ_codes_persymbol*length(occ_codes_wout_pruning);    %Total no. of bits for all symbols
+    disp(['Total entropy bits for unpruned occupancy codes: ' num2str(bits_unpruned_occ_codes) ' (' num2str(bits_unpruned_occ_codes_persymbol) ' bits per symbol)']);
+    disp(['Unpruned occupancy codes bpv (bits per input voxel): ' num2str(bits_unpruned_occ_codes/size(ptcloud, 1))]);
+    disp(' ');
+    disp('*************************************');
+    disp(' ');
+end
 
-%Get the (parts of the) post_pruning_array that will be transmitted to the 
-%decoder
-post_pruning_array_forDec = cell(b, 1);
-for i = 1:(max_lvl - 1)
-    post_pruning_array_forDec{i} = post_pruning_array{i};
+%---- Post-Pruning Array (only if pruning has been done) ----
+
+if prune_flag == 1    
+    %Get the (parts of the) post_pruning_array that will be transmitted to the 
+    %decoder
+    post_pruning_array_forDec = cell(b, 1);
+    for i = 1:(max_lvl - 1)
+        post_pruning_array_forDec{i} = post_pruning_array{i};
+    end
+    %Concatenate all of the bits from post_pruning_array_forDec, at all octree 
+    %levels from the root to (max_lvl - 1), into one long array
+    pp_cntr = 1;
+    pp_array = [];
+    for l = 1:(max_lvl - 1)
+        pp_array(pp_cntr:(pp_cntr + numel(post_pruning_array_forDec{l}) - 1)) = post_pruning_array_forDec{l};
+        pp_cntr = pp_cntr + numel(post_pruning_array_forDec{l});
+    end
+    %Plot a histogram of the bits inside pp_array
+    figure;
+    histogram(pp_array);
+    title({'Histogram of Bits Indicating Leaf/Non-Leaf Octree Cell', ['from Level 1-' num2str(max_lvl - 1)]});
+    %Save the above histogram as a MATLAB figure and as a PDF image in our
+    %network directory (NB: The '-bestfit' option maximizes the size of the 
+    %figure to fill the page, but preserves the aspect ratio of the figure. 
+    %The figure might not fill the entire page. This option leaves a 
+    %minimum page margin of .25 inches).
+    savefig(['\\Pandora\builds\test\Data\Compression\PLY\Codec_Results\' ptcloud_name '\voxelized' num2str(b) '\BezierVolume\transmitted_histogram_pp_bits_lvl1-' num2str(max_lvl - 1)]);
+    print('-bestfit', ['\\Pandora\builds\test\Data\Compression\PLY\Codec_Results\' ptcloud_name '\voxelized' num2str(b) '\BezierVolume\transmitted_histogram_pp_bits_lvl1-' num2str(max_lvl - 1)], '-dpdf');
+    %Compute the number of bits required for pp_array
+    bits_pp_array_persymbol = entropy_calc(pp_array);    %Avg. minimum no. of bits per symbol
+    bits_pp_array = bits_pp_array_persymbol*length(pp_array);    %Total no. of bits for all symbols
+    disp(['Total entropy bits for post-pruning array: ' num2str(bits_pp_array) ' (' num2str(bits_pp_array_persymbol) ' bits per symbol)']);
+    disp(['pp_array bpv (bits per input voxel): ' num2str(bits_pp_array/size(ptcloud, 1))]);
+    disp(' ');
+    
+    %Set the output variable
+    varargout{1} = post_pruning_array_forDec;    
 end
-%Concatenate all of the bits from post_pruning_array_forDec, at all octree 
-%levels from the root to (max_lvl - 1), into one long array
-pp_cntr = 1;
-pp_array = [];
-for l = 1:(max_lvl - 1)
-    pp_array(pp_cntr:(pp_cntr + numel(post_pruning_array_forDec{l}) - 1)) = post_pruning_array_forDec{l};
-    pp_cntr = pp_cntr + numel(post_pruning_array_forDec{l});
-end
-%Plot a histogram of the bits inside pp_array
-figure;
-histogram(pp_array);
-title({'Histogram of Bits Indicating Leaf/Non-Leaf Octree Cell', ['from Level 1-' num2str(max_lvl - 1)]});
-%Save the above histogram as a MATLAB figure and as a PDF image in our
-%network directory (NB: The '-bestfit' option maximizes the size of the 
-%figure to fill the page, but preserves the aspect ratio of the figure. 
-%The figure might not fill the entire page. This option leaves a 
-%minimum page margin of .25 inches).
-savefig(['\\Pandora\builds\test\Data\Compression\PLY\Codec_Results\' ptcloud_name '\voxelized' num2str(b) '\BezierVolume\transmitted_histogram_pp_bits_lvl1-' num2str(max_lvl - 1)]);
-print('-bestfit', ['\\Pandora\builds\test\Data\Compression\PLY\Codec_Results\' ptcloud_name '\voxelized' num2str(b) '\BezierVolume\transmitted_histogram_pp_bits_lvl1-' num2str(max_lvl - 1)], '-dpdf');
-%Compute the number of bits required for pp_array
-bits_pp_array_persymbol = entropy_calc(pp_array);    %Avg. minimum no. of bits per symbol
-bits_pp_array = bits_pp_array_persymbol*length(pp_array);    %Total no. of bits for all symbols
-disp(['Total entropy bits for post-pruning array: ' num2str(bits_pp_array) ' (' num2str(bits_pp_array_persymbol) ' bits per symbol)']);
-disp(['pp_array bpv (bits per input voxel): ' num2str(bits_pp_array/size(ptcloud, 1))]);
-disp(' ');
 
 %---- Control Points at start_lvl ----
 
@@ -1297,7 +1420,11 @@ disp(' ');
 %decoder
 wavelet_coeffs_forDec = cell(b, 1);
 for j = (start_lvl + 1):max_lvl
-    wavelet_coeffs_forDec{j} = wavelet_coeffs{j};
+    if prune_flag == 1
+        wavelet_coeffs_forDec{j} = pruned_wavelet_coeffs{j}; 
+    else
+        wavelet_coeffs_forDec{j} = wavelet_coeffs{j};
+    end
 end
 %Concatenate all of the wavelet coefficients at all octree levels from 
 %(start_lvl + 1) to max_lvl, into one long array
@@ -1326,10 +1453,44 @@ disp(['Total entropy bits for wavelet coefficients: ' num2str(bits_wavelet_cfs) 
 disp(['Wavelet coefficients bpv (bits per input voxel): ' num2str(bits_wavelet_cfs/size(ptcloud, 1))]);
 disp(' ');
 
+%Do the below for comparison only, of the number of bits required for
+%unpruned vs pruned wavelet coefficients
+if prune_flag == 1
+    %Get the unpruned quantized wavelet coefficients that would be 
+    %transmitted to the decoder
+    wavelet_coeffs_wout_pruning = cell(b, 1);
+    for j = (start_lvl + 1):max_lvl
+        wavelet_coeffs_wout_pruning{j} = wavelet_coeffs{j};
+    end
+    %Concatenate all of the wavelet coefficients at all octree levels from 
+    %(start_lvl + 1) to max_lvl, into one long array
+    wcf_cntr_wout_pruning = 1;
+    wcf_array_wout_pruning = [];
+    for l = (start_lvl + 1):max_lvl
+        wcf_array_wout_pruning(wcf_cntr_wout_pruning:(wcf_cntr_wout_pruning + numel(wavelet_coeffs_wout_pruning{l}) - 1)) = wavelet_coeffs_wout_pruning{l};
+        wcf_cntr_wout_pruning = wcf_cntr_wout_pruning + numel(wavelet_coeffs_wout_pruning{l});
+    end
+    %For comparison only, compute the number of bits that would be required 
+    %for the unpruned wavelet coefficients
+    disp('******** FOR COMPARISON ONLY ********');
+    disp(' ');
+    bits_unpruned_wcf_persymbol = entropy_calc(wcf_array_wout_pruning);    %Avg. minimum no. of bits per symbol
+    bits_unpruned_wcf = bits_unpruned_wcf_persymbol*length(wcf_array_wout_pruning);    %Total no. of bits for all symbols
+    disp(['Total entropy bits for unpruned wavelet coefficients: ' num2str(bits_unpruned_wcf) ' (' num2str(bits_unpruned_wcf_persymbol) ' bits per symbol)']);
+    disp(['Unpruned wavelet coefficients bpv (bits per input voxel): ' num2str(bits_unpruned_wcf/size(ptcloud, 1))]);
+    disp(' ');
+    disp('*************************************');
+    disp(' ');
+end
+
 %---- TOTALS (Geometry) ----
 
 %Compute total geometry bits for transmission
-total_geom_bits = bits_occ_codes + bits_pp_array + bits_ctrlpts + bits_wavelet_cfs;
+if prune_flag == 1
+    total_geom_bits = bits_occ_codes + bits_pp_array + bits_ctrlpts + bits_wavelet_cfs;
+else
+    total_geom_bits = bits_occ_codes + bits_ctrlpts + bits_wavelet_cfs;
+end
 total_geom_bpv = total_geom_bits/size(ptcloud, 1);
 disp(['TOTAL bits: ' num2str(total_geom_bits)]);
 disp(['TOTAL bpv: ' num2str(total_geom_bpv)]);

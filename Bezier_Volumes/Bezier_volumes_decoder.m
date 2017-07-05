@@ -8,7 +8,7 @@
 %OccupancyCode = myOT.OccupancyCode; %Should be from start_lvl only
 %vis_levels_ot = 4; %No. of octree levels for which we want to visualize the octree cell subdivision
 
-function [reconstruction_decoder, reconstructed_vox_pos] = Bezier_volumes_decoder(occupancy_codes_forDec, post_pruning_array_forDec, rec_ctrlpts_forDec, wavelet_coeffs_forDec, start_lvl, max_lvl, q_stepsize, b, ptcloud_name, ptcloud_file, reconstructed_control_points)
+function [reconstruction_decoder, reconstructed_vox_pos] = Bezier_volumes_decoder(occupancy_codes_forDec, rec_ctrlpts_forDec, wavelet_coeffs_forDec, start_lvl, max_lvl, q_stepsize, b, ptcloud_name, ptcloud_file, reconstructed_control_points, varargin)
 
 disp(' ');
 disp('============================================================');
@@ -17,8 +17,15 @@ disp('============================================================');
 disp(' ');
 
 OccupancyCode = occupancy_codes_forDec;
+%post_pruning_array = post_pruning_array_forDec;
 rec_ctrlpts_start_lvl = rec_ctrlpts_forDec;
 wavelet_coeffs = wavelet_coeffs_forDec;
+
+%Check if octree and wavelet coefficient tree pruning was used at the
+%encoder
+if numel(varargin) >= 1
+    post_pruning_array = varargin{1};
+end
 
 %------------------------- Octree Reconstruction -------------------------%
 
@@ -53,51 +60,119 @@ SI_dict(6, :) = [1 0 1];    %(+x, +z)
 SI_dict(7, :) = [1 1 0];    %(+x, +y)
 SI_dict(8, :) = [1 1 1];    %(+x, +y, +z)
 
+%Find the first non-empty location in post_pruning_array: this indicates
+%the first octree level at which octree pruning occurred at the encoder
+pp_first_nonempty = find(~cellfun(@isempty, post_pruning_array), 1);
+
 %For each octree level ...
 %for lvl = 1:b
 for lvl = 1:(max_lvl - 1)
     disp(['Processing octree level ' num2str(lvl) ':']);
     %Counter for all children of all occupied nodes at this level
     total_child_cntr = 1;
-    %For each occupied cell at this level ...
-    for occ_cell = 1:numel(OccupancyCode{lvl})
-        %Convert the OccupancyCode decimal value for this cell's children,
-        %into its binary representation
-        bin_vec = dec2bin(OccupancyCode{lvl}(occ_cell), 8);
-        %The number of "1"s in bin_vec indicates the number of occupied 
-        %children that this octree cell has
-        ChildCount{lvl}(occ_cell) = numel(strfind(bin_vec, '1'));    
-        %Find the locations in bin_vec where the vector contains '1's
-        ones_inds = strfind(bin_vec, '1');
-        %Compute SpatialIndex for each occupied child    
-        for occ_child = 1:length(ChildCount{lvl}(occ_cell))
-            %If we are currently at the root cell, we can obtain its
-            %children's spatial indices just by indexing into SI_dict
-            if lvl == 1
-                SpatialIndex{lvl + 1}(1:ChildCount{1}, :) = uint16(SI_dict(ones_inds, :));
-            else
-                %Find where the curent occupied cell's spatial index 
-                %contains non-zero values: these are the positions to which
-                %we will add offsets to obtain the children's spatial
-                %indices, when necessary
-                parent_SI_nonzero = uint16(find(SpatialIndex{lvl}(occ_cell, :) > 0));
-                %If parent_SI_nonzero is empty (i.e., the current occupied
-                %cell's spatial index is (0, 0, 0)), then the spatial
-                %indices of this cell's children can be obtained just by
-                %indexing into SI_dict
-                if isempty(parent_SI_nonzero)
-                    SpatialIndex{lvl + 1}(1:ChildCount{lvl}(occ_cell), :) = uint16(SI_dict(ones_inds, :));
+    if lvl < pp_first_nonempty
+        %For each occupied cell at this level ...
+        for occ_cell = 1:numel(OccupancyCode{lvl})
+            %Convert the OccupancyCode decimal value for this cell's 
+            %children, into its binary representation
+            bin_vec = dec2bin(OccupancyCode{lvl}(occ_cell), 8);
+            %The number of "1"s in bin_vec indicates the number of occupied 
+            %children that this octree cell has
+            ChildCount{lvl}(occ_cell) = numel(strfind(bin_vec, '1'));  
+            %Find the locations in bin_vec where the vector contains '1's
+            ones_inds = strfind(bin_vec, '1');
+            %Compute SpatialIndex for each occupied child    
+            for occ_child = 1:length(ChildCount{lvl}(occ_cell))
+                %If we are currently at the root cell, we can obtain its
+                %children's spatial indices just by indexing into SI_dict
+                if lvl == 1
+                    SpatialIndex{lvl + 1}(1:ChildCount{1}, :) = uint16(SI_dict(ones_inds, :));
                 else
-                    %Add an offset to corresponding locations in SI_dict,
-                    %in the columns determined by parent_SI_nonzero
-                    SI_dict_locations = SI_dict(ones_inds, :);
-                    SI_dict_locations(:, parent_SI_nonzero) = uint16(SI_dict_locations(:, parent_SI_nonzero)) + uint16(2*SpatialIndex{lvl}(occ_cell, parent_SI_nonzero));
-                    SpatialIndex{lvl + 1}(total_child_cntr:(total_child_cntr + ChildCount{lvl}(occ_cell) - 1), :) = uint16(SI_dict_locations);
+                    %Find where the curent occupied cell's spatial index 
+                    %contains non-zero values: these are the positions to
+                    %which we will add offsets to obtain the children's 
+                    %spatial indices, when necessary
+                    parent_SI_nonzero = uint16(find(SpatialIndex{lvl}(occ_cell, :) > 0));
+                    %If parent_SI_nonzero is empty (i.e., the current 
+                    %occupied cell's spatial index is (0, 0, 0)), then the 
+                    %spatial indices of this cell's children can be 
+                    %obtained just by indexing into SI_dict
+                    if isempty(parent_SI_nonzero)
+                        SpatialIndex{lvl + 1}(1:ChildCount{lvl}(occ_cell), :) = uint16(SI_dict(ones_inds, :));
+                    else
+                        %Add an offset to corresponding locations in 
+                        %SI_dict, in the columns determined by 
+                        %parent_SI_nonzero
+                        SI_dict_locations = SI_dict(ones_inds, :);
+                        SI_dict_locations(:, parent_SI_nonzero) = uint16(SI_dict_locations(:, parent_SI_nonzero)) + uint16(2*SpatialIndex{lvl}(occ_cell, parent_SI_nonzero));
+                        SpatialIndex{lvl + 1}(total_child_cntr:(total_child_cntr + ChildCount{lvl}(occ_cell) - 1), :) = uint16(SI_dict_locations);
+                    end
                 end
-            end
-        end %End occ_child  
-        total_child_cntr = total_child_cntr + ChildCount{lvl}(occ_cell);
-    end %End occ_cell
+            end %End occ_child  
+            total_child_cntr = total_child_cntr + ChildCount{lvl}(occ_cell);
+        end %End occ_cell
+    %If lvl >= pp_first_nonempty
+    else
+        %Counter to keep track of where in the OccupancyCode array we are 
+        %up to at the current octree level: the pruned OccupancyCode array 
+        %only stores occupancy codes for internal (non-leaf) cells, so this
+        %counter will only be incremented each time we come across an
+        %internal cell
+        oc_code_cntr = 0;
+        %For each occupied cell at this level ...
+        for occ_cell = 1:numel(post_pruning_array{lvl})
+            %If this cell is a leaf
+            if post_pruning_array{lvl}(occ_cell) == 1
+                %It has no children (they were pruned off at the encoder),
+                %so do nothing further
+                continue;  
+            %If this cell is not a leaf (i.e., it is internal)
+            elseif post_pruning_array{lvl}(occ_cell) == 0
+                %We advance 1 step in OccupancyCode array each time we find
+                %an internal octree node
+                oc_code_cntr = oc_code_cntr + 1;
+                %Convert the OccupancyCode decimal value for this cell's 
+                %children, into its binary representation
+                bin_vec = dec2bin(OccupancyCode{lvl}(oc_code_cntr), 8);
+                %The number of "1"s in bin_vec indicates the number of 
+                %occupied children that this octree cell has
+                ChildCount{lvl}(oc_code_cntr) = numel(strfind(bin_vec, '1'));  
+                %Find the locations in bin_vec where the vector contains 
+                %'1's
+                ones_inds = strfind(bin_vec, '1');
+                %Compute SpatialIndex for each occupied child    
+                for occ_child = 1:length(ChildCount{lvl}(oc_code_cntr))
+                    %If we are currently at the root cell, we can obtain 
+                    %its children's spatial indices just by indexing into
+                    %SI_dict
+                    if lvl == 1
+                        SpatialIndex{lvl + 1}(1:ChildCount{1}, :) = uint16(SI_dict(ones_inds, :));
+                    else
+                        %Find where the curent occupied cell's spatial 
+                        %index contains non-zero values: these are the 
+                        %positions to which we will add offsets to obtain 
+                        %the children's spatial indices, when necessary
+                        parent_SI_nonzero = uint16(find(SpatialIndex{lvl}(occ_cell, :) > 0));
+                        %If parent_SI_nonzero is empty (i.e., the current 
+                        %occupied cell's spatial index is (0, 0, 0)), then
+                        %the spatial indices of this cell's children can be 
+                        %obtained just by indexing into SI_dict
+                        if isempty(parent_SI_nonzero)
+                            SpatialIndex{lvl + 1}(1:ChildCount{lvl}(oc_code_cntr), :) = uint16(SI_dict(ones_inds, :));
+                        else
+                            %Add an offset to corresponding locations in 
+                            %SI_dict, in the columns determined by 
+                            %parent_SI_nonzero
+                            SI_dict_locations = SI_dict(ones_inds, :);
+                            SI_dict_locations(:, parent_SI_nonzero) = uint16(SI_dict_locations(:, parent_SI_nonzero)) + uint16(2*SpatialIndex{lvl}(occ_cell, parent_SI_nonzero));
+                            SpatialIndex{lvl + 1}(total_child_cntr:(total_child_cntr + ChildCount{lvl}(oc_code_cntr) - 1), :) = uint16(SI_dict_locations);
+                        end
+                    end
+                end %End occ_child  
+                total_child_cntr = total_child_cntr + ChildCount{lvl}(oc_code_cntr);
+            end %End check if post_pruning_array{lvl}(occ_cell) == 1
+        end %End occ_cell
+    end %End check if lvl < pp_first_nonempty 
     %Make ChildCount{lvl} a column vector rather than a row vector
     ChildCount{lvl} = ChildCount{lvl}';
     disp('Finished computing ChildCount for each occupied cell at this level, and SpatialIndex for each occupied child of each occupied cell');
@@ -105,7 +180,7 @@ for lvl = 1:(max_lvl - 1)
     %octree level
     lastChildPtr = cumsum(int32(ChildCount{lvl}));
     FirstChildPtr{lvl} = uint32(lastChildPtr - int32(ChildCount{lvl}) + 1);
-    disp('Finished computing FirstChildPtr for each occupied cell at this level');
+    disp('Finished computing lastChildPtr and FirstChildPtr for each occupied cell at this level');
     disp('------------------------------------------------------------');
 end %End lvl
 OT_recon_time = toc;
@@ -210,17 +285,6 @@ tic;
 %for lvl = start_lvl:b
 for lvl = start_lvl:(max_lvl - 1)
     disp(['Reconstructing control points at octree level ' num2str(lvl + 1) ' ...']);
-    %Check if the control points at this level have been correctly
-    %reconstructed (i.e., if they are identical to the control points at
-    %the encoder)
-    test_ctrlpts = reconstructed_control_points{lvl} - reconstruction_decoder{lvl};
-    test_ctrlpts_wrong = find(test_ctrlpts ~= 0);
-    if isempty(test_ctrlpts_wrong)
-        disp('All control points reconstructed correctly');
-    else
-        disp(['Number of incorrectly reconstructed control points: ' num2str(length(test_ctrlpts_wrong))]);
-    end
-    disp('------------------------------------------------------------');
     %Initialize a counter for the corner coordinates of the occupied cells 
     %at this level 
     parent_cnr_coords_cntr = 1;
@@ -381,6 +445,17 @@ for lvl = start_lvl:(max_lvl - 1)
     %Arrange all the reconstructed control points produced for the child
     %octree level, into a column vector
     reconstruction_decoder{lvl + 1} = (reconstruction_decoder{lvl + 1})';
+    %Check if the control points at this level have been correctly
+    %reconstructed (i.e., if they are identical to the control points at
+    %the encoder)
+    test_ctrlpts = reconstructed_control_points{lvl + 1} - reconstruction_decoder{lvl + 1};
+    test_ctrlpts_wrong = find(test_ctrlpts ~= 0);
+    if isempty(test_ctrlpts_wrong)
+        disp('All control points reconstructed correctly');
+    else
+        disp(['Number of incorrectly reconstructed control points: ' num2str(length(test_ctrlpts_wrong))]);
+    end
+    disp('------------------------------------------------------------');
 end %End "lvl"
 ctrlpt_recon_time = toc;
 disp(' ');

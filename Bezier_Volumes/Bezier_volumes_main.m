@@ -37,6 +37,11 @@ max_OT_lvl = [8];  %Write numbers in descending order, because file ..._distorte
 %points at the chosen base level (start_lvl) and of all the wavelet
 %coefficients that will be computed at the encoder
 q_stepsize = 1;
+%Decide whether or not to prune the octree cells at the encoder, which
+%contain zero wavelet coefficients on all of their corners, and therefore
+%whether to prune the corresponding wavelet coefficient tree: prune_flag =
+%1 => prune; prune_flag = 0 => do not prune.
+prune_flag = 1;
 
 %-------------------------------------------------------------------------%
 
@@ -110,11 +115,13 @@ for start_lvl = start_OT_lvl
         disp(['max_lvl = ' num2str(max_lvl)]);
     
         %Run encoder
-        [occupancy_codes_forDec, rec_ctrlpts_forDec, wavelet_coeffs_forDec, total_geom_bits, total_geom_bpv, reconstructed_control_points] = Bezier_volumes_encoder(ptcloud_file, b, start_lvl, max_lvl, q_stepsize, ptcloud_name);
-
+        %[occupancy_codes_forDec, post_pruning_array_forDec, rec_ctrlpts_forDec, wavelet_coeffs_forDec, total_geom_bits, total_geom_bpv, reconstructed_control_points] = Bezier_volumes_encoder(ptcloud_file, b, start_lvl, max_lvl, q_stepsize, ptcloud_name);
+        [occupancy_codes_forDec, rec_ctrlpts_forDec, wavelet_coeffs_forDec, total_geom_bits, total_geom_bpv, reconstructed_control_points, post_pruning_array_forDec] = Bezier_volumes_encoder(ptcloud_file, b, start_lvl, max_lvl, q_stepsize, ptcloud_name, prune_flag);
+        
         %Run decoder
-        [reconstruction_decoder, reconstructed_vox_pos] = Bezier_volumes_decoder(occupancy_codes_forDec, rec_ctrlpts_forDec, wavelet_coeffs_forDec, start_lvl, max_lvl, q_stepsize, b, ptcloud_name, ptcloud_file, reconstructed_control_points);
-
+        %[reconstruction_decoder, reconstructed_vox_pos] = Bezier_volumes_decoder(occupancy_codes_forDec, post_pruning_array_forDec, rec_ctrlpts_forDec, wavelet_coeffs_forDec, start_lvl, max_lvl, q_stepsize, b, ptcloud_name, ptcloud_file, reconstructed_control_points);
+        [reconstruction_decoder, reconstructed_vox_pos] = Bezier_volumes_decoder(occupancy_codes_forDec, rec_ctrlpts_forDec, wavelet_coeffs_forDec, start_lvl, max_lvl, q_stepsize, b, ptcloud_name, ptcloud_file, reconstructed_control_points, post_pruning_array_forDec);
+        
         %Read in the input point cloud, so that we can extract properties of
         %the PLY file
         [plyStruct, A, format] = plyRead(ptcloud_file);
