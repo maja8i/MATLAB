@@ -1,9 +1,11 @@
 %Need the following directories (add these directories and all of their
-%sub-directories to the current MATLAB path): Phil, Quantization, Encoding 
+%sub-directories to the current MATLAB path): Bezier_Volumes (run this
+%script file from inside this directory), Encoding, Octree, Phil, 
+%Quantization.
 
 %------------------------------ User Inputs ------------------------------%
 
-%Name of the input point cloud (don't include the _voxelizedN or .ply file 
+%Name of the input point cloud (do not include the _voxelizedN or .ply file 
 %extension in the name)
 ptcloud_name = 'boxer'; %Must be in PLY format
 %Bit depth for Morton codes and octree. b also determines the number of 
@@ -11,36 +13,36 @@ ptcloud_name = 'boxer'; %Must be in PLY format
 %The total number of octree levels INCLUDING the root level will therefore 
 %be b + 1. IMPORTANT: If using a voxelized point cloud as input, b must be 
 %equal to the voxelization level used to produce that point cloud, 
-%e.g., b = 10 for voxelized10 point clouds, b = 11 for voxelized11 clouds.
+%e.g., b = 10 for voxelized10 point clouds, b = 11 for voxelized11 clouds,
+%etc.
 b = 7;
 %Full path to the input PLY file
+%ptcloud_file = ['\\pandora\storage\users\phil\maja\voxelized7_Test\' ptcloud_name '_voxelized' num2str(b) '.ply'];
 %ptcloud_file = ['\\pandora\builds\test\Data\Compression\PLY\Point_Clouds\8i\voxelized' num2str(b) '_WithNormalsAndCentroids\' ptcloud_name '_voxelized' num2str(b) '.ply'];
 ptcloud_file = ['\\pandora\builds\test\Data\Compression\PLY\Point_Clouds\8i\voxelized' num2str(b) '_WithNormals\' ptcloud_name '_voxelized' num2str(b) '.ply'];
-%ptcloud_file = ['\\pandora\storage\users\phil\maja\voxelized7_Test\' ptcloud_name '_voxelized' num2str(b) '.ply'];
 %Octree level(s) to use (one at a time, if there is more than one listed
 %below) as the base level for transmitting control points, and from which
-%to start the wavelet analysis. start_OT_lvl can theoretically go from the root 
-%(start_OT_lvl = 1) up to 2 levels before the leaves (start_OT_lvl = b - 1)), 
-%or up to (max_lvl - 1) if max_lvl is not the leaf level. But because the 
-%lowest octree levels don't contain zero crossings (since the octree cells
-%here are quite large and so all the cell corners are outside the point
-%cloud), start_OT_lvl should be adjusted to start at the lowest level that
-%contains zero crossings. 
+%the wavelet analysis will start. start_OT_lvl can go from the root level
+%(start_OT_lvl = 1) up to 2 levels before the leaf level
+%(start_OT_lvl = b - 1)), or up to (max_lvl - 1) if max_lvl is not the leaf 
+%level. But because the lowest octree levels usually do not contain zero 
+%crossings (since the octree cells here are quite large and so all the cell 
+%corners are outside the point cloud), start_OT_lvl should be adjusted to 
+%start at the lowest level that contains zero crossings. 
 start_OT_lvl = 3;
 %Highest octree level at which the Bezier control points should be computed
 %at the encoder and for which the wavelet coefficients should be sent to 
-%the decoder. max_OT_lvl must go from (start_OT_lvl + 1), which must be
-%>= 4 (since before this level, there are no zero crossings in the octree 
-%cells), and can go up to b + 1. 
-max_OT_lvl = [8];  %Write numbers in descending order, because file ..._distorted01.ply must correspond to the best reconstruction (and highest bitrate)
+%the decoder. max_OT_lvl must go from (start_OT_lvl + 1) and can go up to 
+%b + 1. 
+max_OT_lvl = [8];  %Write numbers in DEscending order, because file ..._distorted01.ply must correspond to the best reconstruction (and highest bitrate)
 %Quantization stepsize for uniform scalar quantization of the control 
-%points at the chosen base level (start_lvl) and of all the wavelet
+%points at the chosen base level (start_lvl) and for all of the wavelet
 %coefficients that will be computed at the encoder
 q_stepsize = 1;
 %Decide whether or not to prune the octree cells at the encoder, which
 %contain zero wavelet coefficients on all of their corners, and therefore
-%whether to prune the corresponding wavelet coefficient tree: prune_flag =
-%1 => prune; prune_flag = 0 => do not prune.
+%whether to prune the corresponding wavelet coefficient tree: 
+%prune_flag = 1 => prune; prune_flag = 0 => do not prune
 prune_flag = 1;
 
 %-------------------------------------------------------------------------%
@@ -116,11 +118,19 @@ for start_lvl = start_OT_lvl
     
         %Run encoder
         %[occupancy_codes_forDec, post_pruning_array_forDec, rec_ctrlpts_forDec, wavelet_coeffs_forDec, total_geom_bits, total_geom_bpv, reconstructed_control_points] = Bezier_volumes_encoder(ptcloud_file, b, start_lvl, max_lvl, q_stepsize, ptcloud_name);
-        [occupancy_codes_forDec, rec_ctrlpts_forDec, wavelet_coeffs_forDec, total_geom_bits, total_geom_bpv, reconstructed_control_points, post_pruning_array_forDec] = Bezier_volumes_encoder(ptcloud_file, b, start_lvl, max_lvl, q_stepsize, ptcloud_name, prune_flag);
+        if prune_flag == 1
+            [occupancy_codes_forDec, rec_ctrlpts_forDec, wavelet_coeffs_forDec, total_geom_bits, total_geom_bpv, reconstructed_control_points, post_pruning_array_forDec] = Bezier_volumes_encoder(ptcloud_file, b, start_lvl, max_lvl, q_stepsize, ptcloud_name, prune_flag);
+        else
+            [occupancy_codes_forDec, rec_ctrlpts_forDec, wavelet_coeffs_forDec, total_geom_bits, total_geom_bpv, reconstructed_control_points] = Bezier_volumes_encoder(ptcloud_file, b, start_lvl, max_lvl, q_stepsize, ptcloud_name, prune_flag);
+        end
         
         %Run decoder
         %[reconstruction_decoder, reconstructed_vox_pos] = Bezier_volumes_decoder(occupancy_codes_forDec, post_pruning_array_forDec, rec_ctrlpts_forDec, wavelet_coeffs_forDec, start_lvl, max_lvl, q_stepsize, b, ptcloud_name, ptcloud_file, reconstructed_control_points);
-        [reconstruction_decoder, reconstructed_vox_pos] = Bezier_volumes_decoder(occupancy_codes_forDec, rec_ctrlpts_forDec, wavelet_coeffs_forDec, start_lvl, max_lvl, q_stepsize, b, ptcloud_name, ptcloud_file, reconstructed_control_points, post_pruning_array_forDec);
+        if prune_flag == 1
+            [reconstruction_decoder, reconstructed_vox_pos] = Bezier_volumes_decoder(occupancy_codes_forDec, rec_ctrlpts_forDec, wavelet_coeffs_forDec, start_lvl, max_lvl, q_stepsize, b, ptcloud_name, ptcloud_file, reconstructed_control_points, prune_flag, post_pruning_array_forDec);
+        else
+            [reconstruction_decoder, reconstructed_vox_pos] = Bezier_volumes_decoder(occupancy_codes_forDec, rec_ctrlpts_forDec, wavelet_coeffs_forDec, start_lvl, max_lvl, q_stepsize, b, ptcloud_name, ptcloud_file, reconstructed_control_points, prune_flag);
+        end
         
         %Read in the input point cloud, so that we can extract properties of
         %the PLY file

@@ -709,7 +709,8 @@ for lvl = start_lvl:(max_lvl - 1)
                 if ((isempty(x_same) + isempty(y_same) + isempty(z_same)) == 2)
                     %Corner is on a parent face
                     on_p_face = 1;
-                    %Get the row indices of the parent vertices on this face
+                    %Get the row indices of the parent vertices on this 
+                    %face
                     if ~isempty(x_same)
                         parent_row_inds = x_same;
                     elseif ~isempty(y_same)
@@ -1389,7 +1390,9 @@ if prune_flag == 1
     
     %Set the output variable
     varargout{1} = post_pruning_array_forDec;    
-end
+else
+    varargout = {};
+end %End check if prune_flag == 1 
 
 %---- Control Points at start_lvl ----
 
