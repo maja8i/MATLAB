@@ -901,6 +901,9 @@ if prune_flag == 1
         disp(' ');
         disp(['Reconstructing voxels for level ' num2str(lvl) ' leaf cells ...']);
         disp(' ');
+        if lvl == (b + 1)
+            disp(['Retrieving reconstructed corner coordinates for occupied voxels at level ' num2str(lvl)]);
+        end
 
         %Counter for the number of leaf octree cells found at the current
         %level (for debugging purposes only)
@@ -912,7 +915,7 @@ if prune_flag == 1
                 nbr_leaves = nbr_leaves + 1;
                 %Just get the current occupied voxel's corner coordinates 
                 %and store them  
-                disp(['Retrieving corner coordinates for occupied voxel ' num2str(occ_cell)]);
+                %disp(['Retrieving corner coordinates for occupied voxel ' num2str(occ_cell)]);
                 current_corner_coords = corner_coords_decoder{lvl}(((occ_cell*8 - 7):(occ_cell*8)), :);
                 reconstructed_vox_pos_corners((rec_vox_cnr_cntr:(rec_vox_cnr_cntr + 7)), 1:3) = current_corner_coords;
                 rec_vox_cnr_cntr = rec_vox_cnr_cntr + 8;
@@ -1237,12 +1240,12 @@ if prune_flag == 1
     %voxelized point cloud that have not been reconstructed (i.e., are not 
     %present in reconstructed_vox_pos), and if so then plot these 
     test_vox_diffs = setdiff(ptcloud(:, 1:3), reconstructed_vox_pos, 'rows');
-    disp(['Number of missing voxels in reconstruction at decoder: ' num2str(size(test_vox_diffs, 1)) '/' num2str(size(ptcloud, 1)) ' (' num2str((size(test_vox_diffs, 1)/size(ptcloud, 1))*100) '%)']);
+    disp(['Total number of missing voxels or incorrectly reconstructed voxels in reconstruction at decoder: ' num2str(size(test_vox_diffs, 1)) '/' num2str(size(ptcloud, 1)) ' (' num2str((size(test_vox_diffs, 1)/size(ptcloud, 1))*100) '%)']);
     if ~isempty(test_vox_diffs)
         figure;
         scatter3(test_vox_diffs(:, 1), test_vox_diffs(:, 2), test_vox_diffs(:, 3), 5, 'filled', 'MarkerFaceColor', 'm');
         axis equal; axis off;
-        title({'Voxels that were Not Reconstructed at Decoder', ['(' num2str(size(test_vox_diffs, 1)) '/' num2str(size(ptcloud, 1)) ' = ' num2str((size(test_vox_diffs, 1)/size(ptcloud, 1))*100) '%)']});
+        title({'Voxels that were Not Reconstructed,', 'or Not Correctly Reconstructed, at Decoder', ['(' num2str(size(test_vox_diffs, 1)) '/' num2str(size(ptcloud, 1)) ' = ' num2str((size(test_vox_diffs, 1)/size(ptcloud, 1))*100) '%)']});
         savefig(['\\Pandora\builds\test\Data\Compression\PLY\Codec_Results\' ptcloud_name '\voxelized' num2str(b) '\BezierVolume\missing_voxels_post_pruning']);
         print('-bestfit', ['\\Pandora\builds\test\Data\Compression\PLY\Codec_Results\' ptcloud_name '\voxelized' num2str(b) '\BezierVolume\missing_voxels_post_pruning'], '-dpdf');
         disp('Saving missing voxels figure ...');
