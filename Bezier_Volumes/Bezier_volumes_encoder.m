@@ -241,11 +241,16 @@ tic;
 %for lvl = 1:(b + 1)
 for lvl = 1:max_lvl
     disp(['Computing Bezier control points for octree level ' num2str(lvl) ':']);
+    %Initialize a cell array to store the indices of any equidistant 
+    %voxels found for a given corner at the voxel level
+    if lvl == b + 1
+        equidistant_voxel_inds = cell(size(unique_coords{b + 1}, 1), 1); 
+    end
     %For each unique corner coordinate, find the nearest occupied voxel in
     %any of the occupied octree cells at the current level that share this 
     %corner. Do this by measuring the Euclidean distance from the corner to 
     %the (centres of) voxels.
-    disp('Computing signed distance to nearest occupied voxel, for each unique corner coordinate ...');   
+    disp('Computing signed distance to nearest occupied voxel, for each unique corner coordinate ...');  
     for c = 1:size(unique_coords{lvl}, 1)
         %Find out which occupied octree cells share this corner
         shared_cells{lvl, c} = ceil(find((c - ctrl_pts_pointers{lvl}) == 0)./8);    %Faster than using "ismember"                
@@ -266,6 +271,16 @@ for lvl = 1:max_lvl
         %Don't need "abs" below, because the diff values are squared
         euclid_dists = sqrt(sum(diff.^2, 2));   %This operation is faster than "arrayfun", above
         [min_euclid_dist{lvl}(c), nearest_voxel_ind] = min(euclid_dists);
+        %Check if more than one same minimum Euclidean distance was found
+        %above: if yes, this means that the current corner has more than
+        %one equidistant nearest voxel. Currently do this only for the leaf
+        %(voxel) level, where it is most likely to happen.
+        if lvl == b + 1
+            eqd_vox = find(euclid_dists == min(euclid_dists));
+            if length(eqd_vox) > 1
+                equidistant_voxel_inds{c} = eqd_vox;
+            end
+        end
         
         %Below is for debugging only
 %         test_dists = find(euclid_dists == min_euclid_dist{lvl}(c));
@@ -301,78 +316,217 @@ for lvl = 1:max_lvl
 %             disp(['Sum of final signs: ' num2str(sum(test_signs_final))]);
 %         end
 
-        %Store the (x, y, z) coordinates of the nearest voxel, for future
-        %reference
-        nearest_voxels{lvl}(c, 1:3) = current_occupied_voxel_coords(nearest_voxel_ind, :);
-        %Get the normal for the nearest voxel (the normal is an (x, y, z)
-        %triplet)
-        normal_nearest_vox{lvl}(c, 1:3) = current_occupied_voxel_normals(nearest_voxel_ind, :); 
-        %For the same corner point at the prevoius, lower octree level, 
-        %check if a smaller min_euclid_dist (absolute value of the control 
-        %point) is found than the current min_euclid_dist; keep the 
-        %smallest min_euclid_dist for this corner. Update the nearest_voxel
-        %coordinates and normal for this control point, accordingly.
-        if lvl > 1
-            %Initialize the true_min (true minimum control point value) to
-            %the current absolute control point value
-            %true_min = min_euclid_dist;
-            true_min = min_euclid_dist{lvl}(c);
-            %Currently, we are only considering one lower octree level
-            lower_lvls = lvl - 1;            
-            %Find the first row index where the current corner coordinates
-            %are the same as the (x, y, z) coordinates of a corner at 
-            %lower_lvls. We can stop after finding the first row index, 
-            %because any other row indices that could be found would 
-            %correspond to the same corner coordinate and therefore the 
-            %same control point.
-            corner_index = find(sum(abs(unique_coords{lvl}(c, :) - corner_coords{lower_lvls}), 2) == 0, 1);    
-            ctrlpt_index = ctrl_pts_pointers{lower_lvls}(corner_index);
-            if (~isempty(corner_index))&&(~isempty(control_points{lower_lvls}))
-                %All the indices in corner_index should be the same, so
-                %just pick the first one
-                %ctrlpt_index = ctrl_pts_pointers{lower_lvls}(corner_index(1));
-                %Find the control point value corresponding to the above 
-                %ctrlpt_index
-                test_ctrlpt = control_points{lower_lvls}(ctrlpt_index);
-                %Check if the absolute control point value found above is
-                %smaller than the current true_min: if yes, change the
-                %value of true_min to this new value and update the nearest
-                %voxel coordinates and normal accordingly.
-                if abs(test_ctrlpt) < true_min
-                    true_min = abs(test_ctrlpt);
-                    nearest_voxels{lvl}(c, 1:3) = nearest_voxels{lower_lvls}(ctrlpt_index, 1:3);
-                    normal_nearest_vox{lvl}(c, 1:3) = normal_nearest_vox{lower_lvls}(ctrlpt_index, 1:3);
+        %if (lvl < b + 1)
+            %Store the (x, y, z) coordinates of the nearest voxel, for future
+            %reference
+            nearest_voxels{lvl}(c, 1:3) = current_occupied_voxel_coords(nearest_voxel_ind, :);
+            %Get the normal for the nearest voxel (the normal is an (x, y, z)
+            %triplet)
+            normal_nearest_vox{lvl}(c, 1:3) = current_occupied_voxel_normals(nearest_voxel_ind, :); 
+            %For the same corner point at the prevoius, lower octree level, 
+            %check if a smaller min_euclid_dist (absolute value of the control 
+            %point) is found than the current min_euclid_dist; keep the 
+            %smallest min_euclid_dist for this corner. Update the nearest_voxel
+            %coordinates and normal for this control point, accordingly.
+            if lvl > 1
+                %Initialize the true_min (true minimum control point value) to
+                %the current absolute control point value
+                %true_min = min_euclid_dist;
+                true_min = min_euclid_dist{lvl}(c);
+                %Currently, we are only considering one lower octree level
+                lower_lvls = lvl - 1;            
+                %Find the first row index where the current corner coordinates
+                %are the same as the (x, y, z) coordinates of a corner at 
+                %lower_lvls. We can stop after finding the first row index, 
+                %because any other row indices that could be found would 
+                %correspond to the same corner coordinate and therefore the 
+                %same control point.
+                corner_index = find(sum(abs(unique_coords{lvl}(c, :) - corner_coords{lower_lvls}), 2) == 0, 1);    
+                ctrlpt_index = ctrl_pts_pointers{lower_lvls}(corner_index);
+                if (~isempty(corner_index))&&(~isempty(control_points{lower_lvls}))
+                    %All the indices in corner_index should be the same, so
+                    %just pick the first one
+                    %ctrlpt_index = ctrl_pts_pointers{lower_lvls}(corner_index(1));
+                    %Find the control point value corresponding to the above 
+                    %ctrlpt_index
+                    test_ctrlpt = control_points{lower_lvls}(ctrlpt_index);
+                    %Check if the absolute control point value found above is
+                    %smaller than the current true_min: if yes, change the
+                    %value of true_min to this new value and update the nearest
+                    %voxel coordinates and normal accordingly.
+                    if abs(test_ctrlpt) < true_min
+                        true_min = abs(test_ctrlpt);
+                        nearest_voxels{lvl}(c, 1:3) = nearest_voxels{lower_lvls}(ctrlpt_index, 1:3);
+                        normal_nearest_vox{lvl}(c, 1:3) = normal_nearest_vox{lower_lvls}(ctrlpt_index, 1:3);
+                    end
                 end
-            end
-            min_euclid_dist{lvl}(c) = true_min;
-        end %End check if lvl > 1
+                min_euclid_dist{lvl}(c) = true_min;
+            end %End check if lvl > 1
+        %If we are at the voxel level
+        %elseif (lvl == b + 1)
+%             %If, for the current corner, only one nearest voxel (midpoint) 
+%             %has been found
+%             if isempty(equidistant_voxel_inds{c})
+%                 %Get the (x, y, z) coordinates of the nearest voxel
+%                 %(midpoint)
+%                 nearest_voxels{lvl}(c, 1:3) = current_occupied_voxel_coords(nearest_voxel_ind, :);
+%                 %Get the normal for the nearest voxel (the normal is also
+%                 %an (x, y, z) triplet)
+%                 normal_nearest_vox{lvl}(c, 1:3) = current_occupied_voxel_normals(nearest_voxel_ind, :);       
+%                 %Compute the difference vector between the current corner's
+%                 %(x, y, z) coordinates and the nearest voxel's (x, y, z)
+%                 %coordinates
+%                 difference_vectors{lvl}(c, 1:3) = unique_coords{lvl}(c, :) - nearest_voxels{lvl}(c, 1:3);
+%                 %Compute the dot product between the difference vector and 
+%                 %normal vector for the current corner, found above
+%                 dot_products{lvl}(c) = dot(difference_vectors{lvl}(c, 1:3), normal_nearest_vox{lvl}(c, 1:3), 2); 
+%                 %To obtain the signed distance value for the control point at
+%                 %the current corner, take the sign of the dot product computed
+%                 %above for the current corner, and put it in front of the 
+%                 %corresponding minimum Euclidean distance for this corner. A 
+%                 %negative dot product indicates that the nearest voxel normal 
+%                 %is pointing AWAY from the corresponding corner, so this corner 
+%                 %is INSIDE the surface implied by the point cloud in that 
+%                 %voxel. A positive dot product indicates that the nearest voxel 
+%                 %normal is pointing TOWARDS the corresponding corner, so this 
+%                 %corner is OUTSIDE the surface of the point cloud. 
+%                 control_points{lvl}(c) = sign(dot_products{lvl}(c)).*(min(euclid_dists))';
+%             %If, for the current corner, more than one equidistant voxel
+%             %(midpoint) has been found
+%             else
+%                 %Get the (x, y, z) coordinates of all the equidistant 
+%                 %nearest voxels (i.e., their midpoints)
+%                 nearest_vox_coords = current_occupied_voxel_coords(equidistant_voxel_inds{c}, :);
+%                 %Get the normal vector for each of the equidistant nearest
+%                 %voxels
+%                 normals_nearest_vox = current_occupied_voxel_normals(equidistant_voxel_inds{c}, :);
+%                 %Compute the difference vector between the current corner's
+%                 %(x, y, z) coordinates and each of the voxel coordinates in
+%                 %nearest_vox_coords
+%                 diff_vecs = unique_coords{lvl}(c, :) - nearest_vox_coords;
+%                 %Compute the dot product between each difference vector and 
+%                 %the corresponding nearest voxel's normal vector
+%                 dot_prods = dot(diff_vecs, normals_nearest_vox, 2);
+%                 %Find the average dot product from dot_prods
+%                 mean_dp = mean(dot_prods);
+%                 dot_products{lvl}(c) = mean_dp;
+%                 %Set the control point for the current corner as the
+%                 %average of the dot products found above
+%                 control_points{lvl}(c) = dot_products{lvl}(c);               
+% %                 %Compute the average of each component (x, y, z) of
+% %                 %nearest_vox_coords
+% %                 nearest_voxels{lvl}(c, 1:3) = mean(nearest_vox_coords);
+% %                 %Compute the difference vector between the current corner's
+% %                 %(x, y, z) coordinates and the average nearest voxel
+% %                 %coordinates
+% %                 difference_vectors{lvl}(c, 1:3) = unique_coords{lvl}(c, :) - nearest_voxels{lvl}(c, 1:3);
+%   
+% %                 %Average the normals in normals_nearest_vox
+% %                 normal_nearest_vox{lvl}(c, 1:3) = mean(normals_nearest_vox);
+% %                 %Compute the difference vector between the current corner's
+% %                 %(x, y, z) coordinates and each of the equdistant nearest
+% %                 %voxel's (x, y, z) coordinates
+% %                 diff_vecs = unique_coords{lvl}(c, :) - nearest_vox_coords;
+% %                 %Average the signs of each of the (x, y, z) components of 
+% %                 %the difference vectors computed above, but leave the
+% %                 %absolute values of the components the same (so, each 
+% %                 %difference vector should have components of +/- 0.5)
+% %                 difference_vectors{lvl}(c, 1:3) = 0.5.*sign(mean(sign(diff_vecs)));
+%             end %End check if(isempty(equidistant_voxel_inds{c}))
+
+        %end %End check if (lvl < b + 1)
         disp(['Finished corner ' num2str(c) '/' num2str(size(unique_coords{lvl}, 1))]);
     end %End c (current unique coordinate)
-    %Compute the difference vector between each unique corner point's 
-    %(x, y, z) coordinates and the corresponding nearest voxel's (x, y, z) 
-    %coordinates, at the current octree level
-    difference_vectors{lvl} = unique_coords{lvl} - nearest_voxels{lvl};
-    %Compute the dot product between each difference vector and the
-    %corresponding nearest voxel's normal vector, at the current octree
-    %level
-    dot_products{lvl} = dot(difference_vectors{lvl}, normal_nearest_vox{lvl}, 2);
-    %To obtain the signed distance value for each control point at the
-    %current octree level, take the sign of each dot product computed above
-    %and add it to the corresponding min_euclid_dist. A negative dot
-    %product indicates that the nearest voxel normal is pointing AWAY from
-    %the corresponding corner, so this corner is INSIDE the surface
-    %implied by the point cloud in that octree cell. A positive dot product
-    %indicates that the nearest voxel normal is pointing TOWARDS the
-    %corresponding corner, so this corner is OUTSIDE the surface of the 
-    %point cloud. 
-    control_points{lvl} = sign(dot_products{lvl}).*min_euclid_dist{lvl}';
-    disp('------------------------------------------------------------');
+    %dot_products{lvl} = dot_products{lvl}'; %Make column vector
+    %control_points{lvl} = control_points{lvl}'; %Make column vector
+    %if lvl < b + 1
+        %Compute the difference vector between each unique corner point's 
+        %(x, y, z) coordinates and the corresponding nearest voxel's (x, y, z) 
+        %coordinates, at the current octree level
+        difference_vectors{lvl} = unique_coords{lvl} - nearest_voxels{lvl};
+        %Compute the dot product between each difference vector and the
+        %corresponding nearest voxel's normal vector, at the current octree
+        %level
+        dot_products{lvl} = dot(difference_vectors{lvl}, normal_nearest_vox{lvl}, 2);
+        %To obtain the signed distance value for each control point at the
+        %current octree level, take the sign of each dot product computed above
+        %and add it to the corresponding min_euclid_dist. A negative dot
+        %product indicates that the nearest voxel normal is pointing AWAY from
+        %the corresponding corner, so this corner is INSIDE the surface
+        %implied by the point cloud in that octree cell. A positive dot product
+        %indicates that the nearest voxel normal is pointing TOWARDS the
+        %corresponding corner, so this corner is OUTSIDE the surface of the 
+        %point cloud. 
+        control_points{lvl} = sign(dot_products{lvl}).*min_euclid_dist{lvl}';   
+        disp('------------------------------------------------------------');
+    %end
 end %End lvl
 ctrlpts_time = toc;
 disp(' ');
 disp('************************************************************');
 disp(['Time taken to compute all control points: ' num2str(ctrlpts_time) ' seconds']);
 disp('************************************************************');
+
+%For debugging purposes, print out how many voxels, if any, end up having 
+%all 8 of their control points with the same sign (+/-) ...
+[~, ptcloud, ~] = plyRead(ptcloud_file);
+%Accumulate all the control points (not just the unique ones) into one cell
+%array
+all_ctrlpts = get_all_ctrlpts(control_points, ctrl_pts_pointers); 
+same_sign_cntr = 0;
+vox = 0;
+same_sign_voxels = [];
+disp(' ');
+for i = 1:8:(length(all_ctrlpts{max_lvl}) - 7) 
+    vox = vox + 1;
+    %Get all 8 control points for the corners of the current voxel
+    current_ctrlpts = all_ctrlpts{max_lvl}(i:(i + 7));
+    %Check the signs of current_ctrlpts (assume here that none of the
+    %control points have a value of 0)
+    if (sum(sign(current_ctrlpts)) == length(current_ctrlpts))||(sum(sign(current_ctrlpts)) == -length(current_ctrlpts))
+        same_sign_cntr = same_sign_cntr + 1;
+        disp(' ');
+        disp(['Voxel ' num2str(vox) ' (' num2str(ptcloud(vox, 1:3)) ') has all control points with the same sign']);
+        disp('Voxel normal:');
+        disp(normals_sorted(vox, :));
+        %Store this voxel, for debugging purposes
+        same_sign_voxels((size(same_sign_voxels, 1) + 1), 1:3) = ptcloud(vox, 1:3);
+        %Get the corner coordinates for each corner of this voxel
+        vox_corners = corner_coords{max_lvl}((i:(i + 7)), 1:3);
+        disp('Voxel corner coordinates:');
+        disp(num2str(vox_corners));
+        %Get the nearest voxel midpoint found for each corner of the 
+        %current voxel
+        curr_nearest_vox = nearest_voxels{max_lvl}(ctrl_pts_pointers{max_lvl}(i:(i + 7)), 1:3);
+        disp('Nearest voxel midpoint found for each corner of the current voxel: ');
+        disp(num2str(curr_nearest_vox));
+        %Get the difference vector for each of the 8 corners of this voxel
+        %(difference vector between each corner and the chosen voxel 
+        %midpoint)
+        vox_diff_vecs = difference_vectors{max_lvl}(ctrl_pts_pointers{max_lvl}(i:(i + 7)), 1:3);
+        disp('Voxel corner difference vectors:');
+        disp(num2str(vox_diff_vecs));
+        %Get the dot product between the difference vector of each corner
+        %of this voxel and the normal vector of the chosen nearest voxel
+        %midpoint (this may not be the midpoint of the current voxel, as
+        %neighbouring voxels' midpoints are the same distance away)
+        vox_dp = dot_products{max_lvl}(ctrl_pts_pointers{max_lvl}(i:(i + 7)));
+        disp('Voxel corner dot products:');
+        disp(num2str(vox_dp));
+    end
+end
+disp(' ');
+disp(['TOTAL number of voxels with all control points having the same sign: ' num2str(same_sign_cntr) '/' num2str(length(all_ctrlpts{max_lvl})/8) ' (' num2str((same_sign_cntr/(length(all_ctrlpts{max_lvl})/8))*100) '%)']);
+%Plot voxels that have the same control point signs
+if same_sign_cntr > 0
+    figure;
+    scatter3(ptcloud(:, 1), ptcloud(:, 2), ptcloud(:, 3), 5, 'filled', 'MarkerFaceColor', 'b');
+    hold on;
+    scatter3(same_sign_voxels(:, 1), same_sign_voxels(:, 2), same_sign_voxels(:, 3), 5, 'filled', 'MarkerFaceColor', 'm');
+    axis equal; axis off;
+    title('Voxels with Same-Sign Control Points at Encoder');
+    legend('Voxels with Different-Sign Control Points', 'Voxels with Same-Sign Control Points', 'Location', 'best');
+end
     
 % %------------- Visualization of Control Point Computation ----------------%
 % 
@@ -909,29 +1063,6 @@ for lvl = start_lvl:(max_lvl - 1)
     print('-bestfit', ['\\Pandora\builds\test\Data\Compression\PLY\Codec_Results\' ptcloud_name '\voxelized' num2str(b) '\BezierVolume\histogram_wavcfs_lvls' num2str(lvl) '-' num2str(lvl + 1)], '-dpdf');
 end
 
-%For debugging purposes, print out how many voxels, if any, end up having 
-%all 8 of their control points with the same sign (+/-) ...
-
-%Accumulate all the control points (not just the unique ones) into one cell
-%array
-get_all_ctrlpts;    %get_all_ctrlpts.m is a script file
-same_sign_cntr = 0;
-vox = 0;
-disp(' ');
-for i = 1:8:(length(all_ctrlpts{max_lvl}) - 7) %all_ctrlpts is an output cell array of get_all_ctrlpts.m
-    vox = vox + 1;
-    %Get all 8 control points for the corners of the current voxel
-    current_ctrlpts = all_ctrlpts{max_lvl}(i:(i + 7));
-    %Check the signs of current_ctrlpts (assume here that none of the
-    %control points have a value of 0)
-    if (sum(sign(current_ctrlpts)) == length(current_ctrlpts))||(sum(sign(current_ctrlpts)) == -length(current_ctrlpts))
-        same_sign_cntr = same_sign_cntr + 1;
-        disp(['Voxel ' num2str(vox) ' has all control points with the same sign']);
-    end
-end
-disp(' ');
-disp(['TOTAL number of voxels with all control points having the same sign: ' num2str(same_sign_cntr) '/' num2str(length(all_ctrlpts{max_lvl})/8) ' (' num2str((same_sign_cntr/(length(all_ctrlpts{max_lvl})/8))*100) '%)']);
-
 %---------------- Checking for Zero Wavelet Coefficients -----------------%
 
 disp(' ');
@@ -1085,7 +1216,8 @@ if prune_flag == 1
     %Create a cell array that will contain the indices of the octree cells 
     %whose occupancy codes (which describe the locations of their occupied 
     %children) are to be pruned away at each octree level, from
-    %pruned_occupancy_codes
+    %pruned_occupancy_codes. These will be the internal cells only, not the
+    %leaves.
     toprune = cell(size(myOT.OccupancyCode));
     %Create a supplementary cell array that will contain a 1 where the 
     %corresponding occupied cell is a leaf node (after pruning) and a 0 
@@ -1094,8 +1226,8 @@ if prune_flag == 1
     %For each octree level that contains wavelet coefficients, except the 
     %voxel level (since this level does not have its own occupancy codes,
     %as the voxels do not have children), initialize all locations in 
-    %post_pruning_array to 0, as the leaf cells ("1" locations) will be
-    %determined after pruning
+    %post_pruning_array to 0 (the leaf cells ("1" locations) will be
+    %determined after pruning)
     for lvl = (start_lvl + 1):(max_lvl - 1) %Here assume max_lvl = b + 1
         post_pruning_array{lvl} = zeros(length(myOT.OccupancyCode{lvl}), 1);
     end   
@@ -1104,11 +1236,10 @@ if prune_flag == 1
     %the internal nodes that were removed in pruned_occupancy_codes.
     %NOTE: pruned_occupancy_codes and post_pruning_array will not be the 
     %same size at the end: pruned_occupancy_codes will contain one 
-    %occupancy code per INTERNAL octree cell at each octree level (as it is
-    %only the internal nodes that have children, therefore have occupancy
-    %codes), whereas post_pruning_array will contain a 1 or 0 bit for EACH 
-    %of the remaining octree cells after pruning, including the internal 
-    %cells AND the leaves (except the leaves at level b + 1).
+    %occupancy code per INTERNAL octree cell at each octree level, whereas 
+    %post_pruning_array will contain a 1 or 0 bit for EACH of the remaining 
+    %octree cells after pruning, including the internal cells AND the 
+    %leaves (except the leaves at level b + 1).
     toprune2 = cell(size(myOT.OccupancyCode));
 
 %     %For each octree level that contains wavelet coefficients, except the 
@@ -1128,7 +1259,7 @@ if prune_flag == 1
 %     end
 
     %The below code prunes descendants of octree cells that have all-zero
-    %wavelet coefficients, without checking whether all the descendants
+    %wavelet coefficients, without checking whether all these descendants
     %also have all-zero wavelet coefficients ...
     
 %     %For each octree level that contains wavelet coefficients, except the
@@ -1190,10 +1321,11 @@ if prune_flag == 1
 
     %The below code prunes branches (occupancy codes) of octree cells that 
     %have all zero wavelet coefficients throughout the branch, so the 
-    %pruning is done bottom-up from the leaves (voxel level) ...
+    %pruning is done bottom-up from the voxel level ...
     
     %For each octree level that contains wavelet coefficients ...
     %for lvl = max_lvl:-1:(start_lvl + 2) %Here assume max_lvl = b + 1
+    %Start from the voxel level ...
     for lvl = max_lvl %Here assume max_lvl = b + 1
         %If there exist any occupied octree cells at this level, which  
         %contain all zero wavelet coefficients ...
@@ -1207,7 +1339,8 @@ if prune_flag == 1
             for az_cell = all_zero_wav_cfs{lvl}
                 %Find the parent of the current az_cell
                 parent_cell = myOT.ParentPtr{lvl}(az_cell);
-                %Find the children of parent_cell
+                %Find all the children of parent_cell (one of these
+                %children will be the current az_cell)
                 children = ((myOT.FirstChildPtr{lvl - 1}(parent_cell)):(myOT.FirstChildPtr{lvl - 1}(parent_cell) + uint32((myOT.ChildCount{lvl - 1}(parent_cell))) - 1));
                 %Check if this parent's other children also have all-zero
                 %wavelet coefficients
@@ -1232,24 +1365,6 @@ if prune_flag == 1
                             %will be pruned off), so we can mark them for 
                             %removal from post_pruning_array as well
                             toprune2{lvl}((length(toprune2{lvl}) + 1):(length(toprune2{lvl}) + length(children))) = children;
-%                             %Mark all the descendants of these children,
-%                             %for pruning
-%                             children_copy = children;
-%                             for lvl3 = (lvl + 1):(max_lvl - 2)
-%                                 descendants = zeros(sum(myOT.ChildCount{lvl3}(children_copy)), 1);
-%                                 first_children = myOT.FirstChildPtr{lvl3}(children_copy);
-%                                 desc_cntr = 1;
-%                                 for fc = 1:length(first_children)
-%                                     descendants(desc_cntr:(desc_cntr + myOT.ChildCount{lvl3}(children_copy(fc)) - 1)) = first_children(fc):(first_children(fc) + uint32(myOT.ChildCount{lvl3}(children_copy(fc)) - 1));
-%                                     desc_cntr = desc_cntr + myOT.ChildCount{lvl3}(children_copy(fc));
-%                                 end
-%                                 toprune{lvl3 + 1}((length(toprune{lvl3 + 1}) + 1):(length(descendants) + length(toprune{lvl3 + 1}))) = descendants;
-%                                 toprune2{lvl3 + 1}((length(toprune2{lvl3 + 1}) + 1):(length(descendants) + length(toprune2{lvl3 + 1}))) = descendants;
-%                                 %The new children_copy, at the next octree
-%                                 %level (lvl3 + 1), will be the current 
-%                                 %"descendants"
-%                                 children_copy = descendants;
-%                             end %End lvl3  
                         end
                         %Successively check each ancestor of the current
                         %parent_cell, to see if we can prune further up the 
@@ -1268,9 +1383,9 @@ if prune_flag == 1
                                     %current ancestor parent for pruning
                                     toprune{lvl2 - 1}(length(toprune{lvl2 - 1}) + 1) = parent2;
                                     %Mark the current parent_cell for
-                                    %pruning from post_pruning_array, since
-                                    %it is not a leaf (as it will be pruned
-                                    %off)
+                                    %pruning from post_pruning_array too, 
+                                    %since it is not a leaf (as it will be
+                                    %pruned off)
                                     toprune2{lvl2}(length(toprune2{lvl2}) + 1) = parent_cell;
                                     %If we are not at the voxel level, mark 
                                     %the occupancy codes of parent2's
@@ -1285,24 +1400,6 @@ if prune_flag == 1
                                         %so we can mark them for removal 
                                         %from post_pruning_array as well
                                         toprune2{lvl2}((length(toprune2{lvl2}) + 1):(length(toprune2{lvl2}) + length(children2))) = children2;
-%                                         %Mark all the descendants of these children,
-%                                         %for pruning
-%                                         children_copy = children2;
-%                                         for lvl3 = (lvl2 + 1):(max_lvl - 2)
-%                                             descendants = zeros(sum(myOT.ChildCount{lvl3}(children_copy)), 1);
-%                                             first_children = myOT.FirstChildPtr{lvl3}(children_copy);
-%                                             desc_cntr = 1;
-%                                             for fc = 1:length(first_children)
-%                                                 descendants(desc_cntr:(desc_cntr + myOT.ChildCount{lvl3}(children_copy(fc)) - 1)) = first_children(fc):(first_children(fc) + uint32(myOT.ChildCount{lvl3}(children_copy(fc)) - 1));
-%                                                 desc_cntr = desc_cntr + myOT.ChildCount{lvl3}(children_copy(fc));
-%                                             end
-%                                             toprune{lvl3 + 1}((length(toprune{lvl3 + 1}) + 1):(length(descendants) + length(toprune{lvl3 + 1}))) = descendants;
-%                                             toprune2{lvl3 + 1}((length(toprune2{lvl3 + 1}) + 1):(length(descendants) + length(toprune2{lvl3 + 1}))) = descendants;
-%                                             %The new children_copy, at the next octree
-%                                             %level (lvl3 + 1), will be the current 
-%                                             %"descendants"
-%                                             children_copy = descendants;
-%                                         end %End lvl3  
                                     end
                                     %Continue checking other ancestors,
                                     %with the current parent2 being the new 
@@ -1334,7 +1431,7 @@ if prune_flag == 1
                                     %ancestor parent, for pruning
                                     toprune{lvl2 - 1}(length(toprune{lvl2 - 1}) + 1) = parent2;
                                     %The ancestor parent will become a leaf
-                                    post_pruning_array{lv2 - 1}(parent2) = 1;
+                                    post_pruning_array{lvl2 - 1}(parent2) = 1;
                                     %Mark the current parent_cell for
                                     %pruning from post_pruning_array, since
                                     %it is not a leaf
@@ -1352,24 +1449,6 @@ if prune_flag == 1
                                         %so we can mark them for removal 
                                         %from post_pruning_array as well
                                         toprune2{lvl2}((length(toprune2{lvl2}) + 1):(length(toprune2{lvl2}) + length(children2))) = children2;
-%                                         %Mark all the descendants of these children,
-%                                         %for pruning
-%                                         children_copy = children2;
-%                                         for lvl3 = (lvl2 + 1):(max_lvl - 2)
-%                                             descendants = zeros(sum(myOT.ChildCount{lvl3}(children_copy)), 1);
-%                                             first_children = myOT.FirstChildPtr{lvl3}(children_copy);
-%                                             desc_cntr = 1;
-%                                             for fc = 1:length(first_children)
-%                                                 descendants(desc_cntr:(desc_cntr + myOT.ChildCount{lvl3}(children_copy(fc)) - 1)) = first_children(fc):(first_children(fc) + uint32(myOT.ChildCount{lvl3}(children_copy(fc)) - 1));
-%                                                 desc_cntr = desc_cntr + myOT.ChildCount{lvl3}(children_copy(fc));
-%                                             end
-%                                             toprune{lvl3 + 1}((length(toprune{lvl3 + 1}) + 1):(length(descendants) + length(toprune{lvl3 + 1}))) = descendants;
-%                                             toprune2{lvl3 + 1}((length(toprune2{lvl3 + 1}) + 1):(length(descendants) + length(toprune2{lvl3 + 1}))) = descendants;
-%                                             %The new children_copy, at the next octree
-%                                             %level (lvl3 + 1), will be the current 
-%                                             %"descendants"
-%                                             children_copy = descendants;
-%                                         end %End lvl3  
                                     end
                                     %Stop searching other ancestors; move
                                     %on to the next az_cell
@@ -1412,25 +1491,7 @@ if prune_flag == 1
                             %These children will not be leaves (since they
                             %will be pruned off), so we can mark them for 
                             %removal from post_pruning_array as well
-                            toprune2{lvl}((length(toprune2{lvl}) + 1):(length(toprune2{lvl}) + length(children))) = children;
-%                             %Mark all the descendants of these children,
-%                             %for pruning
-%                             children_copy = children;
-%                             for lvl3 = (lvl + 1):(max_lvl - 2)
-%                                 descendants = zeros(sum(myOT.ChildCount{lvl3}(children_copy)), 1);
-%                                 first_children = myOT.FirstChildPtr{lvl3}(children_copy);
-%                                 desc_cntr = 1;
-%                                 for fc = 1:length(first_children)
-%                                     descendants(desc_cntr:(desc_cntr + myOT.ChildCount{lvl3}(children_copy(fc)) - 1)) = first_children(fc):(first_children(fc) + uint32(myOT.ChildCount{lvl3}(children_copy(fc)) - 1));
-%                                     desc_cntr = desc_cntr + myOT.ChildCount{lvl3}(children_copy(fc));
-%                                 end
-%                                 toprune{lvl3 + 1}((length(toprune{lvl3 + 1}) + 1):(length(descendants) + length(toprune{lvl3 + 1}))) = descendants;
-%                                 toprune2{lvl3 + 1}((length(toprune2{lvl3 + 1}) + 1):(length(descendants) + length(toprune2{lvl3 + 1}))) = descendants;
-%                                 %The new children_copy, at the next octree
-%                                 %level (lvl3 + 1), will be the current 
-%                                 %"descendants"
-%                                 children_copy = descendants;
-%                             end %End lvl3  
+                            toprune2{lvl}((length(toprune2{lvl}) + 1):(length(toprune2{lvl}) + length(children))) = children; 
                         end
                     else
                         %If neither the parent_cell nor all of its children
@@ -1548,8 +1609,9 @@ if prune_flag == 1
                 %be pruned off, so record its index
                 parents = myOT.ParentPtr{lvl}(current_shared_cells);
                 %Use toprune below, instead of toprune2, because we want to
-                %consider children of leaf cells at the previous level too,
-                %but these leaf cells would not be marked in toprune2
+                %consider leaf cells at the previous level as well as 
+                %internal cells, but the leaf cells would not be marked in 
+                %toprune2
                 test = find(ismember(parents, toprune{lvl - 1})) == 1;
                 if length(test) == length(parents)
                     wc_toprune{lvl}(wc_toprune_cntr) = c;
@@ -1795,6 +1857,22 @@ disp(' ');
 disp('------------------- ENCODER FINISHED -----------------------');
 disp(' ');
 
+% %For debugging only: check which, if any, of the voxels that were not
+% %reconstructed at the decoder, have control points with all the same signs
+% load('test_vox_diffs.mat');
+% same_sign_cntr = 0;
+% for i = 1:size(test_vox_diffs, 1)
+%     diff_temp = test_vox_diffs(i, :) - ptcloud(:, 1:3);
+%     vox_ind = find(sum(abs(diff_temp), 2) == 0);
+%     curr_ctrlpts = all_ctrlpts{8}((8*vox_ind - 7):(8*vox_ind)); %All control points, before pruning
+%     if (sum(sign(curr_ctrlpts)) == length(curr_ctrlpts))||(sum(sign(curr_ctrlpts)) == -length(curr_ctrlpts))
+%         same_sign_cntr = same_sign_cntr + 1;
+%         disp(['Vox. ' num2str(i) ' (' num2str(test_vox_diffs(i, :)) ') has all control points with the same sign: ']);
+%         disp(num2str(curr_ctrlpts));
+%     end
+% end
+% disp(['Number of not-reconstructed voxels with all control points having the same sign: ' num2str(same_sign_cntr) '/' num2str(size(test_vox_diffs, 1))]);
+% disp(' ');
 
 
 

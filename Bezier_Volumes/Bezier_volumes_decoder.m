@@ -1169,7 +1169,7 @@ if prune_flag == 1
     %reconstructed voxel (x, y, z) corner coordinates obtained from the 
     %reconstructed control points
     disp('Collecting all reconstructed voxels for each occupied cell and finding their centre coordinates ...');
-    reconstructed_vox_pos_corners2 = cat(1, subcell_coords_all{b, :});
+    reconstructed_vox_pos_corners2 = cat(1, subcell_coords_all{end, :});
     %Concatenate the reconstructed voxel corners already stored in
     %reconstructed_vox_pos with the other corners collected above
     reconstructed_vox_pos_corners = cat(1, reconstructed_vox_pos_corners, reconstructed_vox_pos_corners2);
@@ -1225,7 +1225,7 @@ if prune_flag == 1
         scatter3(reconstructed_vox_pos(:, 1), reconstructed_vox_pos(:, 2), reconstructed_vox_pos(:, 3), 5, 'filled');
     end
     axis equal; axis off;
-    title('Voxel Reconstruction after using Pruned Octree and Wavelet Coefficient Tree');
+    title({'Voxel Reconstruction after using Pruned Octree', 'and Pruned Wavelet Coefficient Tree'});
     %Save the above reconstruction as a MATLAB figure and as a PDF image in
     %our network directory (NB: The '-bestfit' option maximizes the size of 
     %the figure to fill the page, but preserves the aspect ratio of the 
@@ -1238,9 +1238,9 @@ if prune_flag == 1
   
     %For debugging purposes, check if there are any voxels in the original 
     %voxelized point cloud that have not been reconstructed (i.e., are not 
-    %present in reconstructed_vox_pos), and if so then plot these 
+    %present in reconstructed_vox_pos), and if so, plot them
     test_vox_diffs = setdiff(ptcloud(:, 1:3), reconstructed_vox_pos, 'rows');
-    disp(['Total number of missing voxels or incorrectly reconstructed voxels in reconstruction at decoder: ' num2str(size(test_vox_diffs, 1)) '/' num2str(size(ptcloud, 1)) ' (' num2str((size(test_vox_diffs, 1)/size(ptcloud, 1))*100) '%)']);
+    disp(['Total number of missing voxels or incorrectly reconstructed voxels in reconstruction at decoder: ' num2str(size(test_vox_diffs, 1)) '/' num2str(size(ptcloud, 1)) ' (' num2str((size(test_vox_diffs, 1)/size(ptcloud, 1))*100) '%)']);  
     if ~isempty(test_vox_diffs)
         figure;
         scatter3(test_vox_diffs(:, 1), test_vox_diffs(:, 2), test_vox_diffs(:, 3), 5, 'filled', 'MarkerFaceColor', 'm');
@@ -1249,6 +1249,21 @@ if prune_flag == 1
         savefig(['\\Pandora\builds\test\Data\Compression\PLY\Codec_Results\' ptcloud_name '\voxelized' num2str(b) '\BezierVolume\missing_voxels_post_pruning']);
         print('-bestfit', ['\\Pandora\builds\test\Data\Compression\PLY\Codec_Results\' ptcloud_name '\voxelized' num2str(b) '\BezierVolume\missing_voxels_post_pruning'], '-dpdf');
         disp('Saving missing voxels figure ...');
+        disp('------------------------------------------------------------');
+    end
+    %Overlay the missing voxels over the reconstructed voxels, to see where
+    %the gaps are
+    if ~isempty(test_vox_diffs)
+        figure;
+        scatter3(reconstructed_vox_pos(:, 1), reconstructed_vox_pos(:, 2), reconstructed_vox_pos(:, 3), 5, 'filled', 'MarkerFaceColor', 'b');
+        hold on;
+        scatter3(test_vox_diffs(:, 1), test_vox_diffs(:, 2), test_vox_diffs(:, 3), 5, 'filled', 'MarkerFaceColor', 'm');
+        axis equal; axis off;
+        title('Reconstructed and Not-Reconstructed Voxels at Decoder');
+        legend('Reconstructed', 'Not Reconstructed', 'Location', 'best');
+        savefig(['\\Pandora\builds\test\Data\Compression\PLY\Codec_Results\' ptcloud_name '\voxelized' num2str(b) '\BezierVolume\reconstructed_vs_notreconstructed_voxels_post_pruning']);
+        print('-bestfit', ['\\Pandora\builds\test\Data\Compression\PLY\Codec_Results\' ptcloud_name '\voxelized' num2str(b) '\BezierVolume\reconstructed_vs_notreconstructed_voxels_post_pruning'], '-dpdf');
+        disp('Saving reconstructed vs not-reconstructed voxels figure ...');
         disp('------------------------------------------------------------');
     end
     %For debugging purposes, also check if any voxels are present in 
