@@ -55,7 +55,6 @@
 
 %-------------------------------------------------------------------------%
 
-%function [myOT, mortonCodes_sorted, xyz_sorted, normals_sorted, centroids_sorted, original_points_per_voxel, original_normals_per_voxel] = construct_octree(ptcloud_file, b, ptcloud_name)
 function [myOT, mortonCodes_sorted, xyz_sorted, normals_sorted, varargout] = construct_octree(ptcloud_file, b, varargin)
 
 disp(['b = ' num2str(b)]);

@@ -42,17 +42,8 @@ disp('-------------------- Octree Construction -------------------');
 disp(' ');
 
 %Construct an octree of depth (b + 1), for the input point cloud
-%[myOT, mortonCodes_sorted, xyz_sorted, normals_sorted, centroids_sorted, original_points_per_voxel, original_normals_per_voxel] = construct_octree(ptcloud_file, b, ptcloud_name);
+%[myOT, mortonCodes_sorted, xyz_sorted, normals_sorted, centroids_sorted] = construct_octree(ptcloud_file, b);
 [myOT, mortonCodes_sorted, xyz_sorted, normals_sorted] = construct_octree(ptcloud_file, b);
-
-disp(' ');
-disp('-------------- Extracting Voxel Coordinates ----------------');
-disp(' ');
-
-%Extract the set of occupied voxel coordinates (x, y, z) at all levels of
-%the octree myOT 
-%[~, occupied_voxel_coords, occupied_voxel_normals, occupied_voxel_centroids] = extract_occupied_voxels(myOT, mortonCodes_sorted, xyz_sorted, normals_sorted, centroids_sorted, original_points_per_voxel, original_normals_per_voxel);
-[~, occupied_voxel_coords, occupied_voxel_normals] = extract_occupied_voxels(myOT, mortonCodes_sorted, xyz_sorted, normals_sorted);
 
 disp(' ');
 disp('-------------- Computing Corner Coordinates ----------------');
@@ -128,10 +119,10 @@ disp('************************************************************');
 % %visualize the octree cell subdivision
 % colours = hsv(vis_levels_ot);   %Each row contains 3 columns (R, G, B)
 % 
-%Initialize a cell array to store, for each unique corner vertex at each
-%octree level, a list of indices of the corner vertices that share an edge
-%with that vertex. 
-shared_edge_inds = cell(b, 1);
+% %Initialize a cell array to store, for each unique corner vertex at each
+% %octree level, a list of indices of the corner vertices that share an edge
+% %with that vertex. 
+% shared_edge_inds = cell(b, 1);
 % 
 % %Initialize an array to store handles for each octree level plot, to use
 % %for the legend 
@@ -149,7 +140,7 @@ shared_edge_inds = cell(b, 1);
 % end
 % 
 % %for lvl = 1:vis_levels_ot
-for lvl = [4, 5]
+% for lvl = [4, 5]
 %     %Plot all the unique corner points at the current octree level, over
 %     %the top of the input 3D point cloud
 %     scatter3(unique_coords{lvl}(:, 1), unique_coords{lvl}(:, 2), unique_coords{lvl}(:, 3), 10, colours(lvl, :), 'filled');
@@ -160,52 +151,61 @@ for lvl = [4, 5]
 %     vertical octree grid lines that show the cell divisions at the current
 %     octree level (i.e., connect the points that share each edge with a
 %     straight line).
-    for v = 1:size(unique_coords{lvl}, 1)
-        %Initialize an array to store the indices of the shared vertices,
-        %for the current vertex
-        edge_pts_indices = [];
-        %Initialize a counter to keep track of how many vertex indices
-        %corresponding to shared edges have been found
-        edge_pts_indices_cntr = 1;
-        %Get the coordinates of the current vertex
-        current_vtx = unique_coords{lvl}(v, :);
-        %Find all the vertices (amongst the list of unique corner vertices
-        %at the current octree level) that share an edge with current_vtx
-        [x_same_rows, ~] = find(current_vtx(1) == unique_coords{lvl}(:, 1));
-        x_same_rows(find(x_same_rows == v)) = [];   %Remove the current vertex index
-        [y_same_rows, ~] = find(current_vtx(2) == unique_coords{lvl}(:, 2));
-        y_same_rows(find(y_same_rows == v)) = [];   %Remove the current vertex index
-        [z_same_rows, ~] = find(current_vtx(3) == unique_coords{lvl}(:, 3));
-        z_same_rows(find(z_same_rows == v)) = [];   %Remove the current vertex index
-        temp_cat = [x_same_rows; y_same_rows; z_same_rows];
-        for v_ind = 1:length(temp_cat)
-            %Only keep the vertex indices that appear twice in temp_cat
-            if length(find(temp_cat == temp_cat(v_ind))) == 2
-                edge_pts_indices(edge_pts_indices_cntr) = temp_cat(v_ind);
-                edge_pts_indices_cntr = edge_pts_indices_cntr + 1;
-            end
-        end
-        %Keep only the unique indices in edge_pts_indices
-        edge_pts_indices = (unique(edge_pts_indices))';
-        %Get the (x, y, z) coordinates corresponding to all the
-        %edge_pts_indices
-        edge_pts_coords = unique_coords{lvl}(edge_pts_indices, :);
+%     for v = 1:size(unique_coords{lvl}, 1)
+%         %Initialize an array to store the indices of the shared vertices,
+%         %for the current vertex
+%         edge_pts_indices = [];
+%         %Initialize a counter to keep track of how many vertex indices
+%         %corresponding to shared edges have been found
+%         edge_pts_indices_cntr = 1;
+%         %Get the coordinates of the current vertex
+%         current_vtx = unique_coords{lvl}(v, :);
+%         %Find all the vertices (amongst the list of unique corner vertices
+%         %at the current octree level) that share an edge with current_vtx
+%         [x_same_rows, ~] = find(current_vtx(1) == unique_coords{lvl}(:, 1));
+%         x_same_rows(find(x_same_rows == v)) = [];   %Remove the current vertex index
+%         [y_same_rows, ~] = find(current_vtx(2) == unique_coords{lvl}(:, 2));
+%         y_same_rows(find(y_same_rows == v)) = [];   %Remove the current vertex index
+%         [z_same_rows, ~] = find(current_vtx(3) == unique_coords{lvl}(:, 3));
+%         z_same_rows(find(z_same_rows == v)) = [];   %Remove the current vertex index
+%         temp_cat = [x_same_rows; y_same_rows; z_same_rows];
+%         for v_ind = 1:length(temp_cat)
+%             %Only keep the vertex indices that appear twice in temp_cat
+%             if length(find(temp_cat == temp_cat(v_ind))) == 2
+%                 edge_pts_indices(edge_pts_indices_cntr) = temp_cat(v_ind);
+%                 edge_pts_indices_cntr = edge_pts_indices_cntr + 1;
+%             end
+%         end
+%         %Keep only the unique indices in edge_pts_indices
+%         edge_pts_indices = (unique(edge_pts_indices))';
+%         %Get the (x, y, z) coordinates corresponding to all the
+%         %edge_pts_indices
+%         edge_pts_coords = unique_coords{lvl}(edge_pts_indices, :);
 %         %Connect the current_vtx to all the edge_pts_coords with straight
 %         %lines
 %         for nv = 1:length(edge_pts_indices) %"nv" stands for neighbouring vertex
 %             h_ot(lvl) = plot3([current_vtx(1) edge_pts_coords(nv, 1)], [current_vtx(2) edge_pts_coords(nv, 2)], [current_vtx(3) edge_pts_coords(nv, 3)], 'Color', colours(lvl, :));
 %             hold on;
 %         end
-        %Store the current list of edge indices inside shared_edge_inds,
-        %for future reference
-        shared_edge_inds{lvl, v} = edge_pts_indices;
-    end
-end
+%         %Store the current list of edge indices inside shared_edge_inds,
+%         %for future reference
+%         shared_edge_inds{lvl, v} = edge_pts_indices;
+%     end
+% end
 % hold off;
 % legend(h_ot, otplot_legend, 'Location', 'best');
 % title({'Octree Subdivision and Computing Corner Coordinates of Octree Cells', '(ENCODER)'}, 'Interpreter', 'none');
 
 %-------------------- Computing Bezier Control Points --------------------%
+
+disp(' ');
+disp('-------------- Extracting Voxel Coordinates ----------------');
+disp(' ');
+
+%Extract the set of occupied voxel coordinates (x, y, z) at all levels of
+%the octree myOT 
+%[~, occupied_voxel_coords, occupied_voxel_normals, occupied_voxel_centroids] = extract_occupied_voxels(myOT, mortonCodes_sorted, xyz_sorted, normals_sorted, centroids_sorted);
+[~, occupied_voxel_coords, occupied_voxel_normals] = extract_occupied_voxels(myOT, mortonCodes_sorted, xyz_sorted, normals_sorted);
 
 disp(' ');
 disp('------------ Computing Bezier Control Points ---------------');
@@ -241,46 +241,49 @@ tic;
 %for lvl = 1:(b + 1)
 for lvl = 1:max_lvl
     disp(['Computing Bezier control points for octree level ' num2str(lvl) ':']);
-    %Initialize a cell array to store the indices of any equidistant 
-    %voxels found for a given corner at the voxel level
-    if lvl == b + 1
-        equidistant_voxel_inds = cell(size(unique_coords{b + 1}, 1), 1); 
-    end
+%     %Initialize a cell array to store the indices of any equidistant 
+%     %voxels found for a given corner at the voxel level
+%     if lvl == b + 1
+%         equidistant_voxel_inds = cell(size(unique_coords{b + 1}, 1), 1); 
+%     end
     %For each unique corner coordinate, find the nearest occupied voxel in
     %any of the occupied octree cells at the current level that share this 
-    %corner. Do this by measuring the Euclidean distance from the corner to 
-    %the (centres of) voxels.
+    %corner
     disp('Computing signed distance to nearest occupied voxel, for each unique corner coordinate ...');  
     for c = 1:size(unique_coords{lvl}, 1)
         %Find out which occupied octree cells share this corner
         shared_cells{lvl, c} = ceil(find((c - ctrl_pts_pointers{lvl}) == 0)./8);    %Faster than using "ismember"                
         %Get the (x, y, z) coordinates of all the occupied voxels in the 
         %cells found above, and the normals for each of these voxels
-        current_occupied_voxel_coords = occupied_voxel_coords{lvl, shared_cells{lvl, c}(1)};
+        current_occupied_voxel_coords = occupied_voxel_coords{lvl, shared_cells{lvl, c}(1)};    %Coords. are voxel midpoints 
+        %current_occupied_voxel_coords = occupied_voxel_centroids{lvl, shared_cells{lvl, c}(1)};    %Coords. are voxel centroids 
         current_occupied_voxel_normals = occupied_voxel_normals{lvl, shared_cells{lvl, c}(1)};
         if length(shared_cells{lvl, c}) > 1
             %Concatenate the position and normal coordinates from the cells 
             %that share the current corner (concatenate along rows, so that
             %we maintain the 3-column structure)
-            current_occupied_voxel_coords = cat(1, current_occupied_voxel_coords, occupied_voxel_coords{lvl, shared_cells{lvl, c}(2:length(shared_cells{lvl, c}))});
+            current_occupied_voxel_coords = cat(1, current_occupied_voxel_coords, occupied_voxel_coords{lvl, shared_cells{lvl, c}(2:length(shared_cells{lvl, c}))}); %Coords. are voxel midpoints
+            %current_occupied_voxel_coords = cat(1, current_occupied_voxel_coords, occupied_voxel_centroids{lvl, shared_cells{lvl, c}(2:length(shared_cells{lvl, c}))}); %Coords. are voxel centroids
             current_occupied_voxel_normals = cat(1, current_occupied_voxel_normals, occupied_voxel_normals{lvl, shared_cells{lvl, c}(2:length(shared_cells{lvl, c}))});
         end
         %Find the nearest neighbour to the current unique corner coordinate 
         diff = unique_coords{lvl}(c, :) - current_occupied_voxel_coords; 
+
         %euclid_dists = abs(arrayfun(@(idx) norm(diff(idx, :)), 1:size(diff, 1)));
         %Don't need "abs" below, because the diff values are squared
         euclid_dists = sqrt(sum(diff.^2, 2));   %This operation is faster than "arrayfun", above
         [min_euclid_dist{lvl}(c), nearest_voxel_ind] = min(euclid_dists);
-        %Check if more than one same minimum Euclidean distance was found
-        %above: if yes, this means that the current corner has more than
-        %one equidistant nearest voxel. Currently do this only for the leaf
-        %(voxel) level, where it is most likely to happen.
-        if lvl == b + 1
-            eqd_vox = find(euclid_dists == min(euclid_dists));
-            if length(eqd_vox) > 1
-                equidistant_voxel_inds{c} = eqd_vox;
-            end
-        end
+        
+%         %Check if more than one same minimum Euclidean distance was found
+%         %above: if yes, this means that the current corner has more than
+%         %one equidistant nearest voxel. Currently do this only for the leaf
+%         %(voxel) level, where it is most likely to happen.
+%         if lvl == b + 1
+%             eqd_vox = find(euclid_dists == min(euclid_dists));
+%             if length(eqd_vox) > 1
+%                 equidistant_voxel_inds{c} = eqd_vox;
+%             end
+%         end
         
         %Below is for debugging only
 %         test_dists = find(euclid_dists == min_euclid_dist{lvl}(c));
@@ -316,125 +319,51 @@ for lvl = 1:max_lvl
 %             disp(['Sum of final signs: ' num2str(sum(test_signs_final))]);
 %         end
 
-        %if (lvl < b + 1)
-            %Store the (x, y, z) coordinates of the nearest voxel, for future
-            %reference
-            nearest_voxels{lvl}(c, 1:3) = current_occupied_voxel_coords(nearest_voxel_ind, :);
-            %Get the normal for the nearest voxel (the normal is an (x, y, z)
-            %triplet)
-            normal_nearest_vox{lvl}(c, 1:3) = current_occupied_voxel_normals(nearest_voxel_ind, :); 
-            %For the same corner point at the prevoius, lower octree level, 
-            %check if a smaller min_euclid_dist (absolute value of the control 
-            %point) is found than the current min_euclid_dist; keep the 
-            %smallest min_euclid_dist for this corner. Update the nearest_voxel
-            %coordinates and normal for this control point, accordingly.
-            if lvl > 1
-                %Initialize the true_min (true minimum control point value) to
-                %the current absolute control point value
-                %true_min = min_euclid_dist;
-                true_min = min_euclid_dist{lvl}(c);
-                %Currently, we are only considering one lower octree level
-                lower_lvls = lvl - 1;            
-                %Find the first row index where the current corner coordinates
-                %are the same as the (x, y, z) coordinates of a corner at 
-                %lower_lvls. We can stop after finding the first row index, 
-                %because any other row indices that could be found would 
-                %correspond to the same corner coordinate and therefore the 
-                %same control point.
-                corner_index = find(sum(abs(unique_coords{lvl}(c, :) - corner_coords{lower_lvls}), 2) == 0, 1);    
-                ctrlpt_index = ctrl_pts_pointers{lower_lvls}(corner_index);
-                if (~isempty(corner_index))&&(~isempty(control_points{lower_lvls}))
-                    %All the indices in corner_index should be the same, so
-                    %just pick the first one
-                    %ctrlpt_index = ctrl_pts_pointers{lower_lvls}(corner_index(1));
-                    %Find the control point value corresponding to the above 
-                    %ctrlpt_index
-                    test_ctrlpt = control_points{lower_lvls}(ctrlpt_index);
-                    %Check if the absolute control point value found above is
-                    %smaller than the current true_min: if yes, change the
-                    %value of true_min to this new value and update the nearest
-                    %voxel coordinates and normal accordingly.
-                    if abs(test_ctrlpt) < true_min
-                        true_min = abs(test_ctrlpt);
-                        nearest_voxels{lvl}(c, 1:3) = nearest_voxels{lower_lvls}(ctrlpt_index, 1:3);
-                        normal_nearest_vox{lvl}(c, 1:3) = normal_nearest_vox{lower_lvls}(ctrlpt_index, 1:3);
-                    end
+        %Store the (x, y, z) coordinates of the nearest voxel, for future
+        %reference
+        nearest_voxels{lvl}(c, 1:3) = current_occupied_voxel_coords(nearest_voxel_ind, :);
+        %Get the normal for the nearest voxel (the normal is an (x, y, z)
+        %triplet)
+        normal_nearest_vox{lvl}(c, 1:3) = current_occupied_voxel_normals(nearest_voxel_ind, :); 
+        %For the same corner point at the prevoius, lower octree level, 
+        %check if a smaller min_euclid_dist (absolute value of the control 
+        %point) is found than the current min_euclid_dist; keep the 
+        %smallest min_euclid_dist for this corner. Update the nearest_voxel
+        %coordinates and normal for this control point, accordingly.
+        if lvl > 1
+            %Initialize the true_min (true minimum control point value) to
+            %the current absolute control point value
+            %true_min = min_euclid_dist;
+            true_min = min_euclid_dist{lvl}(c);
+            %Currently, we are only considering one lower octree level
+            lower_lvls = lvl - 1;            
+            %Find the first row index where the current corner coordinates
+            %are the same as the (x, y, z) coordinates of a corner at 
+            %lower_lvls. We can stop after finding the first row index, 
+            %because any other row indices that could be found would 
+            %correspond to the same corner coordinate and therefore the 
+            %same control point.
+            corner_index = find(sum(abs(unique_coords{lvl}(c, :) - corner_coords{lower_lvls}), 2) == 0, 1);    
+            ctrlpt_index = ctrl_pts_pointers{lower_lvls}(corner_index);
+            if (~isempty(corner_index))&&(~isempty(control_points{lower_lvls}))
+                %All the indices in corner_index should be the same, so
+                %just pick the first one
+                %ctrlpt_index = ctrl_pts_pointers{lower_lvls}(corner_index(1));
+                %Find the control point value corresponding to the above 
+                %ctrlpt_index
+                test_ctrlpt = control_points{lower_lvls}(ctrlpt_index);
+                %Check if the absolute control point value found above is
+                %smaller than the current true_min: if yes, change the
+                %value of true_min to this new value and update the nearest
+                %voxel coordinates and normal accordingly.
+                if abs(test_ctrlpt) < true_min
+                    true_min = abs(test_ctrlpt);
+                    nearest_voxels{lvl}(c, 1:3) = nearest_voxels{lower_lvls}(ctrlpt_index, 1:3);
+                    normal_nearest_vox{lvl}(c, 1:3) = normal_nearest_vox{lower_lvls}(ctrlpt_index, 1:3);
                 end
-                min_euclid_dist{lvl}(c) = true_min;
-            end %End check if lvl > 1
-        %If we are at the voxel level
-        %elseif (lvl == b + 1)
-%             %If, for the current corner, only one nearest voxel (midpoint) 
-%             %has been found
-%             if isempty(equidistant_voxel_inds{c})
-%                 %Get the (x, y, z) coordinates of the nearest voxel
-%                 %(midpoint)
-%                 nearest_voxels{lvl}(c, 1:3) = current_occupied_voxel_coords(nearest_voxel_ind, :);
-%                 %Get the normal for the nearest voxel (the normal is also
-%                 %an (x, y, z) triplet)
-%                 normal_nearest_vox{lvl}(c, 1:3) = current_occupied_voxel_normals(nearest_voxel_ind, :);       
-%                 %Compute the difference vector between the current corner's
-%                 %(x, y, z) coordinates and the nearest voxel's (x, y, z)
-%                 %coordinates
-%                 difference_vectors{lvl}(c, 1:3) = unique_coords{lvl}(c, :) - nearest_voxels{lvl}(c, 1:3);
-%                 %Compute the dot product between the difference vector and 
-%                 %normal vector for the current corner, found above
-%                 dot_products{lvl}(c) = dot(difference_vectors{lvl}(c, 1:3), normal_nearest_vox{lvl}(c, 1:3), 2); 
-%                 %To obtain the signed distance value for the control point at
-%                 %the current corner, take the sign of the dot product computed
-%                 %above for the current corner, and put it in front of the 
-%                 %corresponding minimum Euclidean distance for this corner. A 
-%                 %negative dot product indicates that the nearest voxel normal 
-%                 %is pointing AWAY from the corresponding corner, so this corner 
-%                 %is INSIDE the surface implied by the point cloud in that 
-%                 %voxel. A positive dot product indicates that the nearest voxel 
-%                 %normal is pointing TOWARDS the corresponding corner, so this 
-%                 %corner is OUTSIDE the surface of the point cloud. 
-%                 control_points{lvl}(c) = sign(dot_products{lvl}(c)).*(min(euclid_dists))';
-%             %If, for the current corner, more than one equidistant voxel
-%             %(midpoint) has been found
-%             else
-%                 %Get the (x, y, z) coordinates of all the equidistant 
-%                 %nearest voxels (i.e., their midpoints)
-%                 nearest_vox_coords = current_occupied_voxel_coords(equidistant_voxel_inds{c}, :);
-%                 %Get the normal vector for each of the equidistant nearest
-%                 %voxels
-%                 normals_nearest_vox = current_occupied_voxel_normals(equidistant_voxel_inds{c}, :);
-%                 %Compute the difference vector between the current corner's
-%                 %(x, y, z) coordinates and each of the voxel coordinates in
-%                 %nearest_vox_coords
-%                 diff_vecs = unique_coords{lvl}(c, :) - nearest_vox_coords;
-%                 %Compute the dot product between each difference vector and 
-%                 %the corresponding nearest voxel's normal vector
-%                 dot_prods = dot(diff_vecs, normals_nearest_vox, 2);
-%                 %Find the average dot product from dot_prods
-%                 mean_dp = mean(dot_prods);
-%                 dot_products{lvl}(c) = mean_dp;
-%                 %Set the control point for the current corner as the
-%                 %average of the dot products found above
-%                 control_points{lvl}(c) = dot_products{lvl}(c);               
-% %                 %Compute the average of each component (x, y, z) of
-% %                 %nearest_vox_coords
-% %                 nearest_voxels{lvl}(c, 1:3) = mean(nearest_vox_coords);
-% %                 %Compute the difference vector between the current corner's
-% %                 %(x, y, z) coordinates and the average nearest voxel
-% %                 %coordinates
-% %                 difference_vectors{lvl}(c, 1:3) = unique_coords{lvl}(c, :) - nearest_voxels{lvl}(c, 1:3);
-%   
-% %                 %Average the normals in normals_nearest_vox
-% %                 normal_nearest_vox{lvl}(c, 1:3) = mean(normals_nearest_vox);
-% %                 %Compute the difference vector between the current corner's
-% %                 %(x, y, z) coordinates and each of the equdistant nearest
-% %                 %voxel's (x, y, z) coordinates
-% %                 diff_vecs = unique_coords{lvl}(c, :) - nearest_vox_coords;
-% %                 %Average the signs of each of the (x, y, z) components of 
-% %                 %the difference vectors computed above, but leave the
-% %                 %absolute values of the components the same (so, each 
-% %                 %difference vector should have components of +/- 0.5)
-% %                 difference_vectors{lvl}(c, 1:3) = 0.5.*sign(mean(sign(diff_vecs)));
-%             end %End check if(isempty(equidistant_voxel_inds{c}))
-
-        %end %End check if (lvl < b + 1)
+            end
+            min_euclid_dist{lvl}(c) = true_min;
+        end %End check if lvl > 1
         disp(['Finished corner ' num2str(c) '/' num2str(size(unique_coords{lvl}, 1))]);
     end %End c (current unique coordinate)
     %dot_products{lvl} = dot_products{lvl}'; %Make column vector
@@ -472,15 +401,15 @@ disp('************************************************************');
 [~, ptcloud, ~] = plyRead(ptcloud_file);
 %Accumulate all the control points (not just the unique ones) into one cell
 %array
-all_ctrlpts = get_all_ctrlpts(control_points, ctrl_pts_pointers); 
+all_ctrlpts = get_all_ctrlpts(control_points, ctrl_pts_pointers, start_lvl, max_lvl); 
 same_sign_cntr = 0;
 vox = 0;
 same_sign_voxels = [];
 disp(' ');
-for i = 1:8:(length(all_ctrlpts{max_lvl}) - 7) 
+for i = 1:8:(length(all_ctrlpts{max_lvl}) - (max_lvl - 1)) 
     vox = vox + 1;
     %Get all 8 control points for the corners of the current voxel
-    current_ctrlpts = all_ctrlpts{max_lvl}(i:(i + 7));
+    current_ctrlpts = all_ctrlpts{max_lvl}(i:(i + max_lvl - 1));
     %Check the signs of current_ctrlpts (assume here that none of the
     %control points have a value of 0)
     if (sum(sign(current_ctrlpts)) == length(current_ctrlpts))||(sum(sign(current_ctrlpts)) == -length(current_ctrlpts))
@@ -492,25 +421,25 @@ for i = 1:8:(length(all_ctrlpts{max_lvl}) - 7)
         %Store this voxel, for debugging purposes
         same_sign_voxels((size(same_sign_voxels, 1) + 1), 1:3) = ptcloud(vox, 1:3);
         %Get the corner coordinates for each corner of this voxel
-        vox_corners = corner_coords{max_lvl}((i:(i + 7)), 1:3);
+        vox_corners = corner_coords{max_lvl}((i:(i + max_lvl - 1)), 1:3);
         disp('Voxel corner coordinates:');
         disp(num2str(vox_corners));
         %Get the nearest voxel midpoint found for each corner of the 
         %current voxel
-        curr_nearest_vox = nearest_voxels{max_lvl}(ctrl_pts_pointers{max_lvl}(i:(i + 7)), 1:3);
+        curr_nearest_vox = nearest_voxels{max_lvl}(ctrl_pts_pointers{max_lvl}(i:(i + max_lvl - 1)), 1:3);
         disp('Nearest voxel midpoint found for each corner of the current voxel: ');
         disp(num2str(curr_nearest_vox));
         %Get the difference vector for each of the 8 corners of this voxel
         %(difference vector between each corner and the chosen voxel 
         %midpoint)
-        vox_diff_vecs = difference_vectors{max_lvl}(ctrl_pts_pointers{max_lvl}(i:(i + 7)), 1:3);
+        vox_diff_vecs = difference_vectors{max_lvl}(ctrl_pts_pointers{max_lvl}(i:(i + max_lvl - 1)), 1:3);
         disp('Voxel corner difference vectors:');
         disp(num2str(vox_diff_vecs));
         %Get the dot product between the difference vector of each corner
         %of this voxel and the normal vector of the chosen nearest voxel
         %midpoint (this may not be the midpoint of the current voxel, as
         %neighbouring voxels' midpoints are the same distance away)
-        vox_dp = dot_products{max_lvl}(ctrl_pts_pointers{max_lvl}(i:(i + 7)));
+        vox_dp = dot_products{max_lvl}(ctrl_pts_pointers{max_lvl}(i:(i + max_lvl - 1)));
         disp('Voxel corner dot products:');
         disp(num2str(vox_dp));
     end
@@ -527,7 +456,7 @@ if same_sign_cntr > 0
     title('Voxels with Same-Sign Control Points at Encoder');
     legend('Voxels with Different-Sign Control Points', 'Voxels with Same-Sign Control Points', 'Location', 'best');
 end
-    
+
 % %------------- Visualization of Control Point Computation ----------------%
 % 
 % disp(' ');
@@ -1228,8 +1157,18 @@ if prune_flag == 1
     %as the voxels do not have children), initialize all locations in 
     %post_pruning_array to 0 (the leaf cells ("1" locations) will be
     %determined after pruning)
-    for lvl = (start_lvl + 1):(max_lvl - 1) %Here assume max_lvl = b + 1
+    for lvl = (start_lvl + 1):(max_lvl - 1)
+        %If max_lvl is the voxel level (b + 1), then post_pruning_array
+        %will only have (max_lvl - 1) levels, as these are the levels that
+        %contain occupancy codes; if max_lvl is NOT b + 1, then the last
+        %level in post_pruning_array will be set to 1 bits anyway (see
+        %section below)
         post_pruning_array{lvl} = zeros(length(myOT.OccupancyCode{lvl}), 1);
+    end   
+    %If max_lvl is not the voxel level (b + 1), then set all the bits in 
+    %the last level in post_pruning_array to 1
+    if max_lvl < b + 1
+         post_pruning_array{max_lvl} = ones(length(myOT.OccupancyCode{max_lvl}), 1);
     end   
     %Create a cell array that will contain the indices of the octree blocks
     %that need to be pruned away from post_pruning_array, to account for 
@@ -1715,16 +1654,29 @@ if prune_flag == 1
     %Get the (parts of the) post_pruning_array that will be transmitted to the 
     %decoder
     post_pruning_array_forDec = cell(b, 1);
-    for i = 1:(max_lvl - 1)
-        post_pruning_array_forDec{i} = post_pruning_array{i};
+    if max_lvl == b + 1
+        for i = 1:(max_lvl - 1) %Assumes max_lvl = b + 1
+            post_pruning_array_forDec{i} = post_pruning_array{i};
+        end
+    elseif max_lvl < b + 1
+        for i = 1:max_lvl
+            post_pruning_array_forDec{i} = post_pruning_array{i};
+        end
     end
     %Concatenate all of the bits from post_pruning_array_forDec, at all octree 
     %levels from the root to (max_lvl - 1), into one long array
     pp_cntr = 1;
     pp_array = [];
-    for l = 1:(max_lvl - 1)
-        pp_array(pp_cntr:(pp_cntr + numel(post_pruning_array_forDec{l}) - 1)) = post_pruning_array_forDec{l};
-        pp_cntr = pp_cntr + numel(post_pruning_array_forDec{l});
+    if max_lvl == b + 1
+        for l = 1:(max_lvl - 1)
+            pp_array(pp_cntr:(pp_cntr + numel(post_pruning_array_forDec{l}) - 1)) = post_pruning_array_forDec{l};
+            pp_cntr = pp_cntr + numel(post_pruning_array_forDec{l});
+        end
+    elseif max_lvl < b + 1
+        for l = 1:max_lvl
+            pp_array(pp_cntr:(pp_cntr + numel(post_pruning_array_forDec{l}) - 1)) = post_pruning_array_forDec{l};
+            pp_cntr = pp_cntr + numel(post_pruning_array_forDec{l});
+        end
     end
     %Plot a histogram of the bits inside pp_array
     figure;
