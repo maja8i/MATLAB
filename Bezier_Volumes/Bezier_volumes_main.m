@@ -15,11 +15,11 @@ ptcloud_name = 'boxer'; %Must be in PLY format
 %equal to the voxelization level used to produce that point cloud, 
 %e.g., b = 10 for voxelized10 point clouds, b = 11 for voxelized11 clouds,
 %etc.
-b = 8;
+b = 7;
 %Full path to the input PLY file
 %ptcloud_file = ['\\pandora\storage\users\phil\maja\voxelized7_Test\' ptcloud_name '_voxelized' num2str(b) '.ply'];
-%ptcloud_file = ['\\pandora\builds\test\Data\Compression\PLY\Point_Clouds\8i\voxelized' num2str(b) '_WithNormalsAndCentroids\' ptcloud_name '_voxelized' num2str(b) '.ply'];
-ptcloud_file = ['\\pandora\builds\test\Data\Compression\PLY\Point_Clouds\8i\voxelized' num2str(b) '_WithNormals\' ptcloud_name '_voxelized' num2str(b) '.ply'];
+ptcloud_file = ['\\pandora\builds\test\Data\Compression\PLY\Point_Clouds\8i\voxelized' num2str(b) '_WithNormalsAndCentroids\' ptcloud_name '_voxelized' num2str(b) '.ply'];
+%ptcloud_file = ['\\pandora\builds\test\Data\Compression\PLY\Point_Clouds\8i\voxelized' num2str(b) '_WithNormals\' ptcloud_name '_voxelized' num2str(b) '.ply'];
 %Octree level(s) to use (one at a time, if there is more than one listed
 %below) as the base level for transmitting control points, and from which
 %the wavelet analysis will start. start_OT_lvl can go from the root level
@@ -34,7 +34,7 @@ start_OT_lvl = 3;
 %at the encoder and for which the wavelet coefficients should be sent to 
 %the decoder. max_OT_lvl must go from (start_OT_lvl + 1) and can go up to 
 %b + 1. 
-max_OT_lvl = [9];  %Write numbers in DEscending order, because file ..._distorted01.ply must correspond to the best reconstruction (and highest bitrate)
+max_OT_lvl = [8];  %Write numbers in DEscending order, because file ..._distorted01.ply must correspond to the best reconstruction (and highest bitrate)
 %Quantization stepsize for uniform scalar quantization of the control 
 %points at the chosen base level (start_lvl) and for all of the wavelet
 %coefficients that will be computed at the encoder

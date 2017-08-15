@@ -65,7 +65,7 @@ if numel(varargin) == 1
 end
 
 %Read in input PLY point cloud
-[~, ptcloud, ~] = plyRead(ptcloud_file);
+[plyStruct, ptcloud, ~] = plyRead(ptcloud_file);
 
 %Get Morton codes for all x, y, z coordinates in the input point cloud
 mortonCodes = xyzToMorton(ptcloud(:, 1:3), b);   %b bits for each Morton code
@@ -87,7 +87,13 @@ end
 if size(ptcloud, 2) == 12
     centroids_sorted = ptcloud(I, 10:12);   %Assuming centroids are in columns 10:12
     disp('Centroids sorted');
-    varargout{1} = centroids_sorted;
+    %Transform the centroids to the same coordinate system as the input
+    %voxels
+    frame_to_world_translation = str2num(plyStruct.comments{3}(36:end));
+    frame_to_world_scale = str2double(plyStruct.comments{2}(30:end));
+    c_transformed = centroids_sorted - frame_to_world_translation;
+    c_scaled = c_transformed./frame_to_world_scale;   
+    varargout{1} = c_scaled;
 end
 
 %Construct an octree based on the sorted Morton codes computed above
