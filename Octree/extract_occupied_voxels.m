@@ -74,6 +74,10 @@ if numel(varargin) >= 1
     %order as their corresponding voxel coordinates and Morton codes in the 
     %occupied_voxel_coords and occupied_Morton_codes cell arrays above
     occupied_voxel_normals = cell((myOT.Depth + 1), max(myOT.NodeCount));
+    %Initialize a cell array to store the average of the normals of all the
+    %occupied voxels associated with each occupied cell at each level of 
+    %the octree except for the leaves
+    occupied_voxel_normal_averages = cell((myOT.Depth), max(myOT.NodeCount));
 end
 
 %If the input point cloud has centroids and these have been passed to the
@@ -85,6 +89,10 @@ if numel(varargin) >= 2
     %order as their corresponding voxel coordinates and Morton codes in the 
     %occupied_voxel_coords and occupied_Morton_codes cell arrays above
     occupied_voxel_centroids = cell((myOT.Depth + 1), max(myOT.NodeCount));
+    %Initialize a cell array to store the average of the centroids of all 
+    %the occupied voxels associated with each occupied cell at each level 
+    %of the octree except for the leaves
+    occupied_voxel_centroid_averages = cell((myOT.Depth), max(myOT.NodeCount));
 end
 
 %For each level of the octree myOT ...
@@ -116,21 +124,31 @@ for lvl = 1:(myOT.Depth + 1)
             %Get the corresponding normal x, y, z values for the occupied
             %voxels found above
             occupied_voxel_normals{lvl, n} = normals_sorted(begin:(begin + count - 1), :);
+            if lvl < (myOT.Depth + 1) 
+                %Compute the average of the normals found above
+                occupied_voxel_normal_averages{lvl, n} = mean(occupied_voxel_normals{lvl, n}, 1);
+            end
         end
         if numel(varargin) >= 2
             %Get the corresponding centroid x, y, z values for the occupied
             %voxels found above
             occupied_voxel_centroids{lvl, n} = centroids_sorted(begin:(begin + count - 1), :);
+            if lvl < (myOT.Depth + 1) 
+                %Compute the average of the centroids found above
+                occupied_voxel_centroid_averages{lvl, n} = mean(occupied_voxel_centroids{lvl, n}, 1);
+            end
         end
     end
 end
 
 if numel(varargin) >= 1
     varargout{1} = occupied_voxel_normals;
+    varargout{2} = occupied_voxel_normal_averages;
 end
 
 if numel(varargin) >= 2
-    varargout{2} = occupied_voxel_centroids;
+    varargout{3} = occupied_voxel_centroids;
+    varargout{4} = occupied_voxel_centroid_averages;
 end
 
 
