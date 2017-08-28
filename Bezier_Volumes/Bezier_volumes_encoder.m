@@ -675,9 +675,7 @@ disp(' ');
 disp('----------------- Wavelet Decomposition --------------------');
 disp(' ');
 
-%[wavelet_coeffs, reconstructed_control_points] = wavelet_analysis(myOT, corner_coords, control_points, ctrl_pts_pointers, start_lvl, max_lvl, b, q_stepsize);
-[wavelet_coeffs, reconstructed_control_points] = wavelet_analysis_loop(myOT, corner_coords, control_points, ctrl_pts_pointers, start_lvl, max_lvl, b, q_stepsize, ptcloud_file);
-
+[wavelet_coeffs, reconstructed_control_points] = wavelet_analysis(myOT, corner_coords, control_points, ctrl_pts_pointers, start_lvl, max_lvl, b, q_stepsize);
 
 %Plot the distribution of reconstructed control points (low-pass
 %coefficients) at different octree levels
