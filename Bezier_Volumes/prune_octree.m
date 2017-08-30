@@ -45,12 +45,13 @@ toprune2 = cell(size(myOT.OccupancyCode));
 %The below code prunes branches (occupancy codes) of octree cells that 
 %have all zero wavelet coefficients throughout the branch, so the 
 %pruning is done bottom-up from the voxel level ...
+tic;
 for lvl = max_lvl %Here assume max_lvl = b + 1
     %If there exist any occupied voxels, which contain all zero wavelet 
     %coefficients ...
     if ~isempty(all_zero_wav_cfs{lvl})
-        disp('Found voxels with all-zero wavelet coefficients: ');
-        disp(num2str(all_zero_wav_cfs{lvl}'));
+        %disp('Found voxels with all-zero wavelet coefficients: ');
+        %disp(num2str(all_zero_wav_cfs{lvl}'));
         %For each of these voxels ...
         for az_cell = all_zero_wav_cfs{lvl}
             %Find the parent of the current voxel
@@ -132,6 +133,15 @@ for lvl = max_lvl %Here assume max_lvl = b + 1
                             break;
                         end 
                     end %End lvl2
+                %If parent_cell does NOT have all zero wavelet coefficients 
+                %(but all of its children do)    
+                else
+                    %The current parent_cell will become a leaf after
+                    %pruning its children away
+                    post_pruning_array{lvl - 1}(parent_cell) = 1;
+                    %Do not need to check ancestors of parent_cell, so move
+                    %on to checking the next voxel (az_cell) instead
+                    continue;
                 end
             %If NOT ALL of the children (voxels) of the current parent_cell
             %have all zero wavelet coefficients
@@ -175,3 +185,9 @@ for lvl = 1:size(toprune2, 1)
         disp('------------------------------------------------------------');
     end
 end
+
+ot_pruning_time = toc;
+disp(' ');
+disp('************************************************************');
+disp(['Time taken to prune octree: ' num2str(ot_pruning_time) ' seconds']);
+disp('************************************************************');

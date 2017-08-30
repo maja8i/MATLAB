@@ -18,8 +18,6 @@ disp(' ');
 
 OccupancyCode = occupancy_codes_forDec;
 %post_pruning_array = post_pruning_array_forDec;
-rec_ctrlpts_start_lvl = rec_ctrlpts_forDec;
-wavelet_coeffs = wavelet_coeffs_forDec;
 
 %Check if octree and wavelet coefficient tree pruning was used at the
 %encoder
@@ -269,203 +267,7 @@ disp(' ');
 disp('-------------- Control Point Reconstruction ----------------');
 disp(' ');
 
-%Initialize a cell array to store the reconstructed signal (control point)
-%at each vertex of each octree cell at every level from start_lvl to the 
-%leaves. Note that we can't just use the reconstructed_control_points from 
-%the encoder, as we won't be transmitting those (except for the 
-%reconstructed control points at start_lvl)
-reconstruction_decoder = cell((b + 1), 1);
-
-%Dequantize the reconstructed control points for start_lvl, which were 
-%received from the encoder, then place them in the corresponding cell of 
-%reconstruction_decoder. Note that when q_stepsize = 1, the dequantized
-%values will just be equal to the quantized values.
-reconstruction_decoder{start_lvl} = dequantize_uniform_scalar(rec_ctrlpts_start_lvl, q_stepsize);
-
-%Start from the start_lvl and work up to the leaves ...
-tic;
-%for lvl = start_lvl:b
-for lvl = start_lvl:(max_lvl - 1)
-    disp(['Reconstructing control points at octree level ' num2str(lvl + 1) ' ...']);
-    %Initialize a counter for the corner coordinates of the occupied cells 
-    %at this level 
-    parent_cnr_coords_cntr = 1;
-    %For each occupied cell at the current octree level ...
-    for occ_cell = 1:numel(OccupancyCode{lvl})
-        %Extract the cell's 8 corner coordinates. This cell will represent
-        %our parent cell at the current level, since we will consider its
-        %children for the control point (signal) reconstruction.
-        parent_corner_coords = corner_coords_decoder{lvl}(parent_cnr_coords_cntr:(parent_cnr_coords_cntr + 7), :);
-        %Get the pointer to the first child cell of the current parent cell
-        child_ptr = FirstChildPtr{lvl}(occ_cell);
-        %For each child of the current cell ...
-        for child = 1:ChildCount{lvl}(occ_cell)
-            %Get the 8 corner coordinates of the current child cell. NOTE:
-            %Below, "child" is converted to type double, because it is
-            %uint8 by default, and if the result of any of the 
-            %multiplications is > 255, the answer will be truncated and the
-            %final result will be incorrect.
-            child_corner_coords = corner_coords_decoder{lvl + 1}(((child_ptr - 1)*8 + 8*double(child) - 7):(child_ptr*8 + 8*double(child) - 8), :);
-            %For each corner of the current child cell ...
-            for cnr = 1:8
-                %Check if the current corner already has a reconstructed 
-                %control point associated with it (since some corners will  
-                %be shared amongst different octree cells and we want to 
-                %make sure that we process only the UNIQUE corner vertices 
-                %at each octree level) 
-                possible_inds = ctrl_pts_pointers{lvl + 1}(((child_ptr - 1)*8 + 8*double(child) - 7):(child_ptr*8 + 8*double(child) - 8), :);
-                if ~isempty(reconstruction_decoder{lvl + 1})
-                    if length(reconstruction_decoder{lvl + 1}) >= possible_inds(cnr) 
-                        if ~isempty(reconstruction_decoder{lvl + 1}(possible_inds(cnr)))
-                            continue;          
-                        end
-                    end
-                end 
-                %Flag to indicate if current corner is on a parent edge 
-                %(0 => no; 1 => yes)
-                on_p_edge = 0;
-                %Flag to indicate if current corner is on a parent face 
-                %(0 => no; 1 => yes)
-                on_p_face = 0;
-                %For the current corner, check if it is on a parent edge 
-                %(i.e., if it shares at least 2 same coordinates (out of x,
-                %y, or z) with two of the parent vertices), or on a parent 
-                %face (i.e., only 1 of its coordinates (either x, or y, or 
-                %z) is the same as four parents' coordinates (must have the 
-                %same coordinate in common in this case: either x, or y, or 
-                %z))
-                parent_row_inds = [];
-                [x_same, ~] = find(child_corner_coords(cnr, 1) == parent_corner_coords(:, 1));
-                [y_same, ~] = find(child_corner_coords(cnr, 2) == parent_corner_coords(:, 2));
-                [z_same, ~] = find(child_corner_coords(cnr, 3) == parent_corner_coords(:, 3));
-                temp_cat = [x_same; y_same; z_same];
-                if ((isempty(x_same) + isempty(y_same) + isempty(z_same)) == 2)
-                    %Corner is on a parent face
-                    on_p_face = 1;
-                    %Get the row indices of the parent vertices on this face
-                    if ~isempty(x_same)
-                        parent_row_inds = x_same;
-                    elseif ~isempty(y_same)
-                        parent_row_inds = y_same;
-                    elseif ~isempty(z_same)
-                        parent_row_inds = z_same;
-                    end
-                else
-                    %Check if any vertex indices appear twice in temp_cat
-                    temp_cntr = 1;
-                    for v = 1:length(temp_cat)
-                        if length(find(temp_cat == temp_cat(v))) == 2
-                            parent_row_inds(temp_cntr) = temp_cat(v);
-                            temp_cntr = temp_cntr + 1;
-                        end
-                    end
-                    if (length(unique(parent_row_inds)) == 2)
-                        %Corner is on a parent edge
-                        on_p_edge = 1;
-                        %Keep only the unique indices in parent_row_inds
-                        parent_row_inds = unique(parent_row_inds);
-                    end      
-                end
-                
-                %If this corner's coordinates are the same as one of the
-                %corner coordinates of the parent
-                if sum(ismember(parent_corner_coords, child_corner_coords(cnr, :), 'rows') > 0)
-                    %Get the index of the current parent corner
-                    %parent_row_index = find(ismember(corner_coords_decoder{lvl}, child_corner_coords(cnr, :), 'rows') > 0);
-                    parent_row_index = find(sum(abs(child_corner_coords(cnr, :) - corner_coords_decoder{lvl}), 2) == 0, 1); %Faster than "ismember"
-                    %Find the control point index for the parent corner.
-                    %Although the length of parent_row_index may sometimes
-                    %be > 1, and so more than one control point index may
-                    %be found below, in this case the result should still 
-                    %be the same index, just repeated. So extract only the 
-                    %unique control point index found below (should be just
-                    %one).
-                    %parent_ctrlpt_index = unique(ctrl_pts_pointers{lvl}(parent_row_index));
-                    parent_ctrlpt_index = ctrl_pts_pointers{lvl}(parent_row_index);
-                    %Do nothing (the signal on this vertex is a low-pass
-                    %coefficient and has already been reconstructed),
-                    %except transfer the reconstructed control point over
-                    %from the parent corner at the previous octree level 
-                    %(we want the reconstruction_decoder values at each 
-                    %level to correspond to the same locations in 
-                    %unique_coords)
-                    reconstruction_decoder{lvl + 1}(possible_inds(cnr)) = reconstruction_decoder{lvl}(parent_ctrlpt_index);
-                    continue;
-                %If this corner vertex lies on a parent edge
-                elseif on_p_edge == 1
-                    %Get the reconstructed Bezier control points stored at 
-                    %the corner vertices defined by parent_row_inds
-                    all_ctrlpts_ptrs = ctrl_pts_pointers{lvl}((occ_cell*8 - 7):occ_cell*8, :);
-                    ctrlpt1_ptr = all_ctrlpts_ptrs(parent_row_inds(1));
-                    ctrlpt2_ptr = all_ctrlpts_ptrs(parent_row_inds(2));
-                    ctrlpt1 = reconstruction_decoder{lvl}(ctrlpt1_ptr);
-                    ctrlpt2 = reconstruction_decoder{lvl}(ctrlpt2_ptr);
-                    %Average the signal (Bezier control points) on the 2
-                    %vertices of the parent edge
-                    avg_signal = (ctrlpt1 + ctrlpt2)/2;
-                %If this corner vertex lies on a parent face 
-                elseif on_p_face == 1
-                    %Get the reconstructed Bezier control points stored at 
-                    %the corner vertices defined by parent_row_inds
-                    all_ctrlpts_ptrs = ctrl_pts_pointers{lvl}((occ_cell*8 - 7):occ_cell*8, :);
-                    ctrlpt1_ptr = all_ctrlpts_ptrs(parent_row_inds(1));
-                    ctrlpt2_ptr = all_ctrlpts_ptrs(parent_row_inds(2));
-                    ctrlpt3_ptr = all_ctrlpts_ptrs(parent_row_inds(3));
-                    ctrlpt4_ptr = all_ctrlpts_ptrs(parent_row_inds(4));
-                    ctrlpt1 = reconstruction_decoder{lvl}(ctrlpt1_ptr);
-                    ctrlpt2 = reconstruction_decoder{lvl}(ctrlpt2_ptr);
-                    ctrlpt3 = reconstruction_decoder{lvl}(ctrlpt3_ptr);
-                    ctrlpt4 = reconstruction_decoder{lvl}(ctrlpt4_ptr);
-                    %Average the signal (Bezier control points) on the 4 
-                    %vertices of the parent face
-                    avg_signal = (ctrlpt1 + ctrlpt2 + ctrlpt3 + ctrlpt4)/4;  
-                %If this corner vertex lies somewhere in the centre of the
-                %parent's block (i.e., neither on a parent's edge or on a
-                %parent's face)
-                else                
-                    %Get the reconstructed Bezier control points stored at 
-                    %all of the corner vertices (8) of the parent cell
-                    ctrlpts_pointers = ctrl_pts_pointers{lvl}((occ_cell*8 - 7):occ_cell*8, :);
-                    ctrlpts = reconstruction_decoder{lvl}(ctrlpts_pointers);
-                    %Average the signal (Bezier control points) on the 8
-                    %vertices of the parent block
-                    avg_signal = mean(ctrlpts);
-                end
-                %Get the dequantized wavelet coefficient for the current
-                %corner of the current octree cell (the child cell)
-                child_wavelet_coeff = dequantize_uniform_scalar(wavelet_coeffs{lvl + 1}(possible_inds(cnr)), q_stepsize);
-                %Add the dequantized wavelet coefficient to avg_signal, to 
-                %obtain the reconstructed signal (control point) at the 
-                %current child vertex 
-                reconstruction_decoder{lvl + 1}(possible_inds(cnr)) = child_wavelet_coeff + avg_signal;
-            end %End corners 
-        end %End children
-        %Increment parent_cnr_coords_cntr before moving on to a new 
-        %occupied (parent) cell at the current octree level
-        parent_cnr_coords_cntr = parent_cnr_coords_cntr + 8; 
-    end %End occupied cells at current level
-    %Arrange all the reconstructed control points produced for the child
-    %octree level, into a column vector
-    reconstruction_decoder{lvl + 1} = (reconstruction_decoder{lvl + 1})';
-    if prune_flag == 0
-        %Check if the control points at this level have been correctly
-        %reconstructed (i.e., if they are identical to the control points at
-        %the encoder)
-        test_ctrlpts = reconstructed_control_points{lvl + 1} - reconstruction_decoder{lvl + 1};
-        test_ctrlpts_wrong = find(test_ctrlpts ~= 0);
-        if isempty(test_ctrlpts_wrong)
-            disp('All control points reconstructed correctly');
-        else
-            disp(['Number of incorrectly reconstructed control points: ' num2str(length(test_ctrlpts_wrong))]);
-        end
-    end
-    disp('------------------------------------------------------------');
-end %End "lvl"
-ctrlpt_recon_time = toc;
-disp(' ');
-disp('************************************************************');
-disp(['Time taken to reconstruct all control points: ' num2str(ctrlpt_recon_time) ' seconds']);
-disp('************************************************************');
+reconstruction_decoder = reconstruct_control_points_decoder(rec_ctrlpts_forDec, wavelet_coeffs_forDec, OccupancyCode, FirstChildPtr, ChildCount, corner_coords_decoder, ctrl_pts_pointers, start_lvl, max_lvl, b, q_stepsize, prune_flag, reconstructed_control_points);
 
 % %--------------- Reconstructed Bezier Volume Visualization ---------------%
 % 
@@ -892,8 +694,8 @@ if prune_flag == 1
     subcell_coords_all = cell((b + 1), size(SpatialIndex{lvl}, 1)); 
     %Matrix to store the reconstructed voxel corners
     reconstructed_vox_pos_corners = [];
-    %Counter to keep track of the number of reconstructed voxel corners
-    rec_vox_cnr_cntr = 1;
+%     %Counter to keep track of the number of reconstructed voxel corners
+%     rec_vox_cnr_cntr = 1;
     
     %For each octree level, starting from the level where the first leaf
     %cells might be found due to pruning ...
@@ -901,8 +703,13 @@ if prune_flag == 1
         disp(' ');
         disp(['Reconstructing voxels for level ' num2str(lvl) ' leaf cells ...']);
         disp(' ');
+        %If we are at the voxel level ...
         if lvl == (b + 1)
+            %Just get all of the occupied voxels' corner coordinates and
+            %store them  
             disp(['Retrieving reconstructed corner coordinates for occupied voxels at level ' num2str(lvl)]);
+            reconstructed_vox_pos_corners = corner_coords_decoder{lvl};
+            continue;
         end
 
         %Counter for the number of leaf octree cells found at the current
@@ -910,18 +717,18 @@ if prune_flag == 1
         nbr_leaves = 0;
         %For each occupied cell at the current level ...
         for occ_cell = 1:size(SpatialIndex{lvl}, 1)
-            %If we are at the final leaf level (i.e., voxel level)
-            if lvl == (b + 1)
-                nbr_leaves = nbr_leaves + 1;
-                %Just get the current occupied voxel's corner coordinates 
-                %and store them  
-                %disp(['Retrieving corner coordinates for occupied voxel ' num2str(occ_cell)]);
-                current_corner_coords = corner_coords_decoder{lvl}(((occ_cell*8 - 7):(occ_cell*8)), :);
-                reconstructed_vox_pos_corners((rec_vox_cnr_cntr:(rec_vox_cnr_cntr + 7)), 1:3) = current_corner_coords;
-                rec_vox_cnr_cntr = rec_vox_cnr_cntr + 8;
-                continue;
-            %If we are not yet at the final leaf level (voxel level)
-            else
+%             %If we are at the final leaf level (i.e., voxel level)
+%             if lvl == (b + 1)
+%                 nbr_leaves = nbr_leaves + 1;
+%                 %Just get the current occupied voxel's corner coordinates 
+%                 %and store them  
+%                 %disp(['Retrieving corner coordinates for occupied voxel ' num2str(occ_cell)]);
+%                 current_corner_coords = corner_coords_decoder{lvl}(((occ_cell*8 - 7):(occ_cell*8)), :);
+%                 reconstructed_vox_pos_corners((rec_vox_cnr_cntr:(rec_vox_cnr_cntr + 7)), 1:3) = current_corner_coords;
+%                 rec_vox_cnr_cntr = rec_vox_cnr_cntr + 8;
+%                 continue;
+%             %If we are not yet at the final leaf level (voxel level)
+%             else
                 %If the current cell is not a leaf
                 if post_pruning_array{lvl}(occ_cell) == 0
                     %Keep going until we find a leaf
@@ -1157,7 +964,7 @@ if prune_flag == 1
                         end %End sub_cell_8set      
                     end %End lvl_d
                 end %End check if post_pruning_array{lvl}(occ_cell) == 1
-            end %End check if lvl == (b + 1)
+%             end %End check if lvl == (b + 1)
         end %End occ_cell
         disp('------------------------------------------------------------');
         disp(['Total number of leaf cells at this level: ' num2str(nbr_leaves)]);

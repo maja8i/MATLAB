@@ -1,44 +1,48 @@
-function [wavelet_coeffs, reconstructed_control_points] = wavelet_analysis(myOT, corner_coords, control_points, ctrl_pts_pointers, start_lvl, max_lvl, b, q_stepsize)
+function reconstruction_decoder = reconstruct_control_points_decoder(rec_ctrlpts_forDec, wavelet_coeffs_forDec, OccupancyCode, FirstChildPtr, ChildCount, corner_coords_decoder, ctrl_pts_pointers, start_lvl, max_lvl, b, q_stepsize, prune_flag, reconstructed_control_points)
 
-%Initialize a cell array to store the transform (wavelet) coefficients for
-%all the unique corner vertices (1 coefficient per vertex) across all 
-%octree blocks and levels, starting from start_lvl and going up to one
-%level before the leaves
-wavelet_coeffs = cell((b + 1), 1);  %These will be quantized coefficients
-%Initialize a cell array to store the reconstructed signal at each vertex
-%of each octree cell at every level from start_lvl to one level before the
+%Assign inputs to new variables
+rec_ctrlpts_start_lvl = rec_ctrlpts_forDec;
+wavelet_coeffs = wavelet_coeffs_forDec;
+
+%Initialize a cell array to store the reconstructed signal (control point)
+%at each vertex of each octree cell at every level from start_lvl to the 
 %leaves
-reconstructed_control_points = cell(size(control_points, 1), 1);
+reconstruction_decoder = cell((b + 1), 1);
 
-%Quantize all the control points at octree level start_lvl
-for cpt = 1:size(control_points{start_lvl}, 1)
-    control_points{start_lvl}(cpt, :) = quantize_uniform_scalar(control_points{start_lvl}(cpt, :), q_stepsize);
-end
-%Add these control points to reconstructed_control_points
-reconstructed_control_points{start_lvl} = control_points{start_lvl};
-    
-%For each octree level, starting from start_lvl ...
-for lvl = start_lvl:(max_lvl - 1) 
-    disp(['Computing wavelet coefficients between octree levels ' num2str(lvl) ' and ' num2str(lvl + 1) ' ...']);
-    disp('------------------------------------------------------------');
-    
-    %profile on
-    
+%Dequantize the reconstructed control points for start_lvl, which were 
+%received from the encoder, then place them in the corresponding cell of 
+%reconstruction_decoder. Note that when q_stepsize = 1, the dequantized
+%values will just be equal to the quantized values.
+reconstruction_decoder{start_lvl} = dequantize_uniform_scalar(rec_ctrlpts_start_lvl, q_stepsize);
+
+%Start from the start_lvl and work up to the leaves ...
+%tic;
+%for lvl = start_lvl:b
+for lvl = start_lvl:(max_lvl - 1)
+    disp(['Reconstructing control points at octree level ' num2str(lvl + 1) ' ...']);
     tic;
     %Initialize a counter for the corner coordinates of the occupied cells 
     %at this level 
     parent_cnr_coords_cntr = 1;
+    %Dequantize the wavelet coefficients for all the corners (not just the
+    %unique ones) of all the occupied children (at level lvl + 1) of all 
+    %the occupied octree cells at the current level (lvl) - that is, get
+    %the dequantized wavelet coefficients for all the occupied octree cells
+    %at level lvl + 1
+    all_wavelet_coeffs = dequantize_uniform_scalar(wavelet_coeffs{lvl + 1}(ctrl_pts_pointers{lvl + 1}), q_stepsize);
+
     %For each occupied octree cell at the current level ...
-    for occ_cell = 1:myOT.NodeCount(lvl)
-        %Extract the current cell's 8 corner coordinates. This cell will 
-        %represent our parent cell at the current level, and we will 
-        %compute wavelet coefficients for its child cells.
-        parent_corner_coords = corner_coords{lvl}(parent_cnr_coords_cntr:(parent_cnr_coords_cntr + 7), :);  
+    for occ_cell = 1:numel(OccupancyCode{lvl})
+        %Extract the cell's 8 corner coordinates. This cell will represent
+        %our parent cell at the current level, since we will consider its
+        %children for the control point (signal) reconstruction.
+        parent_corner_coords = corner_coords_decoder{lvl}(parent_cnr_coords_cntr:(parent_cnr_coords_cntr + 7), :);    
         %Find the average parent x, y, z coordinates
         parent_avg_coords = sum(parent_corner_coords)./8;
-        %Get the control points on all 8 corners of the current parent cell
+        %Get the reconstructed control points on all 8 corners of the 
+        %current parent cell
         parent_ctrlpts_inds = ctrl_pts_pointers{lvl}((occ_cell*8 - 7):(occ_cell*8));
-        parent_control_points = control_points{lvl}(parent_ctrlpts_inds);
+        parent_control_points = reconstruction_decoder{lvl}(parent_ctrlpts_inds);        
         %Find the midpoint coordinates of all the 12 edges of the current
         %parent block (we know in advance how the vertices are connected)
         parent_edge_midpoints = [(parent_corner_coords(1, :) + parent_corner_coords(2, :));
@@ -65,7 +69,7 @@ for lvl = start_lvl:(max_lvl - 1)
             (parent_control_points(5) + parent_control_points(6));
             (parent_control_points(6) + parent_control_points(7));
             (parent_control_points(7) + parent_control_points(8));
-            (parent_control_points(8) + parent_control_points(5))]./2;
+            (parent_control_points(8) + parent_control_points(5))]./2;        
         %Find the midpoint coordinates of all the 6 faces of the current 
         %parent block
         parent_face_midpoints = [(parent_corner_coords(1, :) + parent_corner_coords(2, :) + parent_corner_coords(5, :) + parent_corner_coords(6, :));
@@ -81,17 +85,14 @@ for lvl = start_lvl:(max_lvl - 1)
             (parent_control_points(1) + parent_control_points(4) + parent_control_points(5) + parent_control_points(8));
             (parent_control_points(1) + parent_control_points(2) + parent_control_points(3) + parent_control_points(4));
             (parent_control_points(5) + parent_control_points(6) + parent_control_points(7) + parent_control_points(8))]./4;
-
+        
         %Get the pointers to all the child cells of the current parent cell
         %(occ_cell)
-        child_ptrs = myOT.FirstChildPtr{lvl}(occ_cell):(myOT.FirstChildPtr{lvl}(occ_cell) + uint32(myOT.ChildCount{lvl}(occ_cell)) - 1);
+        child_ptrs = FirstChildPtr{lvl}(occ_cell):(FirstChildPtr{lvl}(occ_cell) + uint32(ChildCount{lvl}(occ_cell)) - 1);
         %Get the corner coordinates of all the children of the current
         %parent cell
         cnr_coords_inds = ((8*child_ptrs(1) - 7):(8*child_ptrs(end)))'; %Indices for corner_coords{lvl + 1} for the current children
-        child_corner_coords = corner_coords{lvl + 1}(cnr_coords_inds, :);
-        %Get the control points of all the child corners
-        child_ctrlpts_inds = ctrl_pts_pointers{lvl + 1}(cnr_coords_inds);
-        child_control_points = control_points{lvl + 1}(child_ctrlpts_inds);
+        child_corner_coords = corner_coords_decoder{lvl + 1}(cnr_coords_inds, :);
         
         %Initialize an array that will store, for each child corner, the 
         %average of the control points on its corresponding parent corners
@@ -142,38 +143,48 @@ for lvl = start_lvl:(max_lvl - 1)
         %found on all 8 corners of the current parent block
         if ~isempty(in_centre_child_inds)
             averages(in_centre_child_inds) = parent_avg_coords;
-        end
+        end        
         
-        %For all the child corners of the current parent block, subtract 
-        %their corresponding average parent signal (control point) computed
-        %above, from the child control point. The result will be the high-
-        %pass transform (wavelet) coefficient of the child corner.
-        wavelet_coeffs{lvl + 1}(cnr_coords_inds, 1) = child_control_points - averages;
-        %Quantize the wavelet coefficients computed above
-        wavelet_coeffs{lvl + 1}(cnr_coords_inds, 1) = quantize_uniform_scalar(wavelet_coeffs{lvl + 1}(cnr_coords_inds, 1), q_stepsize);
-        %Add the quantized wavelet coefficients to the corresponding values
-        %in "averages", to obtain the reconstructed signal (control point) 
-        %at each corresponding child corner
-        reconstructed_control_points{lvl + 1}(cnr_coords_inds, 1) = averages + wavelet_coeffs{lvl + 1}(cnr_coords_inds, 1);
+        %Get the dequantized wavelet coefficients for all the corners (not
+        %just the unique ones) of all the children of the current parent 
+        %cell
+        child_wavelet_coeffs = all_wavelet_coeffs(cnr_coords_inds, 1);
+        %Add the dequantized wavelet coefficients above, to the 
+        %corresponding values in "averages", to obtain the reconstructed 
+        %control point at each corresponding child corner
+        reconstruction_decoder{lvl + 1}(cnr_coords_inds, 1) = child_wavelet_coeffs + averages;
         
         %Increment parent_cnr_coords_cntr before moving on to a new 
         %occupied (parent) cell at the current octree level
         parent_cnr_coords_cntr = parent_cnr_coords_cntr + 8; 
-        
-        %disp(['Finished occ_cell ' num2str(occ_cell) '/' num2str(myOT.NodeCount(lvl))]);
     end %End occ_cell
     
-    %Keep only the wavelet coefficients and reconstructed control points
-    %for the UNIQUE child corners at level lvl + 1, and discard the rest
+    %Keep only the reconstructed control points for the UNIQUE child 
+    %corners at level lvl + 1, and discard the rest
     unique_ctrl_pts_pointers = unique(ctrl_pts_pointers{lvl + 1}, 'stable');
-    wavelet_coeffs{lvl + 1} = wavelet_coeffs{lvl + 1}(unique_ctrl_pts_pointers);
-    reconstructed_control_points{lvl + 1} = reconstructed_control_points{lvl + 1}(unique_ctrl_pts_pointers);
-    
-    wcfs_time = toc;
-    disp(['Time taken to compute wavelet coefficients and reconstructed control points for level ' num2str(lvl + 1) ': ' num2str(wcfs_time) ' seconds']);
+    reconstruction_decoder{lvl + 1} = reconstruction_decoder{lvl + 1}(unique_ctrl_pts_pointers, 1);
+
+    cp_time = toc;
+    disp(' ');
+    disp(['Time taken to reconstruct control points at level ' num2str(lvl + 1) ': ' num2str(cp_time) ' seconds']);
     disp('------------------------------------------------------------');
     
-    %profile viewer
+    %BELOW IS FOR DEBUGGING PURPOSES ONLY:
+    if prune_flag == 0
+        %Check if the control points at this level have been correctly
+        %reconstructed (i.e., if they are identical to the control points
+        %at the encoder)
+        test_ctrlpts = reconstructed_control_points{lvl + 1} - reconstruction_decoder{lvl + 1};
+        test_ctrlpts_wrong = find(test_ctrlpts ~= 0);
+        if isempty(test_ctrlpts_wrong)
+            disp('All control points reconstructed correctly');
+        else
+            disp(['Number of incorrectly reconstructed control points: ' num2str(length(test_ctrlpts_wrong))]);
+        end
+    end
 end %End lvl
-
-%profile off
+% ctrlpt_recon_time = toc;
+% disp(' ');
+% disp('************************************************************');
+% disp(['Time taken to reconstruct all control points: ' num2str(ctrlpt_recon_time) ' seconds']);
+% disp('************************************************************');
