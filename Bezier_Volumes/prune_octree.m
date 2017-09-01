@@ -121,6 +121,8 @@ for lvl = max_lvl %Here assume max_lvl = b + 1
                                 %pruning from post_pruning_array, since
                                 %it is not a leaf
                                 toprune2{lvl2}(length(toprune2{lvl2}) + 1) = parent_cell;    
+                                %Stop checking other ancestors
+                                break;
                             end
                         %If NOT all of parent2's children (parent_cell's 
                         %siblings) have all zero wavelet coefficients
@@ -150,7 +152,8 @@ for lvl = max_lvl %Here assume max_lvl = b + 1
                 %parent_cell, so move on to checking the next voxel 
                 %(az_cell) and its parent
                 continue;
-            end          
+            end         
+            disp(['Finished processing az_cell (voxel) ' num2str(az_cell)]);
         end %End az_cell
     end %End check if ~isempty(all_zero_wav_cfs{lvl})
 end %End lvl    

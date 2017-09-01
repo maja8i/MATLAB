@@ -103,7 +103,8 @@ for lvl = start_lvl:(max_lvl - 1)
         
         %On a parent corner (i.e., same as a parent corner)
         sub = repmat(child_corner_coords, 8, 1) - parent_corner_coords(repmat(1:size(parent_corner_coords, 1), size(child_corner_coords, 1), 1), :);
-        on_parent_child_inds = ceil(find(sum(abs(sub), 2) == 0)./8);
+        section_nbr = ceil((find(sum(abs(sub), 2) == 0)./size(child_corner_coords, 1)));
+        on_parent_child_inds = find(sum(abs(sub), 2) == 0) - size(child_corner_coords, 1)*(section_nbr - 1);   
         %In this case, the signal on each of these corners is a low-pass 
         %coefficient (not a wavelet coefficient) and has already been 
         %reconstructed as it is equal to its corresponding parent control 
@@ -113,37 +114,36 @@ for lvl = start_lvl:(max_lvl - 1)
         %child will be equal to 0 and the reconstructed control point for 
         %the child will be the same as the parent control point.
         if ~isempty(on_parent_child_inds)
-            p_inds = ceil(on_parent_child_inds./size(child_corner_coords, 1));
-            averages(on_parent_child_inds) = parent_control_points(p_inds);
+            averages(on_parent_child_inds) = parent_control_points(section_nbr);
         end
         
         %On a parent edge
         sub = repmat(child_corner_coords, size(parent_edge_midpoints, 1), 1) - parent_edge_midpoints(repmat(1:size(parent_edge_midpoints, 1), size(child_corner_coords, 1), 1), :);
-        on_edge_child_inds = ceil(find(sum(abs(sub), 2) == 0)./size(parent_edge_midpoints, 1));
+        section_nbr = ceil((find(sum(abs(sub), 2) == 0)./size(child_corner_coords, 1)));
+        on_edge_child_inds = find(sum(abs(sub), 2) == 0) - size(child_corner_coords, 1)*(section_nbr - 1);
         %In this case, compute the average of the Bezier control points 
         %found on the 2 corners of the corresponding parent edge
         if ~isempty(on_edge_child_inds)
-            p_inds = ceil(on_edge_child_inds./size(child_corner_coords, 1));
-            averages(on_edge_child_inds) = avg_edge_ctrlpts(p_inds); 
+            averages(on_edge_child_inds) = avg_edge_ctrlpts(section_nbr); 
         end
        
         %On a parent face
         sub = repmat(child_corner_coords, size(parent_face_midpoints, 1), 1) - parent_face_midpoints(repmat(1:size(parent_face_midpoints, 1), size(child_corner_coords, 1), 1), :);
-        on_face_child_inds = ceil(find(sum(abs(sub), 2) == 0)./size(parent_face_midpoints, 1));
+        section_nbr = ceil((find(sum(abs(sub), 2) == 0)./size(child_corner_coords, 1)));
+        on_face_child_inds = find(sum(abs(sub), 2) == 0) - size(child_corner_coords, 1)*(section_nbr - 1);
         %In this case, compute the average of the Bezier control points 
         %found on the 4 corners of the corresponding parent face
         if ~isempty(on_face_child_inds)
-            p_inds = ceil(on_face_child_inds./size(child_corner_coords, 1));
-            averages(on_face_child_inds) = avg_face_ctrlpts(p_inds); 
+            averages(on_face_child_inds) = avg_face_ctrlpts(section_nbr); 
         end
-        
+
         %In the centre of the parent block
-        in_centre_child_inds = find(sum(abs(child_corner_coords - parent_avg_coords)) == 0);
+        in_centre_child_inds = find(sum(abs(child_corner_coords - parent_avg_coords), 2) == 0);
         %In this case, compute the average of the Bezier control points 
         %found on all 8 corners of the current parent block
         if ~isempty(in_centre_child_inds)
-            averages(in_centre_child_inds) = parent_avg_coords;
-        end        
+            averages(in_centre_child_inds) = mean(parent_control_points);
+        end
         
         %Get the dequantized wavelet coefficients for all the corners (not
         %just the unique ones) of all the children of the current parent 
@@ -161,8 +161,8 @@ for lvl = start_lvl:(max_lvl - 1)
     
     %Keep only the reconstructed control points for the UNIQUE child 
     %corners at level lvl + 1, and discard the rest
-    unique_ctrl_pts_pointers = unique(ctrl_pts_pointers{lvl + 1}, 'stable');
-    reconstruction_decoder{lvl + 1} = reconstruction_decoder{lvl + 1}(unique_ctrl_pts_pointers, 1);
+    [~, unique_ctrl_pts_pointers_inds, ~] = unique(ctrl_pts_pointers{lvl + 1}, 'stable');
+    reconstruction_decoder{lvl + 1} = reconstruction_decoder{lvl + 1}(unique_ctrl_pts_pointers_inds, 1);
 
     cp_time = toc;
     disp(' ');

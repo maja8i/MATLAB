@@ -208,80 +208,83 @@ disp(' ');
 disp('------------ Computing Bezier Control Points ---------------');
 disp(' ');
 
-%[control_points, nearest_voxels, normal_nearest_vox, min_euclid_dist, difference_vectors, dot_products] = compute_control_points(corner_coords, unique_coords, ctrl_pts_pointers, occupied_voxel_coords, occupied_voxel_normals, occupied_voxel_centroids, occupied_voxel_normal_averages, occupied_voxel_centroid_averages, b, max_lvl);
-[control_points, ~, ~, ~, ~, ~, thresh] = compute_control_points(myOT, corner_coords, unique_coords, ctrl_pts_pointers, occupied_voxel_coords, occupied_voxel_normals, occupied_voxel_centroids, occupied_voxel_normal_averages, occupied_voxel_centroid_averages, b, max_lvl);
+[control_points, nearest_voxels, normal_nearest_vox, min_euclid_dist, difference_vectors, dot_products] = compute_control_points(myOT, corner_coords, unique_coords, ctrl_pts_pointers, occupied_voxel_coords, occupied_voxel_normals, occupied_voxel_centroids, occupied_voxel_normal_averages, occupied_voxel_centroid_averages, b, max_lvl);
+%[control_points, ~, ~, ~, ~, ~, thresh] = compute_control_points(myOT, corner_coords, unique_coords, ctrl_pts_pointers, occupied_voxel_coords, occupied_voxel_normals, occupied_voxel_centroids, occupied_voxel_normal_averages, occupied_voxel_centroid_averages, b, max_lvl);
 
-% %For debugging purposes, print out how many voxels, if any, end up having 
-% %all 8 of their control points with the same sign (+/-) ...
-% [~, ptcloud, ~] = plyRead(ptcloud_file);
-% %Accumulate all the control points (not just the unique ones) into one cell
-% %array
-% all_ctrlpts = get_all_ctrlpts(control_points, ctrl_pts_pointers, start_lvl, max_lvl); 
-% same_sign_cntr = 0;
-% vox = 0;
-% same_sign_voxels = [];
-% disp(' ');
-% for i = 1:8:(length(all_ctrlpts{max_lvl}) - (max_lvl - 1)) 
-%     vox = vox + 1;
-%     %Get all 8 control points for the corners of the current voxel
-%     current_ctrlpts = all_ctrlpts{max_lvl}(i:(i + max_lvl - 1));
-%     %Check the signs of current_ctrlpts (assume here that none of the
-%     %control points have a value of 0)
-%     if (sum(sign(current_ctrlpts)) == length(current_ctrlpts))||(sum(sign(current_ctrlpts)) == -length(current_ctrlpts))
-%         same_sign_cntr = same_sign_cntr + 1;
-% %         disp(' ');
-%         disp(['Voxel ' num2str(vox) ' (' num2str(ptcloud(vox, 1:3)) ') has all control points with the same sign: ']);
-% %         disp(' ');
-%         %Store this voxel, for debugging purposes
-%         same_sign_voxels((size(same_sign_voxels, 1) + 1), 1:3) = ptcloud(vox, 1:3);
-% %         %Get the corner coordinates for each corner of this voxel
-% %         vox_corners = corner_coords{max_lvl}((i:(i + max_lvl - 1)), 1:3);
-% %         disp('Voxel corner coordinates:');
-% %         disp(num2str(vox_corners));
-% %         disp(' ');
-% %         %Get the coordinates (either midpoint or centroid, whichever one of
-% %         %these happened to be used in the control point computation) of the
-% %         %nearest voxel found for each corner of the current voxel
-% %         curr_nearest_vox = nearest_voxels{max_lvl}(ctrl_pts_pointers{max_lvl}(i:(i + max_lvl - 1)), 1:3);
-% %         disp('Nearest voxel found for each corner of the current voxel: ');
-% %         disp(num2str(curr_nearest_vox));
-% %         disp(' ');
-% %         %Get the normal vector for the current voxel, from the input
-% %         %voxelized point cloud
-% %         disp('Voxel normal:');
-% %         disp(normals_sorted(vox, :));
-% %         %Get the normal vector for each nearest voxel found above
-% %         curr_normal_vec = normal_nearest_vox{max_lvl}(ctrl_pts_pointers{max_lvl}(i:(i + max_lvl - 1)), 1:3);
-% %         disp('Nearest voxel normal for each corner: ');
-% %         disp(num2str(curr_normal_vec));
-% %         disp(' ');
-% %         %Get the difference vector for each of the 8 corners of this voxel
-% %         %(difference vector between each corner and the chosen voxel)
-% %         vox_diff_vecs = difference_vectors{max_lvl}(ctrl_pts_pointers{max_lvl}(i:(i + max_lvl - 1)), 1:3);
-% %         disp('Voxel corner difference vectors:');
-% %         disp(num2str(vox_diff_vecs));
-% %         disp(' ');
-% %         %Get the dot product between the difference vector of each corner
-% %         %of this voxel and the normal vector of the chosen nearest voxel
-% %         %(the chosen voxel may not be the current voxel itself, as
-% %         %neighbouring voxels are the same distance away)
-% %         vox_dp = dot_products{max_lvl}(ctrl_pts_pointers{max_lvl}(i:(i + max_lvl - 1)));
-% %         disp('Voxel corner dot products:');
-% %         disp(num2str(vox_dp));
-% %         disp(' ');
-%     end
-% end
-% disp(['TOTAL number of voxels with all control points having the same sign: ' num2str(same_sign_cntr) '/' num2str(length(all_ctrlpts{max_lvl})/8) ' (' num2str((same_sign_cntr/(length(all_ctrlpts{max_lvl})/8))*100) '%)']);
-% %Plot voxels that have the same control point signs
-% if same_sign_cntr > 0
-%     figure;
-%     scatter3(ptcloud(:, 1), ptcloud(:, 2), ptcloud(:, 3), 5, 'filled', 'MarkerFaceColor', 'b');
-%     hold on;
-%     scatter3(same_sign_voxels(:, 1), same_sign_voxels(:, 2), same_sign_voxels(:, 3), 5, 'filled', 'MarkerFaceColor', 'm');
-%     axis equal; axis off;
-%     title('Voxels with Same-Sign Control Points at Encoder');
-%     legend('Voxels with Different-Sign Control Points', 'Voxels with Same-Sign Control Points', 'Location', 'best');
-% end
+%For debugging purposes, print out how many voxels, if any, end up having 
+%all 8 of their control points with the same sign (+/-) ...
+[~, ptcloud, ~] = plyRead(ptcloud_file);
+%Accumulate all the control points (not just the unique ones) into one cell
+%array
+all_ctrlpts = get_all_ctrlpts(control_points, ctrl_pts_pointers, start_lvl, max_lvl); 
+same_sign_cntr = 0;
+vox = 0;
+same_sign_voxels = [];
+disp(' ');
+for i = 1:8:(length(all_ctrlpts{max_lvl}) - (max_lvl - 1)) 
+    vox = vox + 1;
+    %Get all 8 control points for the corners of the current voxel
+    current_ctrlpts = all_ctrlpts{max_lvl}(i:(i + 7));
+    %Check the signs of current_ctrlpts (assume here that none of the
+    %control points have a value of 0)
+    if (sum(sign(current_ctrlpts)) == length(current_ctrlpts))||(sum(sign(current_ctrlpts)) == -length(current_ctrlpts))
+        same_sign_cntr = same_sign_cntr + 1;
+%         disp(' ');
+        disp(['Voxel ' num2str(vox) ' (' num2str(ptcloud(vox, 1:3)) ') has all control points with the same sign: ']);
+%         disp(' ');
+        %Store this voxel, for debugging purposes
+        same_sign_voxels((size(same_sign_voxels, 1) + 1), 1:3) = ptcloud(vox, 1:3);
+        %Display the control points for all corners of this voxel
+        disp(num2str(current_ctrlpts));
+        disp(' ');
+        %Get the corner coordinates for each corner of this voxel
+        vox_corners = corner_coords{max_lvl}((i:(i + max_lvl - 1)), 1:3);
+        disp('Voxel corner coordinates:');
+        disp(num2str(vox_corners));
+        disp(' ');
+%         %Get the coordinates (either midpoint or centroid, whichever one of
+%         %these happened to be used in the control point computation) of the
+%         %nearest voxel found for each corner of the current voxel
+%         curr_nearest_vox = nearest_voxels{max_lvl}(ctrl_pts_pointers{max_lvl}(i:(i + max_lvl - 1)), 1:3);
+%         disp('Nearest voxel found for each corner of the current voxel: ');
+%         disp(num2str(curr_nearest_vox));
+%         disp(' ');
+%         %Get the normal vector for the current voxel, from the input
+%         %voxelized point cloud
+%         disp('Voxel normal:');
+%         disp(normals_sorted(vox, :));
+%         %Get the normal vector for each nearest voxel found above
+%         curr_normal_vec = normal_nearest_vox{max_lvl}(ctrl_pts_pointers{max_lvl}(i:(i + max_lvl - 1)), 1:3);
+%         disp('Nearest voxel normal for each corner: ');
+%         disp(num2str(curr_normal_vec));
+%         disp(' ');
+%         %Get the difference vector for each of the 8 corners of this voxel
+%         %(difference vector between each corner and the chosen voxel)
+%         vox_diff_vecs = difference_vectors{max_lvl}(ctrl_pts_pointers{max_lvl}(i:(i + max_lvl - 1)), 1:3);
+%         disp('Voxel corner difference vectors:');
+%         disp(num2str(vox_diff_vecs));
+%         disp(' ');
+%         %Get the dot product between the difference vector of each corner
+%         %of this voxel and the normal vector of the chosen nearest voxel
+%         %(the chosen voxel may not be the current voxel itself, as
+%         %neighbouring voxels are the same distance away)
+%         vox_dp = dot_products{max_lvl}(ctrl_pts_pointers{max_lvl}(i:(i + max_lvl - 1)));
+%         disp('Voxel corner dot products:');
+%         disp(num2str(vox_dp));
+%         disp(' ');
+    end
+end
+disp(['TOTAL number of voxels with all control points having the same sign: ' num2str(same_sign_cntr) '/' num2str(length(all_ctrlpts{max_lvl})/8) ' (' num2str((same_sign_cntr/(length(all_ctrlpts{max_lvl})/8))*100) '%)']);
+%Plot voxels that have the same control point signs
+if same_sign_cntr > 0
+    figure;
+    scatter3(ptcloud(:, 1), ptcloud(:, 2), ptcloud(:, 3), 5, 'filled', 'MarkerFaceColor', 'b');
+    hold on;
+    scatter3(same_sign_voxels(:, 1), same_sign_voxels(:, 2), same_sign_voxels(:, 3), 5, 'filled', 'MarkerFaceColor', 'm');
+    axis equal; axis off;
+    title('Voxels with Same-Sign Control Points at Encoder');
+    legend('Voxels with Different-Sign Control Points', 'Voxels with Same-Sign Control Points', 'Location', 'best');
+end
 
 % %------------- Visualization of Control Point Computation ----------------%
 % 
@@ -507,11 +510,11 @@ all_zero_wav_cfs = cell(size(wavelet_coeffs));
 %Cell array to store the midpoints of the occupied octree cells at each
 %level that have zero wavelet coefficients on all of their corners (only
 %needed for display purposes, later)
-all_zero_cell_midpoints = cell(size(wavelet_coeffs));
+%all_zero_cell_midpoints = cell(size(wavelet_coeffs));
 %Cell array to store the indices of ctrl_pts_pointers for the occupied
 %octree cells at each level that have zero wavelet coefficients on all of
 %their corners (only needed for display purposes, later)
-all_zero_cell_ctrlpts_ptrs = cell(size(wavelet_coeffs));
+%all_zero_cell_ctrlpts_ptrs = cell(size(wavelet_coeffs));
 
 %At each octree level, check which occupied octree cells (if any) have zero
 %wavelet coefficients on all of their corners
@@ -524,15 +527,15 @@ for lvl = (start_lvl + 1):max_lvl
         %Get the wavelet coefficient for each of the 8 corners of this cell
         current_wavelet_coeffs = wavelet_coeffs{lvl}(ctrl_pts_pointers{lvl}((occ_cell*8 - 7):(occ_cell*8)));
         %If the wavelet coefficients at all the corners of this cell are 0
-        if isempty(find(current_wavelet_coeffs ~= 0))
+        if isempty(find((current_wavelet_coeffs ~= 0), 1))
             %disp(['All zero wavelet coefficients for occupied cell ' num2str(occ_cell)]);
             all_zero_wav_cfs{lvl}(zw_cntr) = occ_cell; 
             %Get the midpoints of the current cell (only needed for display
             %purposes, later)
-            all_zero_cell_midpoints{lvl}(zw_cntr, 1:3) = mean(corner_coords{lvl}(((occ_cell*8 - 7):(occ_cell*8)), :), 1);
+            %all_zero_cell_midpoints{lvl}(zw_cntr, 1:3) = mean(corner_coords{lvl}(((occ_cell*8 - 7):(occ_cell*8)), :), 1);
             %Store the control points pointers for each corner of this cell
             %(only needed for display purposes, later)
-            all_zero_cell_ctrlpts_ptrs{lvl}(zw_cntr, 1:8) = ctrl_pts_pointers{lvl}((occ_cell*8 - 7):(occ_cell*8));
+            %all_zero_cell_ctrlpts_ptrs{lvl}(zw_cntr, 1:8) = ctrl_pts_pointers{lvl}((occ_cell*8 - 7):(occ_cell*8));
             zw_cntr = zw_cntr + 1;
         end
     end
