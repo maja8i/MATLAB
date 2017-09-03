@@ -153,7 +153,7 @@ for lvl = max_lvl %Here assume max_lvl = b + 1
                 %(az_cell) and its parent
                 continue;
             end         
-            disp(['Finished processing az_cell (voxel) ' num2str(az_cell)]);
+            disp(['Finished processing az_cell (voxel) ' num2str(az_cell) '/' num2str(length(all_zero_wav_cfs{lvl}))]);
         end %End az_cell
     end %End check if ~isempty(all_zero_wav_cfs{lvl})
 end %End lvl    
