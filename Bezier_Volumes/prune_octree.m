@@ -149,7 +149,7 @@ if ~isempty(all_zero_wav_cfs{lvl})
         %code of the current parent_cell, so move on to checking the next 
         %voxel (az_cell) and its parent
         end %End check if az_children == length(children)         
-        disp(['Finished processing az_cell (voxel) ' num2str(az_cell) '/' num2str(length(all_zero_wav_cfs{lvl}))]);
+        %disp(['Finished processing az_cell (voxel) ' num2str(az_cell) '/' num2str(length(all_zero_wav_cfs{lvl}))]);
         %profile viewer
     end %End az_cell
 end %End check if ~isempty(all_zero_wav_cfs{lvl})
