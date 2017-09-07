@@ -26,18 +26,15 @@ for lvl = (start_lvl + 1):max_lvl
             %Make a copy of ctrl_pts_pointers{lvl}, as it will be
             %temporarily modified
             ctrl_pts_pointers_temp = ctrl_pts_pointers{lvl};
-            %Remove the wavelet coefficients associated with the corners of
-            %the pruned_cells at this octree level
-            corners_to_prune = ((pruned_cells(1)*8) - 7):(pruned_cells(1)*8);
-            for i = 2:length(pruned_cells)
-                corners_to_prune = cat(1, corners_to_prune, ((pruned_cells(i)*8) - 7):(pruned_cells(i)*8));
-            end
+            %Find the corners to prune at this octree level 
+            corners_to_prune = [(pruned_cells.*8 - 7) (pruned_cells.*8 - 6) (pruned_cells.*8 - 5) (pruned_cells.*8 - 4) (pruned_cells.*8 - 3) (pruned_cells.*8 - 2) (pruned_cells.*8 - 1) (pruned_cells.*8)];
+            %Remove the wavelet coefficients associated with the 
+            %corners_to_prune at this octree level
             wavelet_coeffs_expanded(corners_to_prune) = [];
             %Remove the corresponding corners in ctrl_pts_pointers_temp
             ctrl_pts_pointers_temp(corners_to_prune) = [];
             %Keep only the wavelet coefficients corresponding to the unique
             %corners that remain after pruning
-            %pruned_wavelet_coeffs{lvl} = wavelet_coeffs_expanded(unique(ctrl_pts_pointers_temp, 'stable'));
             [~, unique_ctrl_pts_pointers_inds, ~] = unique(ctrl_pts_pointers_temp, 'stable');
             pruned_wavelet_coeffs{lvl} = wavelet_coeffs_expanded(unique_ctrl_pts_pointers_inds);
         end %End check if ~isempty(toprune2{lvl})
@@ -56,10 +53,13 @@ for lvl = (start_lvl + 1):max_lvl
         if ~isempty(toprune{lvl - 1})
             pruned_parent_cells = toprune{lvl - 1};
             %Find the children (voxels) of each of the pruned_parent_cells
+            first_child = myOT.FirstChildPtr{lvl - 1}(pruned_parent_cells);
+            child_count = uint32(myOT.ChildCount{lvl - 1}(pruned_parent_cells));
+            last_child = first_child + child_count - 1;
             children_cnt = 1;
             for j = 1:length(pruned_parent_cells)
-                children_of_pruned(children_cnt:(children_cnt + uint32(myOT.ChildCount{lvl - 1}(pruned_parent_cells(j))) - 1)) = (myOT.FirstChildPtr{lvl - 1}(pruned_parent_cells(j))):(myOT.FirstChildPtr{lvl - 1}(pruned_parent_cells(j)) + uint32(myOT.ChildCount{lvl - 1}(pruned_parent_cells(j))) - 1);
-                children_cnt = children_cnt + uint32(myOT.ChildCount{lvl - 1}(pruned_parent_cells(j)));
+                children_of_pruned(children_cnt:(children_cnt + child_count(j) - 1)) = first_child(j):last_child(j);
+                children_cnt = children_cnt + child_count(j);
             end
             %Expand wavelet_coeffs{lvl} to get ALL the corners at this
             %octree level, not just the unique ones
@@ -67,18 +67,15 @@ for lvl = (start_lvl + 1):max_lvl
             %Make a copy of ctrl_pts_pointers{lvl}, as it will be
             %temporarily modified
             ctrl_pts_pointers_temp = ctrl_pts_pointers{lvl};
-            %Remove the wavelet coefficients associated with the corners of
-            %the children_of_pruned voxels at this octree level
-            corners_to_prune = ((children_of_pruned(1)*8) - 7):(children_of_pruned(1)*8);
-            for i = 2:length(children_of_pruned)
-                corners_to_prune = cat(1, corners_to_prune, ((children_of_pruned(i)*8) - 7):(children_of_pruned(i)*8));
-            end
+            %Find the corners to prune at this octree level
+            corners_to_prune = [(children_of_pruned.*8 - 7) (children_of_pruned.*8 - 6) (children_of_pruned.*8 - 5) (children_of_pruned.*8 - 4) (children_of_pruned.*8 - 3) (children_of_pruned.*8 - 2) (children_of_pruned.*8 - 1) (children_of_pruned.*8)];
+            %Remove the wavelet coefficients associated with the 
+            %corners_to_prune at this octree level
             wavelet_coeffs_expanded(corners_to_prune) = [];
             %Remove the corresponding corners in ctrl_pts_pointers_temp
             ctrl_pts_pointers_temp(corners_to_prune) = [];
             %Keep only the wavelet coefficients corresponding to the unique
             %corners that remain after pruning
-            %pruned_wavelet_coeffs{lvl} = wavelet_coeffs_expanded(unique(ctrl_pts_pointers_temp, 'stable'));
             [~, unique_ctrl_pts_pointers_inds, ~] = unique(ctrl_pts_pointers_temp, 'stable');
             pruned_wavelet_coeffs{lvl} = wavelet_coeffs_expanded(unique_ctrl_pts_pointers_inds);
         end %End check if ~isempty(toprune{lvl - 1})   
