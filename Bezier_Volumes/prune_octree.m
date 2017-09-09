@@ -41,46 +41,38 @@ end
 %octree cells after pruning, including the internal cells AND the 
 %leaves (except the leaves at level b + 1).
 toprune2 = cell(size(myOT.OccupancyCode));
-%Initialize a cell array that will keep track of the parent cells at lvl2
-%levels (below) that have already been processed, to avoid repeating the
-%same process for different children of the same parent
+%Initialize a cell array that will keep track of the parent cells that have 
+%already been processed at each octree level, to avoid repeating the same
+%process for different children of the same parent
 parents_already_processed = cell((b - 1), 1);
 
 %The below code prunes branches (occupancy codes) of octree cells that 
 %have all zero wavelet coefficients throughout the branch, so the 
 %pruning is done bottom-up from the voxel level ...
 tic;
-lvl = max_lvl; %Here assume max_lvl = b + 1
+lvl = max_lvl;  %Here assume max_lvl = b + 1
 %If there exist any occupied voxels, which contain all zero wavelet 
 %coefficients ...
 if ~isempty(all_zero_wav_cfs{lvl})
-    %disp('Found voxels with all-zero wavelet coefficients: ');
-    %disp(num2str(all_zero_wav_cfs{lvl}'));
     %Get the parent cells for all of these voxels
     parents = myOT.ParentPtr{lvl}(all_zero_wav_cfs{lvl});
-    %Extract only the unique parent cells, since the parent indices in
-    %"parents", above, will be repeated for all the children of a parent
+    %Extract only the unique parent cells, since the parent indices 
+    %in "parents", above, will be repeated for all the children of 
+    %a parent
     parents = unique(parents, 'stable');
-    %Find the first child pointers for each of the parents, and convert
-    %their child counts into uint32 type (same as the child pointers), so
-    %that these can be added to the child pointers to get the last child
-    %pointers
+    %Find the first child pointers for each of the parents, and 
+    %convert their child counts into uint32 type (same as the child
+    %pointers), so that these can be added to the child pointers to 
+    %get the last child pointers
     first_child = myOT.FirstChildPtr{lvl - 1}(parents);
     child_count = uint32(myOT.ChildCount{lvl - 1}(parents));
-    last_child = first_child + child_count - 1;
-    %For each of the unique parents of the all-zero-wavelet-coefficient
-    %voxels ...
+    last_child = first_child + child_count - 1;   
+    %For each of the unique parents of the all-zero-wavelet-coeffi-
+    %cient voxels ...
     for p_cell = 1:length(parents)
         %profile on
         %Get the current parent
         parent_cell = parents(p_cell);
-        %Check if this parent_cell has already been marked for pruning (it
-        %may have been a child of a parent whose occupancy code was marked
-        %for pruning in a previous iteration)
-        if any(toprune{lvl - 1} == parent_cell)
-            %No need to check this parent_cell again
-            continue;
-        end
         %Find all the children (voxels) of parent_cell 
         children = first_child(p_cell):last_child(p_cell);
         %Check if ALL the children (voxels) have all zero wavelet
@@ -89,96 +81,99 @@ if ~isempty(all_zero_wav_cfs{lvl})
         for i = 1:length(children)
             az_children(i) = any(all_zero_wav_cfs{lvl} == children(i));
         end
-        %If ALL of the child voxels have all zero wavelet coefficients
+        %If ALL of the child voxels have all zero wavelet 
+        %coefficients
         if all(az_children)
             %Mark the occupancy code of parent_cell for pruning
-            toprune{lvl - 1}((length(toprune{lvl - 1}) + 1), 1) = parent_cell;
-            %If the current parent_cell does NOT have all zero wavelet 
-            %coefficients (but all of its child voxels do)              
+            %(regardless of whether or not the parent_cell has all
+            %zero wavelet coefficients itself)
+            toprune{lvl - 1}((end + 1), 1) = parent_cell;
+            %If the current parent_cell does NOT have all zero 
+            %wavelet coefficients (but all of its child voxels do)              
             if ~any(all_zero_wav_cfs{lvl - 1} == parent_cell)
-                %The current parent_cell will become a leaf after pruning 
-                %its children away
+                %The current parent_cell will become a leaf after 
+                %pruning its children away
                 post_pruning_array{lvl - 1}(parent_cell) = 1;
-                %Do not need to check ancestors of the current parent_cell, 
-                %so move on to checking the next parent_cell instead
-                %disp(['Finished processing parent_cell ' num2str(p_cell) '/' num2str(length(parents))]);
-                continue;
             end
-            %If the parent_cell does have all zero wavelet coefficients (as
-            %do all of its children), successively check ancestors of the
-            %parent_cell, to see if we can prune further up the octree 
-            for lvl2 = (lvl - 1):-1:(start_lvl + 1)
-                %Get the parent of the current parent_cell
-                parent2 = myOT.ParentPtr{lvl2}(parent_cell);
-                %Check if parent2 has already been processed in another
-                %iteration (for a different child (parent_cell), perhaps)
-                %or if it has already been marked for pruning in a
-                %different iteration
-                if (~isempty(parents_already_processed{lvl2 - 1}) && any(parents_already_processed{lvl2 - 1} == parent2)) || (any(toprune{lvl2 - 1} == parent2))
-                    break;
-                end
-                %Record parent2 as being processed, so that it will not be
-                %repeated in a future iteration
-                parents_already_processed{lvl2 - 1}(length(parents_already_processed{lvl2 - 1}) + 1) = parent2;
-                %Get the children of parent2 - one of these children will 
-                %be the current parent_cell
-                children2 = ((myOT.FirstChildPtr{lvl2 - 1}(parent2)):(myOT.FirstChildPtr{lvl2 - 1}(parent2) + uint32((myOT.ChildCount{lvl2 - 1}(parent2))) - 1));
-                %Check if children2 have all zero wavelet coefficients
-                az_children2 = zeros(1, length(children2));
-                for i = 1:length(children2)
-                    az_children2(i) = any(all_zero_wav_cfs{lvl2} == children2(i));
-                end
-                %If NOT all of parent2's children (parent_cell's siblings) 
-                %have all zero wavelet coefficients
-                if ~all(az_children2)
-                    %We cannot prune the occupancy code of parent2, but the 
-                    %current parent_cell will become a leaf
-                    post_pruning_array{lvl2}(parent_cell) = 1;
-                    %Stop searching other ancestors of the current 
-                    %parent_cell; move on to the next parent_cell
-                    break;
-                end
-                %If ALL of parent2's children have all zero wavelet
-                %coefficients, then the current parent_cell will not be a 
-                %leaf, so mark it for pruning from post_pruning array
-                toprune2{lvl2}((length(toprune2{lvl2}) + 1), 1) = parent_cell;
-                %Mark the occupancy code for the current ancestor parent 
-                %for pruning
-                toprune{lvl2 - 1}((length(toprune{lvl2 - 1}) + 1), 1) = parent2;
-                %Mark the occupancy codes of parent2's other occupied 
-                %children (i.e., parent_cell's siblings) for pruning too 
-                %(since these children are occupied, they must have 
-                %occupancy codes for children of their own). One of the 
-                %children2 will be the current parent_cell, which has
-                %already been included in toprune and toprune2, so we 
-                %exclude it in the lines below.
-                toprune{lvl2}((length(toprune{lvl2}) + 1):(length(toprune{lvl2}) + length(children2) - 1), 1) = children2(children2 ~= parent_cell);
-                %These children will not be leaves (since they will be 
-                %pruned off), so mark them for pruning from 
-                %post_pruning_array 
-                toprune2{lvl2}((length(toprune2{lvl2}) + 1):(length(toprune2{lvl2}) + length(children2) - 1), 1) = children2(children2 ~= parent_cell);
-                %If parent2 does NOT have all zero wavelet coefficients 
-                %(but all of its children do)
-                if ~any(all_zero_wav_cfs{lvl2 - 1} == parent2)
-                    %parent2 will become a leaf
-                    post_pruning_array{lvl2 - 1}(parent2) = 1; 
-                    %Stop checking other ancestors
-                    break;
-                end
-                %If parent2 does have all zero wavelet coefficients (as do 
-                %all of its children), continue checking other ancestors, 
-                %with the current parent2 being the new parent_cell
-                parent_cell = parent2; 
-            end %End for-loop for lvl2
-        %If NOT ALL of the children (voxels) of the current parent_cell
-        %have all zero wavelet coefficients, we cannot prune the occupancy 
-        %code of the current parent_cell, so move on to checking the next 
-        %parent_cell
-        end %End check if all(az_children)     
+        end %End check if all(az_children)
+        %disp(['Finished p_cell ' num2str(p_cell) '/' num2str(length(parents))]);
         %profile viewer
-        %disp(['Finished processing parent_cell ' num2str(p_cell) '/' num2str(length(parents))]);
     end %End p_cell
 end %End check if ~isempty(all_zero_wav_cfs{lvl})
+%disp('Finished voxel level');
+
+%Go through other octree levels, to see if we can prune further up the
+%octree
+for lvl = (max_lvl - 1):-1:(start_lvl + 1)   
+    if ~isempty(toprune{lvl})
+        %Check all of the octree cells marked in toprune for lvl
+        for ot_cell = (toprune{lvl})' %Need to have row vector, not column vector, to use as indices into for-loop
+            %If the cell was marked as a leaf, do not process it further 
+            %(no need to check other ancestors); move on to the next 
+            %ot_cell
+            if post_pruning_array{lvl}(ot_cell) == 1
+                continue;
+            end
+            %If the cell was not marked as a leaf, get its parent at 
+            %lvl - 1
+            parent = myOT.ParentPtr{lvl}(ot_cell);
+            %Multiple cells at lvl may have the same parent, so check if 
+            %parent has already been processed (we don't want to process it 
+            %more than once)
+            if (~isempty(parents_already_processed{lvl - 1}) && any(parents_already_processed{lvl - 1} == parent))
+                continue;
+            end
+            %Record parent as being processed, so that it will not be 
+            %repeated in a future iteration
+            parents_already_processed{lvl - 1}(end + 1) = parent;
+            %Get all the children of parent - one of these children will be 
+            %the current ot_cell
+            children = ((myOT.FirstChildPtr{lvl - 1}(parent)):(myOT.FirstChildPtr{lvl - 1}(parent) + uint32((myOT.ChildCount{lvl - 1}(parent))) - 1));
+            %Check if all of these children have been marked for pruning 
+            %(in the previous iteration)
+            children_toprune = zeros(1, length(children));
+            for i = 1:length(children)
+                children_toprune(i) = any(toprune{lvl} == children(i));
+            end
+            %If NOT all of the children have been marked for pruning
+            if ~all(children_toprune)
+                %We cannot prune the occupancy code of parent, so the
+                %current ot_cell and any of its siblings that have been
+                %marked for pruning will become leaves
+                post_pruning_array{lvl}(children(children_toprune == 1)) = 1;
+                %Move on to checking the parent of the next ot_cell
+                continue;
+            end
+            %If all of the children's occupancy codes have been marked for
+            %pruning, check if any of the children were marked as leaf 
+            %cells
+            if any(post_pruning_array{lvl}(children))
+                %If any of the children were marked as leaf cells, then we
+                %cannot prune the occupancy code of the parent, so we need
+                %to make all the children leaves
+                post_pruning_array{lvl}(children) = 1;
+                %Move on to checking the parent of the next ot_cell
+                continue;
+            end
+            %If all of the children's occupancy codes were marked for 
+            %pruning AND none of the children were marked as leaves, then
+            %we can mark the current parent's occupancy code for pruning
+            toprune{lvl - 1}((end + 1), 1) = parent;
+            %Also mark the children for pruning from post_pruning_array, 
+            %since none of them will be leaves (this will include the
+            %current ot_cell, too)
+            toprune2{lvl}((end + 1):(end + length(children)), 1) = children;
+            %Check if the current parent has all zero wavelet coefficients: 
+            %if not, but all of its children do (since they were all marked 
+            %for pruning and none of them are leaves), then the parent will
+            %be a leaf
+            if ~any(all_zero_wav_cfs{lvl - 1} == parent)
+                post_pruning_array{lvl - 1}(parent) = 1; 
+            end      
+        end %End ot_cell
+        %disp(['Finished level ' num2str(lvl)]);
+    end %End check if ~isempty(toprune{lvl})
+end %End lvl
 
 %For each octree level covered in toprune ...
 for lvl = 1:size(toprune, 1)
@@ -186,7 +181,7 @@ for lvl = 1:size(toprune, 1)
         %Prune the occupancy codes of the octree cells that have been 
         %marked
         pruned_occupancy_codes{lvl}(toprune{lvl}) = [];
-        disp(['Level ' num2str(lvl) ' octree pruning done (removed occupancy codes of leaf cells at this level, and their descendants)']);
+        disp(['Level ' num2str(lvl) ' octree pruning done']);
         disp('------------------------------------------------------------');
     end
 end
@@ -206,3 +201,5 @@ disp(' ');
 disp('************************************************************');
 disp(['Time taken to prune octree: ' num2str(ot_pruning_time) ' seconds']);
 disp('************************************************************');
+
+
