@@ -60,8 +60,9 @@ SI_dict(8, :) = [1 1 1];    %(+x, +y, +z)
 
 if prune_flag == 1
     %Find the first non-empty location in post_pruning_array: this 
-    %indicates the first octree level at which octree pruning occurred at 
-    %the encoder
+    %indicates the first octree level at which leaf cells are found
+    %NOTE: Currently assuming that there are no octree levels AFTER
+    %pp_fist_nonempty that do not contain any leaf cells.
     pp_first_nonempty = find(~cellfun(@isempty, post_pruning_array), 1);
 end
 
@@ -341,7 +342,7 @@ if prune_flag == 1
     disp(' ');
     
     %[reconstructed_vox_pos, reconstructed_vox_pos_corners, subcell_coords_all] = voxel_reconstruction_pruning(pp_first_nonempty, SpatialIndex, corner_coords_decoder, post_pruning_array, reconstruction_decoder, ctrl_pts_pointers, b, ptcloud_file, ptcloud_name);
-    [reconstructed_vox_pos, ~, ~] = voxel_reconstruction_pruning(pp_first_nonempty, SpatialIndex, corner_coords_decoder, post_pruning_array, reconstruction_decoder, ctrl_pts_pointers, b, ptcloud_file, ptcloud_name);
+    [reconstructed_vox_pos, ~] = voxel_reconstruction_pruning(pp_first_nonempty, SpatialIndex, corner_coords_decoder, post_pruning_array, reconstruction_decoder, ctrl_pts_pointers, b, ptcloud_file, ptcloud_name);
 end
 
 disp(' ');

@@ -211,6 +211,17 @@ for lvl = 1:size(toprune2, 1)
     end
 end
 
+%If there are any octree levels in post_pruning_array that contain no leaf
+%cells, then clear the post_pruning_array at these levels because we do not
+%need to transmit only 0 bits
+for lvl = 1:size(post_pruning_array, 1)
+    if ~isempty(post_pruning_array{lvl}) && (~any(post_pruning_array{lvl}))
+        post_pruning_array{lvl} = [];
+        disp(['Cleared level ' num2str(lvl) ' of post_pruning_array: no leaves']);
+        disp('------------------------------------------------------------');
+    end
+end
+
 ot_pruning_time = toc;
 disp(' ');
 disp('************************************************************');

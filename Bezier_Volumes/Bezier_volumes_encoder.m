@@ -734,11 +734,11 @@ end
 %---- Post-Pruning Array (only if pruning has been done) ----
 
 if prune_flag == 1    
-    %Get the (parts of the) post_pruning_array that will be transmitted to the 
-    %decoder
+    %Get the (parts of the) post_pruning_array that will be transmitted to 
+    %the decoder
     post_pruning_array_forDec = cell(b, 1);
     if max_lvl == b + 1
-        for i = 1:(max_lvl - 1) %Assumes max_lvl = b + 1
+        for i = 1:(max_lvl - 1)
             post_pruning_array_forDec{i} = post_pruning_array{i};
         end
     elseif max_lvl < b + 1
@@ -746,8 +746,8 @@ if prune_flag == 1
             post_pruning_array_forDec{i} = post_pruning_array{i};
         end
     end
-    %Concatenate all of the bits from post_pruning_array_forDec, at all octree 
-    %levels from the root to (max_lvl - 1), into one long array
+    %Concatenate all of the bits from post_pruning_array_forDec, at all 
+    %octree levels from the root to (max_lvl - 1), into one long array
     pp_cntr = 1;
     pp_array = [];
     if max_lvl == b + 1
