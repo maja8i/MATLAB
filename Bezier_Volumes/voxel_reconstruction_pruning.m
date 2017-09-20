@@ -1,7 +1,12 @@
 function [reconstructed_vox_pos, reconstructed_vox_pos_corners] = voxel_reconstruction_pruning(pp_first_nonempty, corner_coords_decoder, post_pruning_array, reconstruction_decoder, ctrl_pts_pointers, b, ptcloud_file, ptcloud_name)
 
-%Matrix to store the reconstructed voxel corners
-reconstructed_vox_pos_corners = [];
+tic;
+
+%Matrix to store the reconstructed voxel corners: initialize to some large
+%value (can shrink later)
+reconstructed_vox_pos_corners = zeros(24000000, 3);
+%Counter for reconstructed_vox_pos_corners
+rec_vox_pos_cnrs_cntr = 1;
 
 %If there are any voxels that have already been reconstructed (because no
 %pruning was done further up the octree for these voxels), get their corner
@@ -10,7 +15,8 @@ if ~isempty(corner_coords_decoder{b + 1})
     disp(' ');
     disp('Getting corner coordinates for already-reconstructed occupied voxels ...');
     disp(' ');    
-    reconstructed_vox_pos_corners = corner_coords_decoder{b + 1};
+    reconstructed_vox_pos_corners(rec_vox_pos_cnrs_cntr:size(corner_coords_decoder{b + 1}, 1), 1:3) = corner_coords_decoder{b + 1};
+    rec_vox_pos_cnrs_cntr = rec_vox_pos_cnrs_cntr + size(corner_coords_decoder{b + 1}, 1);
 end
 
 %Cell array that will store the indices of only the occupied cells from
@@ -29,6 +35,7 @@ end
 %For each octree level at which there are leaf cells, except the voxel
 %level ...
 for lvl = pp_first_nonempty:size(post_pruning_array, 1)
+    %profile on
     %For each leaf cell at this level ...
     for occ_cell = pp_leaves_only{lvl}'
         disp(['Reconstructing voxels for leaf cell (occ_cell) ' num2str(occ_cell) ' at level ' num2str(lvl) ':']);
@@ -41,7 +48,6 @@ for lvl = pp_first_nonempty:size(post_pruning_array, 1)
         %interpolate between the leaf cell's (occ_cell's) control points.
         %The voxels that have interpolated control points with different 
         %signs at the end will be considered occupied.
-        %profile on
         for lvl_d = (lvl + 1):(b + 1)
             %Compute the corner coordinates of each of the sub-cells at
             %lvl_d ...
@@ -61,6 +67,7 @@ for lvl = pp_first_nonempty:size(post_pruning_array, 1)
                 mid_x = (min_x + max_x)/2;
                 mid_y = (min_y + max_y)/2;
                 mid_z = (min_z + max_z)/2;   
+                zc_coords = current_corner_coords;  %"zc" stands for zero crossing, as we only subdivide occupied cells
             else
                 disp(['--Processing sub-cells at lvl_d ' num2str(lvl_d) ': ' num2str(size(subcell_coords_occupied, 1)/8) ' occupied sub-cells at previous lvl_d, so ' num2str(size(subcell_coords_occupied, 1)) ' sub-cells to process at current lvl_d']);    
                 %If none of the sub-cells at the previous lvl_d were marked
@@ -78,50 +85,57 @@ for lvl = pp_first_nonempty:size(post_pruning_array, 1)
                 %y, z separately) per 8 sub-cells at the current lvl_d 
                 %(there are 8 sub-cells, not all necessarily occupied, per 
                 %occupied cell at subcell_coords_occupied).
-                min_x(1:(size(subcell_coords_occupied, 1)/8)) = min(reshape(subcell_coords_occupied(:, 1), 8, size(subcell_coords_occupied, 1)/8), [], 1);
-                min_y(1:(size(subcell_coords_occupied, 1)/8)) = min(reshape(subcell_coords_occupied(:, 2), 8, size(subcell_coords_occupied, 1)/8), [], 1);
-                min_z(1:(size(subcell_coords_occupied, 1)/8)) = min(reshape(subcell_coords_occupied(:, 3), 8, size(subcell_coords_occupied, 1)/8), [], 1);
-                max_x(1:(size(subcell_coords_occupied, 1)/8)) = max(reshape(subcell_coords_occupied(:, 1), 8, size(subcell_coords_occupied, 1)/8), [], 1);
-                max_y(1:(size(subcell_coords_occupied, 1)/8)) = max(reshape(subcell_coords_occupied(:, 2), 8, size(subcell_coords_occupied, 1)/8), [], 1);
-                max_z(1:(size(subcell_coords_occupied, 1)/8)) = max(reshape(subcell_coords_occupied(:, 3), 8, size(subcell_coords_occupied, 1)/8), [], 1);
-                mid_x = (min_x + max_x)./2;
-                mid_y = (min_y + max_y)./2;
-                mid_z = (min_z + max_z)./2;
+                min_x(1:(size(subcell_coords_occupied, 1)/8), 1) = min(reshape(subcell_coords_occupied(:, 1), 8, size(subcell_coords_occupied, 1)/8), [], 1);
+                min_y(1:(size(subcell_coords_occupied, 1)/8), 1) = min(reshape(subcell_coords_occupied(:, 2), 8, size(subcell_coords_occupied, 1)/8), [], 1);
+                min_z(1:(size(subcell_coords_occupied, 1)/8), 1) = min(reshape(subcell_coords_occupied(:, 3), 8, size(subcell_coords_occupied, 1)/8), [], 1);
+                max_x(1:(size(subcell_coords_occupied, 1)/8), 1) = max(reshape(subcell_coords_occupied(:, 1), 8, size(subcell_coords_occupied, 1)/8), [], 1);
+                max_y(1:(size(subcell_coords_occupied, 1)/8), 1) = max(reshape(subcell_coords_occupied(:, 2), 8, size(subcell_coords_occupied, 1)/8), [], 1);
+                max_z(1:(size(subcell_coords_occupied, 1)/8), 1) = max(reshape(subcell_coords_occupied(:, 3), 8, size(subcell_coords_occupied, 1)/8), [], 1);
+                mid_x(1:length(min_x), 1) = (min_x + max_x)./2;
+                mid_y(1:length(min_x), 1) = (min_y + max_y)./2;
+                mid_z(1:length(min_x), 1) = (min_z + max_z)./2;
+                zc_coords = subcell_coords_occupied;
             end %End check if lvl_d == (lvl + 1) 
             %Use the min, max, and mid points found above, to compute the
             %corner coordinates of each of the 8 sub-cells resulting from
             %subdividing each of the cells whose coordinates are stored in
-            %zc_coords, below
-            if (lvl_d == lvl + 1)
-                zc_coords = current_corner_coords;  %"zc" stands for zero crossing, as we only subdivide occupied cells
-            elseif (lvl_d > lvl + 1)
-                zc_coords = subcell_coords_occupied;
-            end
-            subcell_coords = zeros(size(zc_coords, 1)*8, 3); %Temporary matrix to store the corner coordinates of each sub-cell at the current lvl_d 
-            scc_cntr = 1;   %Counter for corners of the sub-cells at the current level
-            cell_cntr = 1;  %Counter for cells in subcell_coords_occupied
+            %zc_coords
             disp(['  Computing corner coordinates for each sub-cell at this level (' num2str(size(zc_coords, 1)) ' sub-cells in total)']);           
-            for sub_cell_8set = 1:8:(size(zc_coords, 1) - 7)
-                %Sub-cell 1
-                if lvl_d == (lvl + 1)
-                    subcell_coords((scc_cntr:(scc_cntr + 7)), :) = [min_x min_y min_z; mid_x min_y min_z; mid_x mid_y min_z; min_x mid_y min_z; min_x min_y mid_z; mid_x min_y mid_z; mid_x mid_y mid_z; min_x mid_y mid_z];   
-                else
-                    subcell_coords((scc_cntr:(scc_cntr + 7)), :) = [min_x(cell_cntr) min_y(cell_cntr) min_z(cell_cntr); mid_x(cell_cntr) min_y(cell_cntr) min_z(cell_cntr); mid_x(cell_cntr) mid_y(cell_cntr) min_z(cell_cntr); min_x(cell_cntr) mid_y(cell_cntr) min_z(cell_cntr); min_x(cell_cntr) min_y(cell_cntr) mid_z(cell_cntr); mid_x(cell_cntr) min_y(cell_cntr) mid_z(cell_cntr); mid_x(cell_cntr) mid_y(cell_cntr) mid_z(cell_cntr); min_x(cell_cntr) mid_y(cell_cntr) mid_z(cell_cntr)];   
-                end                
-                %Offsets for sub-cells 2-8
-                offsets = [2^(b + 1 - lvl_d) 0 0;
-                    2^(b + 1 - lvl_d) 2^(b + 1 - lvl_d) 0;
-                    0 2^(b + 1 - lvl_d) 0;
-                    0 0 2^(b + 1 - lvl_d);
-                    2^(b + 1 - lvl_d) 0 2^(b + 1 - lvl_d);
-                    2^(b + 1 - lvl_d) 2^(b + 1 - lvl_d) 2^(b + 1 - lvl_d);
-                    0 2^(b + 1 - lvl_d) 2^(b + 1 - lvl_d)]; 
-                %Compute coordinates for sub-cells 2-8
-                subcell_coords((scc_cntr + 8):(scc_cntr + 63), :) = repmat(subcell_coords((scc_cntr:(scc_cntr + 7)), :), 7, 1) + offsets(repmat(1:size(offsets, 1), 8, 1), :);
-                %Increment scc_cntr for the next set of 8 sub-cells
-                scc_cntr = scc_cntr + 64; 
-                cell_cntr = cell_cntr + 1;
-            end %End sub_cell_8set
+            %Sub-cells 1 of each cell in zc_coords: each set of
+            %length(min_x) rows in subcell_coords_temp, below, represents 
+            %one corner of sub-cell 1 of each cell in zc_coords
+            subcell_coords_temp = [min_x min_y min_z; mid_x min_y min_z; mid_x mid_y min_z; min_x mid_y min_z; min_x min_y mid_z; mid_x min_y mid_z; mid_x mid_y mid_z; min_x mid_y mid_z]; 
+            %Rearrange subcell_coords_temp so that all 8 corners of one
+            %sub-cell are one after the other
+            cnrs1 = subcell_coords_temp(1:length(min_x), :);
+            cnrs2 = subcell_coords_temp((length(min_x) + 1):(2*length(min_x)), :);
+            cnrs3 = subcell_coords_temp((2*length(min_x) + 1):(3*length(min_x)), :);
+            cnrs4 = subcell_coords_temp((3*length(min_x) + 1):(4*length(min_x)), :);
+            cnrs5 = subcell_coords_temp((4*length(min_x) + 1):(5*length(min_x)), :);
+            cnrs6 = subcell_coords_temp((5*length(min_x) + 1):(6*length(min_x)), :);
+            cnrs7 = subcell_coords_temp((6*length(min_x) + 1):(7*length(min_x)), :);
+            cnrs8 = subcell_coords_temp((7*length(min_x) + 1):(8*length(min_x)), :);
+            subcell_coords_temp = zeros(size(subcell_coords_temp, 1), 3);
+            subcell_coords_temp(1:8:(size(subcell_coords_temp, 1) - 7), 1:3) = cnrs1; 
+            subcell_coords_temp(2:8:(size(subcell_coords_temp, 1) - 6), 1:3) = cnrs2; 
+            subcell_coords_temp(3:8:(size(subcell_coords_temp, 1) - 5), 1:3) = cnrs3; 
+            subcell_coords_temp(4:8:(size(subcell_coords_temp, 1) - 4), 1:3) = cnrs4; 
+            subcell_coords_temp(5:8:(size(subcell_coords_temp, 1) - 3), 1:3) = cnrs5; 
+            subcell_coords_temp(6:8:(size(subcell_coords_temp, 1) - 2), 1:3) = cnrs6; 
+            subcell_coords_temp(7:8:(size(subcell_coords_temp, 1) - 1), 1:3) = cnrs7; 
+            subcell_coords_temp(8:8:size(subcell_coords_temp, 1), 1:3) = cnrs8;  
+            %Offsets for computing corner coordinates of sub-cells 1-8 for 
+            %each cell in zc_coords
+            offsets = [0 0 0;
+                2^(b + 1 - lvl_d) 0 0;
+                2^(b + 1 - lvl_d) 2^(b + 1 - lvl_d) 0;
+                0 2^(b + 1 - lvl_d) 0;
+                0 0 2^(b + 1 - lvl_d);
+                2^(b + 1 - lvl_d) 0 2^(b + 1 - lvl_d);
+                2^(b + 1 - lvl_d) 2^(b + 1 - lvl_d) 2^(b + 1 - lvl_d);
+                0 2^(b + 1 - lvl_d) 2^(b + 1 - lvl_d)]; 
+            %Sub-cells 1-8 of each cell in zc_coords
+            subcell_coords = subcell_coords_temp(repmat(1:size(subcell_coords_temp, 1), 8, 1), :) + repmat(offsets, size(zc_coords, 1), 1);
             %Normalize all subcell_coords to be in the range [0, 1],
             %because the trilinear interpolation formula (used below, to
             %obtain the interpolated control points) will expect the x, y,
@@ -277,108 +291,22 @@ for lvl = pp_first_nonempty:size(post_pruning_array, 1)
                 if lvl_d < b + 1
                     subcell_coords_occupied((end + 1):(end + 8*length(occupied_subcell_inds)), 1:3) = subcell_coords_orig(all_inds, :);
                 else
-                    reconstructed_vox_pos_corners((end + 1):(end + 8*length(occupied_subcell_inds)), 1:3) = subcell_coords_orig(all_inds, :);
+                    %reconstructed_vox_pos_corners((end + 1):(end + 8*length(occupied_subcell_inds)), 1:3) = subcell_coords_orig(all_inds, :);
+                    reconstructed_vox_pos_corners(rec_vox_pos_cnrs_cntr:(rec_vox_pos_cnrs_cntr + 8*length(occupied_subcell_inds) - 1), 1:3) = subcell_coords_orig(all_inds, :);
+                    rec_vox_pos_cnrs_cntr = rec_vox_pos_cnrs_cntr + 8*length(occupied_subcell_inds);
                 end
             end %End check if ~isempty(occupied_subcell_inds)
             %If all the control points of a sub-cell have the SAME sign, 
             %consider that sub-cell UNoccupied: it will not be subdivided 
-            %further, nor recorded as an occupied voxel if lvl_d = b + 1.
-       
-%             for sub_cell_8set = 1:8:(size(subcell_coords, 1) - 7)
-%                 %Get all 8 (normalized) corner coordinates for the current 
-%                 %sub-cell
-%                 sc_coords = subcell_coords((sub_cell_8set:(sub_cell_8set + 7)), :);
-%                 %Compute all 8 interpolated control points for the corners 
-%                 %of the current sub-cell
-%                 mult_matrix = [(1 - sc_coords(1, 1))*(1 - sc_coords(1, 2))*(1 - sc_coords(1, 3));
-%                     sc_coords(1, 1)*(1 - sc_coords(1, 2))*(1 - sc_coords(1, 3));
-%                     sc_coords(1, 1)*sc_coords(1, 2)*(1 - sc_coords(1, 3));
-%                     (1 - sc_coords(1, 1))*sc_coords(1, 2)*(1 - sc_coords(1, 3));
-%                     (1 - sc_coords(1, 1))*(1 - sc_coords(1, 2))*sc_coords(1, 3);
-%                     sc_coords(1, 1)*(1 - sc_coords(1, 2))*sc_coords(1, 3);
-%                     sc_coords(1, 1)*sc_coords(1, 2)*sc_coords(1, 3);
-%                     (1 - sc_coords(1, 1))*sc_coords(1, 2)*sc_coords(1, 3);  %End corner 1
-%                     (1 - sc_coords(2, 1))*(1 - sc_coords(2, 2))*(1 - sc_coords(2, 3));
-%                     sc_coords(2, 1)*(1 - sc_coords(2, 2))*(1 - sc_coords(2, 3));
-%                     sc_coords(2, 1)*sc_coords(2, 2)*(1 - sc_coords(2, 3));
-%                     (1 - sc_coords(2, 1))*sc_coords(2, 2)*(1 - sc_coords(2, 3));
-%                     (1 - sc_coords(2, 1))*(1 - sc_coords(2, 2))*sc_coords(2, 3);
-%                     sc_coords(2, 1)*(1 - sc_coords(2, 2))*sc_coords(2, 3);
-%                     sc_coords(2, 1)*sc_coords(2, 2)*sc_coords(2, 3);
-%                     (1 - sc_coords(2, 1))*sc_coords(2, 2)*sc_coords(2, 3);  %End corner 2
-%                     (1 - sc_coords(3, 1))*(1 - sc_coords(3, 2))*(1 - sc_coords(3, 3));
-%                     sc_coords(3, 1)*(1 - sc_coords(3, 2))*(1 - sc_coords(3, 3));
-%                     sc_coords(3, 1)*sc_coords(3, 2)*(1 - sc_coords(3, 3));
-%                     (1 - sc_coords(3, 1))*sc_coords(3, 2)*(1 - sc_coords(3, 3));
-%                     (1 - sc_coords(3, 1))*(1 - sc_coords(3, 2))*sc_coords(3, 3);
-%                     sc_coords(3, 1)*(1 - sc_coords(3, 2))*sc_coords(3, 3);
-%                     sc_coords(3, 1)*sc_coords(3, 2)*sc_coords(3, 3);
-%                     (1 - sc_coords(3, 1))*sc_coords(3, 2)*sc_coords(3, 3);  %End corner 3
-%                     (1 - sc_coords(4, 1))*(1 - sc_coords(4, 2))*(1 - sc_coords(4, 3));
-%                     sc_coords(4, 1)*(1 - sc_coords(4, 2))*(1 - sc_coords(4, 3));
-%                     sc_coords(4, 1)*sc_coords(4, 2)*(1 - sc_coords(4, 3));
-%                     (1 - sc_coords(4, 1))*sc_coords(4, 2)*(1 - sc_coords(4, 3));
-%                     (1 - sc_coords(4, 1))*(1 - sc_coords(4, 2))*sc_coords(4, 3);
-%                     sc_coords(4, 1)*(1 - sc_coords(4, 2))*sc_coords(4, 3);
-%                     sc_coords(4, 1)*sc_coords(4, 2)*sc_coords(4, 3);
-%                     (1 - sc_coords(4, 1))*sc_coords(4, 2)*sc_coords(4, 3);  %End corner 4
-%                     (1 - sc_coords(5, 1))*(1 - sc_coords(5, 2))*(1 - sc_coords(5, 3));
-%                     sc_coords(5, 1)*(1 - sc_coords(5, 2))*(1 - sc_coords(5, 3));
-%                     sc_coords(5, 1)*sc_coords(5, 2)*(1 - sc_coords(5, 3));
-%                     (1 - sc_coords(5, 1))*sc_coords(5, 2)*(1 - sc_coords(5, 3));
-%                     (1 - sc_coords(5, 1))*(1 - sc_coords(5, 2))*sc_coords(5, 3);
-%                     sc_coords(5, 1)*(1 - sc_coords(5, 2))*sc_coords(5, 3);
-%                     sc_coords(5, 1)*sc_coords(5, 2)*sc_coords(5, 3);
-%                     (1 - sc_coords(5, 1))*sc_coords(5, 2)*sc_coords(5, 3);  %End corner 5
-%                     (1 - sc_coords(6, 1))*(1 - sc_coords(6, 2))*(1 - sc_coords(6, 3));
-%                     sc_coords(6, 1)*(1 - sc_coords(6, 2))*(1 - sc_coords(6, 3));
-%                     sc_coords(6, 1)*sc_coords(6, 2)*(1 - sc_coords(6, 3));
-%                     (1 - sc_coords(6, 1))*sc_coords(6, 2)*(1 - sc_coords(6, 3));
-%                     (1 - sc_coords(6, 1))*(1 - sc_coords(6, 2))*sc_coords(6, 3);
-%                     sc_coords(6, 1)*(1 - sc_coords(6, 2))*sc_coords(6, 3);
-%                     sc_coords(6, 1)*sc_coords(6, 2)*sc_coords(6, 3);
-%                     (1 - sc_coords(6, 1))*sc_coords(6, 2)*sc_coords(6, 3);  %End corner 6
-%                     (1 - sc_coords(7, 1))*(1 - sc_coords(7, 2))*(1 - sc_coords(7, 3));
-%                     sc_coords(7, 1)*(1 - sc_coords(7, 2))*(1 - sc_coords(7, 3));
-%                     sc_coords(7, 1)*sc_coords(7, 2)*(1 - sc_coords(7, 3));
-%                     (1 - sc_coords(7, 1))*sc_coords(7, 2)*(1 - sc_coords(7, 3));
-%                     (1 - sc_coords(7, 1))*(1 - sc_coords(7, 2))*sc_coords(7, 3);
-%                     sc_coords(7, 1)*(1 - sc_coords(7, 2))*sc_coords(7, 3);
-%                     sc_coords(7, 1)*sc_coords(7, 2)*sc_coords(7, 3);
-%                     (1 - sc_coords(7, 1))*sc_coords(7, 2)*sc_coords(7, 3);  %End corner 7
-%                     (1 - sc_coords(8, 1))*(1 - sc_coords(8, 2))*(1 - sc_coords(8, 3));
-%                     sc_coords(8, 1)*(1 - sc_coords(8, 2))*(1 - sc_coords(8, 3));
-%                     sc_coords(8, 1)*sc_coords(8, 2)*(1 - sc_coords(8, 3));
-%                     (1 - sc_coords(8, 1))*sc_coords(8, 2)*(1 - sc_coords(8, 3));
-%                     (1 - sc_coords(8, 1))*(1 - sc_coords(8, 2))*sc_coords(8, 3);
-%                     sc_coords(8, 1)*(1 - sc_coords(8, 2))*sc_coords(8, 3);
-%                     sc_coords(8, 1)*sc_coords(8, 2)*sc_coords(8, 3);
-%                     (1 - sc_coords(8, 1))*sc_coords(8, 2)*sc_coords(8, 3)]; %End corner 8
-%                 temp = repmat(current_ctrlpts, 8, 1).*mult_matrix;
-%                 subcell_ctrlpts = (sum(reshape(temp, 8, 8), 1))';   %Transpose because we want a column vector
-%                 %Check interpolated control point signs: if the control 
-%                 %points do NOT all have the same sign, consider the current 
-%                 %sub-cell OCCUPIED: it will be marked as a candidate for 
-%                 %further subdivision in subcell_coords_occupied, unless 
-%                 %lvl_d = b + 1, in which case it will be considered an 
-%                 %occupied voxel and recorded directly in 
-%                 %reconstructed_vox_pos_corners
-%                 if (sum(sign(subcell_ctrlpts)) ~= 8) && (sum(sign(subcell_ctrlpts)) ~= -8)  %8 is the number of coners of the sub-cell (1 control point per corner)
-%                     if lvl_d < b + 1
-%                         subcell_coords_occupied(((end + 1):(end + 8)), 1:3) = subcell_coords_orig((sub_cell_8set:(sub_cell_8set + 7)), :);
-%                     else
-%                         reconstructed_vox_pos_corners(((end + 1):(end + 8)), 1:3) = subcell_coords_orig((sub_cell_8set:(sub_cell_8set + 7)), :);
-%                     end                   
-%                 end
-%                 %If all the control points have the SAME sign, consider the
-%                 %current sub-cell UNoccupied: it will not be subdivided 
-%                 %further, nor recorded as an occupied voxel if 
-%                 %lvl_d = b + 1. Continue with checking the next sub-cell. 
-%             end %End sub_cell_8set        
-            %profile viewer
+            %further, nor recorded as an occupied voxel if lvl_d = b + 1.     
         end %End lvl_d    
     end %End occ_cell
+    %profile viewer
 end %End lvl
+
+%If there are any surplus rows in reconstructed_vox_pos_corners (because
+%the initial size was made too large), remove them now
+reconstructed_vox_pos_corners((ismember(reconstructed_vox_pos_corners, [0 0 0], 'rows') == 1), :) = [];
 
 disp('------------------------------------------------------------');
 disp('Finding the centre coordinates of all reconstructed occupied voxels ...');
@@ -397,7 +325,13 @@ for vc = 1:8:(size(reconstructed_vox_pos_corners, 1) - 7)
     reconstructed_vox_pos(vox_cntr, :) = mean(vc_coords, 1);
     vox_cntr = vox_cntr + 1;
 end
+vox_recon_time = toc;
 disp('------------------------------------------------------------');
+disp(' ');
+disp('************************************************************');
+disp(['Time taken to reconstruct voxels: ' num2str(vox_recon_time) ' seconds']);
+disp('************************************************************');
+disp(' ');
 
 %Plot the reconstructed voxels
 figure;
@@ -448,7 +382,7 @@ disp('------------------------------------------------------------');
 %voxelized point cloud that have NOT been reconstructed (i.e., are not 
 %present in reconstructed_vox_pos), and if so, plot them
 test_vox_diffs = setdiff(ptcloud(:, 1:3), reconstructed_vox_pos, 'rows');
-disp(['Total number of original voxels NOT present in the reconstruction:missing voxels or incorrectly reconstructed voxels in reconstruction at decoder: ' num2str(size(test_vox_diffs, 1)) '/' num2str(size(ptcloud, 1)) ' (' num2str((size(test_vox_diffs, 1)/size(ptcloud, 1))*100) '%)']);  
+disp(['Total number of original voxels NOT present in the reconstruction: ' num2str(size(test_vox_diffs, 1)) '/' num2str(size(ptcloud, 1)) ' (' num2str((size(test_vox_diffs, 1)/size(ptcloud, 1))*100) '%)']);  
 if ~isempty(test_vox_diffs)
     figure;
     scatter3(test_vox_diffs(:, 1), test_vox_diffs(:, 2), test_vox_diffs(:, 3), 5, 'filled', 'MarkerFaceColor', 'm');
