@@ -32,6 +32,35 @@ for lvl = pp_first_nonempty:size(post_pruning_array, 1)
     pp_leaves_only{lvl} = leaves;
 end
 
+%For debugging purposes, print out how many (if any) of the leaf cells at 
+%each octree level in pp_leaves_only, end up having all 8 of their 
+%decoder-reconstructed control points with the same sign (+/-) ...
+
+for lvl = pp_first_nonempty:size(post_pruning_array, 1)
+    same_sign_cntr = 0;
+    cell_cntr = 0;
+    for occ_cell = pp_leaves_only{lvl}'
+        cell_cntr = cell_cntr + 1;
+        %Get all 8 control points for the corners of the current leaf cell
+        current_ctrlpts = reconstruction_decoder{lvl}(ctrl_pts_pointers{lvl}((occ_cell*8 - 7):(occ_cell*8)));
+        %Check the signs of current_ctrlpts
+        if abs(sum(sign(current_ctrlpts))) == 8
+            same_sign_cntr = same_sign_cntr + 1;
+            disp(['Leaf cell ' num2str(occ_cell) ' has all control points with the same sign: ']);
+            %Display the control points for all corners of this leaf cell
+            disp(num2str(current_ctrlpts));
+            disp(' ');
+            %Get the corner coordinates for each corner of this leaf cell
+            cell_corners = corner_coords_decoder{lvl}(((occ_cell*8 - 7):(occ_cell*8)), :);
+            disp('Leaf cell corner coordinates:');
+            disp(num2str(cell_corners));
+            disp(' ');
+        end
+    end %End i
+    disp(['TOTAL number of leaf cells with all control points having the same sign, at level ' num2str(lvl) ': ' num2str(same_sign_cntr) '/' num2str(length(pp_leaves_only{lvl})) ' (' num2str((same_sign_cntr/(length(pp_leaves_only{lvl}))*100)) '%)']);
+    disp(' ');
+end %End lvl
+
 %For each octree level at which there are leaf cells, except the voxel
 %level ...
 for lvl = pp_first_nonempty:size(post_pruning_array, 1)
@@ -44,10 +73,12 @@ for lvl = pp_first_nonempty:size(post_pruning_array, 1)
         %Get the control points for all 8 corners of the current leaf cell
         current_ctrlpts = reconstruction_decoder{lvl}(ctrl_pts_pointers{lvl}((occ_cell*8 - 7):(occ_cell*8)));
         %Keep subdividing the current leaf cell until we reach cells of 
-        %size 1x1x1 (i.e., voxels). For each sub-cell at each level,
+        %size 1 x 1 x 1 (i.e., voxels). For each sub-cell at each level,
         %interpolate between the leaf cell's (occ_cell's) control points.
-        %The voxels that have interpolated control points with different 
-        %signs at the end will be considered occupied.
+        %The sub-cells that have interpolated control points with different 
+        %signs will be subdivided further; at the end, voxels that have 
+        %interpolated control points with different signs will be 
+        %considered occupied.
         for lvl_d = (lvl + 1):(b + 1)
             %Compute the corner coordinates of each of the sub-cells at
             %lvl_d ...
@@ -67,13 +98,14 @@ for lvl = pp_first_nonempty:size(post_pruning_array, 1)
                 mid_x = (min_x + max_x)/2;
                 mid_y = (min_y + max_y)/2;
                 mid_z = (min_z + max_z)/2;   
-                zc_coords = current_corner_coords;  %"zc" stands for zero crossing, as we only subdivide occupied cells
+                zc_coords = current_corner_coords;  %"zc" stands for zero crossing, as we will only subdivide occupied cells
             else
                 disp(['--Processing sub-cells at lvl_d ' num2str(lvl_d) ': ' num2str(size(subcell_coords_occupied, 1)/8) ' occupied sub-cells at previous lvl_d, so ' num2str(size(subcell_coords_occupied, 1)) ' sub-cells to process at current lvl_d']);    
                 %If none of the sub-cells at the previous lvl_d were marked
                 %as candidates for further subdivision (i.e., none of them
-                %were considered occupied), then continue checking the next
-                %leaf cell (occ_cell)
+                %were considered occupied), then do not check any more sub-
+                %cells for the current leaf cell (occ_cell), but move on to
+                %checking the next leaf cell
                 if isempty(subcell_coords_occupied)
                     break;
                 end
@@ -84,7 +116,7 @@ for lvl = pp_first_nonempty:size(post_pruning_array, 1)
                 %There will be one min, one max and one mid point (for x, 
                 %y, z separately) per 8 sub-cells at the current lvl_d 
                 %(there are 8 sub-cells, not all necessarily occupied, per 
-                %occupied cell at subcell_coords_occupied).
+                %occupied cell in subcell_coords_occupied).
                 min_x(1:(size(subcell_coords_occupied, 1)/8), 1) = min(reshape(subcell_coords_occupied(:, 1), 8, size(subcell_coords_occupied, 1)/8), [], 1);
                 min_y(1:(size(subcell_coords_occupied, 1)/8), 1) = min(reshape(subcell_coords_occupied(:, 2), 8, size(subcell_coords_occupied, 1)/8), [], 1);
                 min_z(1:(size(subcell_coords_occupied, 1)/8), 1) = min(reshape(subcell_coords_occupied(:, 3), 8, size(subcell_coords_occupied, 1)/8), [], 1);
@@ -101,9 +133,10 @@ for lvl = pp_first_nonempty:size(post_pruning_array, 1)
             %subdividing each of the cells whose coordinates are stored in
             %zc_coords
             disp(['  Computing corner coordinates for each sub-cell at this level (' num2str(size(zc_coords, 1)) ' sub-cells in total)']);           
-            %Sub-cells 1 of each cell in zc_coords: each set of
-            %length(min_x) rows in subcell_coords_temp, below, represents 
-            %one corner of sub-cell 1 of each cell in zc_coords
+            %Corner coordinates of sub-cells 1 of each cell in zc_coords: 
+            %each set of length(min_x) rows in subcell_coords_temp, below, 
+            %represents one of the 8 corners of sub-cell 1 of each cell in 
+            %zc_coords
             subcell_coords_temp = [min_x min_y min_z; mid_x min_y min_z; mid_x mid_y min_z; min_x mid_y min_z; min_x min_y mid_z; mid_x min_y mid_z; mid_x mid_y mid_z; min_x mid_y mid_z]; 
             %Rearrange subcell_coords_temp so that all 8 corners of one
             %sub-cell are one after the other
@@ -125,7 +158,8 @@ for lvl = pp_first_nonempty:size(post_pruning_array, 1)
             subcell_coords_temp(7:8:(size(subcell_coords_temp, 1) - 1), 1:3) = cnrs7; 
             subcell_coords_temp(8:8:size(subcell_coords_temp, 1), 1:3) = cnrs8;  
             %Offsets for computing corner coordinates of sub-cells 1-8 for 
-            %each cell in zc_coords
+            %each cell in zc_coords (sub-cells 1 have already been computed
+            %above, so the offsets for them are just [0 0 0])
             offsets = [0 0 0;
                 2^(b + 1 - lvl_d) 0 0;
                 2^(b + 1 - lvl_d) 2^(b + 1 - lvl_d) 0;
@@ -134,14 +168,14 @@ for lvl = pp_first_nonempty:size(post_pruning_array, 1)
                 2^(b + 1 - lvl_d) 0 2^(b + 1 - lvl_d);
                 2^(b + 1 - lvl_d) 2^(b + 1 - lvl_d) 2^(b + 1 - lvl_d);
                 0 2^(b + 1 - lvl_d) 2^(b + 1 - lvl_d)]; 
-            %Sub-cells 1-8 of each cell in zc_coords
+            %Corner coordinates of sub-cells 1-8 for each cell in zc_coords
             subcell_coords = subcell_coords_temp(repmat(1:size(subcell_coords_temp, 1), 8, 1), :) + repmat(offsets, size(zc_coords, 1), 1);
             %Normalize all subcell_coords to be in the range [0, 1],
             %because the trilinear interpolation formula (used below, to
             %obtain the interpolated control points) will expect the x, y,
             %z values to be in this range 
             subcell_coords_orig = subcell_coords;
-            subcell_coords = (subcell_coords - current_corner_coords(1, :))/(2^(b + 1 - lvl));    %Subtract the origin of the original parent (leaf) cell, and divide by the cell width
+            subcell_coords = (subcell_coords - current_corner_coords(1, :))/(2^(b + 1 - lvl));    %Subtract the origin of the original parent (leaf) cell, and divide by the parent cell width
             %Array that will store the corner coordinates of sub-cells at
             %the current lvl_d, which are candidates for further
             %subdivision (if lvl_d < b + 1)
@@ -236,12 +270,12 @@ for lvl = pp_first_nonempty:size(post_pruning_array, 1)
                     corners8(:, 1).*corners8(:, 2).*corners8(:, 3);
                     (1 - corners8(:, 1)).*corners8(:, 2).*corners8(:, 3)]; %End corners 8
             %Multiply each control point of the current leaf cell (parent
-            %cell of the current sub-cells) by the corresponding line in
+            %cell of the current sub-cells) by the corresponding lines in
             %mult_matrix
             current_ctrlpts_rep = current_ctrlpts(repmat(1:length(current_ctrlpts), (size(subcell_coords, 1)/8), 1), :);
             temp = repmat(current_ctrlpts_rep, 8, 1).*mult_matrix;
             %Compute the trilinear interpolation sum for each of the 8 
-            %corners of each sub-cell separately
+            %corners of each sub-cell
             temp_reshaped1 = reshape(temp, size(subcell_coords, 1), 8);
             subcell_ctrlpts_temp = zeros(size(subcell_coords, 1), 1);
             for cnr = 1:8
@@ -264,9 +298,9 @@ for lvl = pp_first_nonempty:size(post_pruning_array, 1)
             %for all "corner1"s of all the sub-cells, the second set of 
             %size(subcell_coords, 1)/8 control points corresponds to all
             %"corner 2"s, etc. We want to inspect corners 1-8 for each
-            %sub-cell separately, so reshape subcell_ctrlpts_temp so that
-            %each column represents one of the 8 corners and each row
-            %represents one sub-cell.
+            %sub-cell, so reshape subcell_ctrlpts_temp so that each column 
+            %represents one of the 8 corners and each row represents one 
+            %sub-cell.
             subcell_ctrlpts = reshape(subcell_ctrlpts_temp, (size(subcell_coords, 1)/8), 8); 
             %Check interpolated control point signs for each sub-cell (each
             %row of subcell_ctrlpts)
@@ -289,14 +323,13 @@ for lvl = pp_first_nonempty:size(post_pruning_array, 1)
                     all_inds((end + 1):(end + 8), 1) = first_inds(i):last_inds(i);
                 end
                 if lvl_d < b + 1
-                    subcell_coords_occupied((end + 1):(end + 8*length(occupied_subcell_inds)), 1:3) = subcell_coords_orig(all_inds, :);
+                    subcell_coords_occupied((end + 1):(end + length(all_inds)), 1:3) = subcell_coords_orig(all_inds, :);
                 else
-                    %reconstructed_vox_pos_corners((end + 1):(end + 8*length(occupied_subcell_inds)), 1:3) = subcell_coords_orig(all_inds, :);
-                    reconstructed_vox_pos_corners(rec_vox_pos_cnrs_cntr:(rec_vox_pos_cnrs_cntr + 8*length(occupied_subcell_inds) - 1), 1:3) = subcell_coords_orig(all_inds, :);
+                    reconstructed_vox_pos_corners(rec_vox_pos_cnrs_cntr:(rec_vox_pos_cnrs_cntr + length(all_inds) - 1), 1:3) = subcell_coords_orig(all_inds, :);
                     rec_vox_pos_cnrs_cntr = rec_vox_pos_cnrs_cntr + 8*length(occupied_subcell_inds);
                 end
             end %End check if ~isempty(occupied_subcell_inds)
-            %If all the control points of a sub-cell have the SAME sign, 
+            %If ALL the control points of a sub-cell have the SAME sign, 
             %consider that sub-cell UNoccupied: it will not be subdivided 
             %further, nor recorded as an occupied voxel if lvl_d = b + 1.     
         end %End lvl_d    
@@ -305,7 +338,7 @@ for lvl = pp_first_nonempty:size(post_pruning_array, 1)
 end %End lvl
 
 %If there are any surplus rows in reconstructed_vox_pos_corners (because
-%the initial size was made too large), remove them now
+%the initial matrix size was made too large), remove them now
 reconstructed_vox_pos_corners((ismember(reconstructed_vox_pos_corners, [0 0 0], 'rows') == 1), :) = [];
 
 disp('------------------------------------------------------------');

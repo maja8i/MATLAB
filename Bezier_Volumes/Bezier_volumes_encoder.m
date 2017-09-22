@@ -208,83 +208,100 @@ disp(' ');
 disp('------------ Computing Bezier Control Points ---------------');
 disp(' ');
 
-[control_points, nearest_voxels, normal_nearest_vox, min_euclid_dist, difference_vectors, dot_products] = compute_control_points(myOT, corner_coords, unique_coords, ctrl_pts_pointers, occupied_voxel_coords, occupied_voxel_normals, occupied_voxel_centroids, occupied_voxel_normal_averages, occupied_voxel_centroid_averages, b, max_lvl);
+[control_points, nearest_voxels, normal_nearest_vox, min_euclid_dist, difference_vectors, dot_products, thresh] = compute_control_points(myOT, corner_coords, unique_coords, ctrl_pts_pointers, occupied_voxel_coords, occupied_voxel_normals, occupied_voxel_centroids, occupied_voxel_normal_averages, occupied_voxel_centroid_averages, b, max_lvl);
 %[control_points, ~, ~, ~, ~, ~, thresh] = compute_control_points(myOT, corner_coords, unique_coords, ctrl_pts_pointers, occupied_voxel_coords, occupied_voxel_normals, occupied_voxel_centroids, occupied_voxel_normal_averages, occupied_voxel_centroid_averages, b, max_lvl);
 
-%For debugging purposes, print out how many voxels, if any, end up having 
-%all 8 of their control points with the same sign (+/-) ...
+%For debugging purposes, check how many of the control points (out of the
+%control points for the UNIQUE occupied cell corners only) at each octree 
+%level, if any, are 0
+for lvl = start_lvl:1:max_lvl
+    zero_ctrlpt_cnt = length(find(control_points{lvl} == 0));
+    disp(['No. of 0 control points at level ' num2str(lvl) ', before quantization: ' num2str(zero_ctrlpt_cnt) '/' num2str(length(control_points{lvl}))]);
+end 
+disp(' ');
+
+%For debugging purposes, print out how many occupied octree cells at each
+%octree level, if any, end up having all 8 of their control points with the
+%same sign (+/-) ...
 [~, ptcloud, ~] = plyRead(ptcloud_file);
-%Accumulate all the control points (not just the unique ones) into one cell
-%array
+%Accumulate the control points for ALL the occupied octree cell corners at
+%each level (not just the control points for the unique corners) into one 
+%cell array
 all_ctrlpts = get_all_ctrlpts(control_points, ctrl_pts_pointers, start_lvl, max_lvl); 
-same_sign_cntr = 0;
-vox = 0;
 same_sign_voxels = [];
 disp(' ');
-for i = 1:8:(length(all_ctrlpts{max_lvl}) - (max_lvl - 1)) 
-    vox = vox + 1;
-    %Get all 8 control points for the corners of the current voxel
-    current_ctrlpts = all_ctrlpts{max_lvl}(i:(i + 7));
-    %Check the signs of current_ctrlpts (assume here that none of the
-    %control points have a value of 0)
-    if (sum(sign(current_ctrlpts)) == length(current_ctrlpts))||(sum(sign(current_ctrlpts)) == -length(current_ctrlpts))
-        same_sign_cntr = same_sign_cntr + 1;
-%         disp(' ');
-        disp(['Voxel ' num2str(vox) ' (' num2str(ptcloud(vox, 1:3)) ') has all control points with the same sign: ']);
-%         disp(' ');
-        %Store this voxel, for debugging purposes
-        same_sign_voxels((size(same_sign_voxels, 1) + 1), 1:3) = ptcloud(vox, 1:3);
-        %Display the control points for all corners of this voxel
-        disp(num2str(current_ctrlpts));
-        disp(' ');
-        %Get the corner coordinates for each corner of this voxel
-        vox_corners = corner_coords{max_lvl}((i:(i + max_lvl - 1)), 1:3);
-        disp('Voxel corner coordinates:');
-        disp(num2str(vox_corners));
-        disp(' ');
-%         %Get the coordinates (either midpoint or centroid, whichever one of
-%         %these happened to be used in the control point computation) of the
-%         %nearest voxel found for each corner of the current voxel
-%         curr_nearest_vox = nearest_voxels{max_lvl}(ctrl_pts_pointers{max_lvl}(i:(i + max_lvl - 1)), 1:3);
-%         disp('Nearest voxel found for each corner of the current voxel: ');
-%         disp(num2str(curr_nearest_vox));
-%         disp(' ');
-%         %Get the normal vector for the current voxel, from the input
-%         %voxelized point cloud
-%         disp('Voxel normal:');
-%         disp(normals_sorted(vox, :));
-%         %Get the normal vector for each nearest voxel found above
-%         curr_normal_vec = normal_nearest_vox{max_lvl}(ctrl_pts_pointers{max_lvl}(i:(i + max_lvl - 1)), 1:3);
-%         disp('Nearest voxel normal for each corner: ');
-%         disp(num2str(curr_normal_vec));
-%         disp(' ');
-%         %Get the difference vector for each of the 8 corners of this voxel
-%         %(difference vector between each corner and the chosen voxel)
-%         vox_diff_vecs = difference_vectors{max_lvl}(ctrl_pts_pointers{max_lvl}(i:(i + max_lvl - 1)), 1:3);
-%         disp('Voxel corner difference vectors:');
-%         disp(num2str(vox_diff_vecs));
-%         disp(' ');
-%         %Get the dot product between the difference vector of each corner
-%         %of this voxel and the normal vector of the chosen nearest voxel
-%         %(the chosen voxel may not be the current voxel itself, as
-%         %neighbouring voxels are the same distance away)
-%         vox_dp = dot_products{max_lvl}(ctrl_pts_pointers{max_lvl}(i:(i + max_lvl - 1)));
-%         disp('Voxel corner dot products:');
-%         disp(num2str(vox_dp));
-%         disp(' ');
+for lvl = start_lvl:1:max_lvl
+    same_sign_cntr = 0;
+    cell_cntr = 0;
+    for i = 1:8:(length(all_ctrlpts{lvl}) - 7) 
+        cell_cntr = cell_cntr + 1;
+        %Get all 8 control points for the corners of the current cell
+        current_ctrlpts = all_ctrlpts{lvl}(i:(i + 7));
+        %Check the signs of current_ctrlpts
+        if abs(sum(sign(current_ctrlpts))) == 8
+            same_sign_cntr = same_sign_cntr + 1;
+    %         disp(' ');
+            disp(['Cell ' num2str(cell_cntr) ' has all control points with the same sign: ']);
+    %         disp(' ');
+            if lvl == b + 1
+                %Store this voxel, for debugging purposes
+                same_sign_voxels((size(same_sign_voxels, 1) + 1), 1:3) = ptcloud(cell_cntr, 1:3);
+            end
+            %Display the control points for all corners of this cell
+            disp(num2str(current_ctrlpts));
+            disp(' ');
+            %Get the corner coordinates for each corner of this cell
+            cell_corners = corner_coords{lvl}((i:(i + lvl - 1)), 1:3);
+            disp('Cell corner coordinates:');
+            disp(num2str(cell_corners));
+            disp(' ');
+    %         %Get the coordinates (either midpoint or centroid, whichever one of
+    %         %these happened to be used in the control point computation) of the
+    %         %nearest voxel found for each corner of the current voxel
+    %         curr_nearest_vox = nearest_voxels{max_lvl}(ctrl_pts_pointers{max_lvl}(i:(i + max_lvl - 1)), 1:3);
+    %         disp('Nearest voxel found for each corner of the current voxel: ');
+    %         disp(num2str(curr_nearest_vox));
+    %         disp(' ');
+    %         %Get the normal vector for the current voxel, from the input
+    %         %voxelized point cloud
+    %         disp('Voxel normal:');
+    %         disp(normals_sorted(vox, :));
+    %         %Get the normal vector for each nearest voxel found above
+    %         curr_normal_vec = normal_nearest_vox{max_lvl}(ctrl_pts_pointers{max_lvl}(i:(i + max_lvl - 1)), 1:3);
+    %         disp('Nearest voxel normal for each corner: ');
+    %         disp(num2str(curr_normal_vec));
+    %         disp(' ');
+    %         %Get the difference vector for each of the 8 corners of this voxel
+    %         %(difference vector between each corner and the chosen voxel)
+    %         vox_diff_vecs = difference_vectors{max_lvl}(ctrl_pts_pointers{max_lvl}(i:(i + max_lvl - 1)), 1:3);
+    %         disp('Voxel corner difference vectors:');
+    %         disp(num2str(vox_diff_vecs));
+    %         disp(' ');
+    %         %Get the dot product between the difference vector of each corner
+    %         %of this voxel and the normal vector of the chosen nearest voxel
+    %         %(the chosen voxel may not be the current voxel itself, as
+    %         %neighbouring voxels are the same distance away)
+    %         vox_dp = dot_products{max_lvl}(ctrl_pts_pointers{max_lvl}(i:(i + max_lvl - 1)));
+    %         disp('Voxel corner dot products:');
+    %         disp(num2str(vox_dp));
+    %         disp(' ');
+        end
+    end %End i
+    disp(['TOTAL number of cells with all control points having the same sign, at level ' num2str(lvl) ', before quantization: ' num2str(same_sign_cntr) '/' num2str(length(all_ctrlpts{lvl})/8) ' (' num2str((same_sign_cntr/(length(all_ctrlpts{lvl})/8))*100) '%)']);
+    disp(' ');
+    if (lvl == b + 1) && (same_sign_cntr > 0)
+        %Plot voxels that have the same control point signs
+        figure;
+        %Original, input voxels
+        scatter3(ptcloud(:, 1), ptcloud(:, 2), ptcloud(:, 3), 5, 'filled', 'MarkerFaceColor', 'b');
+        hold on;
+        %Voxels with same-sign control points
+        scatter3(same_sign_voxels(:, 1), same_sign_voxels(:, 2), same_sign_voxels(:, 3), 5, 'filled', 'MarkerFaceColor', 'm');
+        axis equal; axis off;
+        title({'Voxels with Same-Sign Control Points at Encoder', 'Before Quantization'});
+        legend('Original Voxels', 'Voxels with Same-Sign Control Points (BQ)', 'Location', 'best');
     end
-end
-disp(['TOTAL number of voxels with all control points having the same sign: ' num2str(same_sign_cntr) '/' num2str(length(all_ctrlpts{max_lvl})/8) ' (' num2str((same_sign_cntr/(length(all_ctrlpts{max_lvl})/8))*100) '%)']);
-%Plot voxels that have the same control point signs
-if same_sign_cntr > 0
-    figure;
-    scatter3(ptcloud(:, 1), ptcloud(:, 2), ptcloud(:, 3), 5, 'filled', 'MarkerFaceColor', 'b');
-    hold on;
-    scatter3(same_sign_voxels(:, 1), same_sign_voxels(:, 2), same_sign_voxels(:, 3), 5, 'filled', 'MarkerFaceColor', 'm');
-    axis equal; axis off;
-    title('Voxels with Same-Sign Control Points at Encoder');
-    legend('Voxels with Different-Sign Control Points', 'Voxels with Same-Sign Control Points', 'Location', 'best');
-end
+end %End lvl
 
 % %------------- Visualization of Control Point Computation ----------------%
 % 
@@ -466,6 +483,68 @@ disp('----------------- Wavelet Decomposition --------------------');
 disp(' ');
 
 [wavelet_coeffs, reconstructed_control_points] = wavelet_analysis(myOT, corner_coords, control_points, ctrl_pts_pointers, start_lvl, max_lvl, b, q_stepsize);
+%[wavelet_coeffs, reconstructed_control_points] = wavelet_analysis_loop(myOT, corner_coords, control_points, ctrl_pts_pointers, start_lvl, max_lvl, b, q_stepsize, ptcloud_file);
+
+%For debugging purposes, check how many of the RECONSTRUCTED control points 
+%(out of the reconstructed control points for the UNIQUE occupied cell 
+%corners only) at each octree level, if any, are 0
+for lvl = start_lvl:1:max_lvl
+    zero_ctrlpt_cnt = length(find(reconstructed_control_points{lvl} == 0));
+    disp(['No. of 0 control points at level ' num2str(lvl) ', after quantization and reconstruction: ' num2str(zero_ctrlpt_cnt) '/' num2str(length(reconstructed_control_points{lvl}))]);
+end 
+disp(' ');
+
+%For debugging purposes, print out how many occupied octree cells at each
+%octree level, if any, end up having all 8 of their RECONSTRUCTED control
+%points (i.e., after quantization of control points at start_lvl and adding
+%back quantized wavelet coefficients) with the same sign (+/-) ...
+
+%Accumulate the reconstructed control points for ALL the occupied octree 
+%cell corners at each level (not just the control points for the unique 
+%corners) into one cell array
+all_ctrlpts = get_all_ctrlpts(reconstructed_control_points, ctrl_pts_pointers, start_lvl, max_lvl); 
+same_sign_voxels = [];
+disp(' ');
+for lvl = start_lvl:1:max_lvl
+    same_sign_cntr = 0;
+    cell_cntr = 0;
+    for i = 1:8:(length(all_ctrlpts{lvl}) - 7) 
+        cell_cntr = cell_cntr + 1;
+        %Get all 8 control points for the corners of the current cell
+        current_ctrlpts = all_ctrlpts{lvl}(i:(i + 7));
+        %Check the signs of current_ctrlpts
+        if abs(sum(sign(current_ctrlpts))) == 8
+            same_sign_cntr = same_sign_cntr + 1;
+            disp(['Cell ' num2str(cell_cntr) ' has all control points with the same sign: ']);
+            if lvl == b + 1
+                %Store this voxel, for debugging purposes
+                same_sign_voxels((size(same_sign_voxels, 1) + 1), 1:3) = ptcloud(cell_cntr, 1:3);
+            end
+            %Display the control points for all corners of this cell
+            disp(num2str(current_ctrlpts));
+            disp(' ');
+            %Get the corner coordinates for each corner of this cell
+            cell_corners = corner_coords{lvl}((i:(i + lvl - 1)), 1:3);
+            disp('Cell corner coordinates:');
+            disp(num2str(cell_corners));
+            disp(' ');
+        end
+    end %End i
+    disp(['TOTAL number of cells with all control points having the same sign, at level ' num2str(lvl) ', after quantization and reconstruction: ' num2str(same_sign_cntr) '/' num2str(length(all_ctrlpts{lvl})/8) ' (' num2str((same_sign_cntr/(length(all_ctrlpts{lvl})/8))*100) '%)']);
+    disp(' ');
+    if (lvl == b + 1) && (same_sign_cntr > 0)
+        %Plot voxels that have the same control point signs
+        figure;
+        %Original, input voxels
+        scatter3(ptcloud(:, 1), ptcloud(:, 2), ptcloud(:, 3), 5, 'filled', 'MarkerFaceColor', 'b');
+        hold on;
+        %Voxels with same-sign control points
+        scatter3(same_sign_voxels(:, 1), same_sign_voxels(:, 2), same_sign_voxels(:, 3), 5, 'filled', 'MarkerFaceColor', 'm');
+        axis equal; axis off;
+        title({'Voxels with Same-Sign Control Points at Encoder', 'After Quantization and Reconstruction'});
+        legend('Original Voxels', 'Voxels with Same-Sign Control Points (AQ)', 'Location', 'best');
+    end
+end %End lvl
 
 %----------------------------- Distributions -----------------------------%
 

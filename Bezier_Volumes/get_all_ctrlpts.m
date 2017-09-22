@@ -1,5 +1,6 @@
-%Accumulate all the control points (not just the unique ones) into one cell
-%array
+%Accumulate the control points for ALL the occupied octree cell corners at
+%each level (not just the control points for the unique corners) into one 
+%cell array
 function all_ctrlpts = get_all_ctrlpts(control_points_array, ctrl_pts_pointers, start_lvl, max_lvl)
 
 all_ctrlpts = cell(max_lvl, 1);

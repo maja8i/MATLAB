@@ -204,7 +204,7 @@ for lvl = 1:max_lvl
         %with the same unique corner)
         uniqueCount = full(sum(A, 2));
         uniqueTotal = A*dot_prods;
-        control_points{lvl} = uniqueTotal./(repmat(uniqueCount, 1, size(uniqueTotal, 2))); %Valid only when uniqueCount > 0, else NaN        
+        control_points{lvl} = uniqueTotal./uniqueCount; %Valid only when uniqueCount > 0, else NaN        
     end %End check if lvl < thresh
     cp_time = toc;
     disp(' ');
