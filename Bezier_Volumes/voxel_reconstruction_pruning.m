@@ -38,26 +38,30 @@ end
 
 for lvl = pp_first_nonempty:size(post_pruning_array, 1)
     same_sign_cntr = 0;
-    cell_cntr = 0;
+    zero_cp_cntr = 0;
     for occ_cell = pp_leaves_only{lvl}'
-        cell_cntr = cell_cntr + 1;
         %Get all 8 control points for the corners of the current leaf cell
         current_ctrlpts = reconstruction_decoder{lvl}(ctrl_pts_pointers{lvl}((occ_cell*8 - 7):(occ_cell*8)));
-        %Check the signs of current_ctrlpts
-        if abs(sum(sign(current_ctrlpts))) == 8
+        %Check if all control points of the current leaf cell have the same
+        %sign, including the case where all the control points may be 0
+        if (abs(sum(sign(current_ctrlpts))) == 8)||(~any(sign(current_ctrlpts)))
             same_sign_cntr = same_sign_cntr + 1;
-            disp(['Leaf cell ' num2str(occ_cell) ' has all control points with the same sign: ']);
+            if ~any(sign(current_ctrlpts))
+                zero_cp_cntr = zero_cp_cntr + 1;
+            end
+            %disp(['Leaf cell ' num2str(occ_cell) ' has all control points with the same sign: ']);
             %Display the control points for all corners of this leaf cell
-            disp(num2str(current_ctrlpts));
-            disp(' ');
+            %disp(num2str(current_ctrlpts));
+            %disp(' ');
             %Get the corner coordinates for each corner of this leaf cell
-            cell_corners = corner_coords_decoder{lvl}(((occ_cell*8 - 7):(occ_cell*8)), :);
-            disp('Leaf cell corner coordinates:');
-            disp(num2str(cell_corners));
-            disp(' ');
+            %cell_corners = corner_coords_decoder{lvl}(((occ_cell*8 - 7):(occ_cell*8)), :);
+            %disp('Leaf cell corner coordinates:');
+            %isp(num2str(cell_corners));
+            %disp(' ');
         end
     end %End i
     disp(['TOTAL number of leaf cells with all control points having the same sign, at level ' num2str(lvl) ': ' num2str(same_sign_cntr) '/' num2str(length(pp_leaves_only{lvl})) ' (' num2str((same_sign_cntr/(length(pp_leaves_only{lvl}))*100)) '%)']);
+    disp(['No. of leaf cells with all 0 control points at level ' num2str(lvl) ': ' num2str(zero_cp_cntr)]);
     disp(' ');
 end %End lvl
 
@@ -305,16 +309,19 @@ for lvl = pp_first_nonempty:size(post_pruning_array, 1)
             %Check interpolated control point signs for each sub-cell (each
             %row of subcell_ctrlpts)
             ctrlpts_signs = sum(sign(subcell_ctrlpts), 2);
-            %Extract the row indices of the sub-cells that do NOT have
-            %their ctrlpts_signs equal to +/-8. These sub-cells do NOT have 
-            %the same control point signs on all their corners, so they 
-            %will be considered OCCUPIED. The corner coordinates of these 
-            %sub-cells will be marked for further subdivision in 
+            %Check if there are any sub-cells that have all of their
+            %control points equal to 0
+            zero_ctrlpts_signs = find(~any(sign(subcell_ctrlpts), 2));
+            %Extract the row indices of the sub-cells that do NOT have the 
+            %same control point signs on all of their corners: these sub-
+            %cells will be considered OCCUPIED and their corner coordinates 
+            %will be marked for further subdivision in 
             %subcell_coords_occupied, unless lvl_d = b + 1, in which case 
             %the occupied sub-cells will be considered occupied voxels and
             %their corner coordinates will be recorded directly in 
             %reconstructed_vox_pos_corners.
             occupied_subcell_inds = find((abs(ctrlpts_signs) ~= 8));
+            occupied_subcell_inds(ismember(occupied_subcell_inds, zero_ctrlpts_signs) == 1) = [];
             if ~isempty(occupied_subcell_inds)
                 first_inds = occupied_subcell_inds*8 - 7;
                 last_inds = occupied_subcell_inds*8;

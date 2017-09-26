@@ -497,7 +497,7 @@ disp(' ');
 %For debugging purposes, print out how many occupied octree cells at each
 %octree level, if any, end up having all 8 of their RECONSTRUCTED control
 %points (i.e., after quantization of control points at start_lvl and adding
-%back quantized wavelet coefficients) with the same sign (+/-) ...
+%back quantized wavelet coefficients) with the same sign (+/-/0) ...
 
 %Accumulate the reconstructed control points for ALL the occupied octree 
 %cell corners at each level (not just the control points for the unique 
@@ -508,29 +508,35 @@ disp(' ');
 for lvl = start_lvl:1:max_lvl
     same_sign_cntr = 0;
     cell_cntr = 0;
+    zero_cp_cntr = 0;
     for i = 1:8:(length(all_ctrlpts{lvl}) - 7) 
         cell_cntr = cell_cntr + 1;
         %Get all 8 control points for the corners of the current cell
         current_ctrlpts = all_ctrlpts{lvl}(i:(i + 7));
-        %Check the signs of current_ctrlpts
-        if abs(sum(sign(current_ctrlpts))) == 8
+        %Check if all control points of the current leaf cell have the same
+        %sign, including the case where all the control points may be 0
+        if (abs(sum(sign(current_ctrlpts))) == 8)||(~any(sign(current_ctrlpts)))
             same_sign_cntr = same_sign_cntr + 1;
-            disp(['Cell ' num2str(cell_cntr) ' has all control points with the same sign: ']);
+            %disp(['Cell ' num2str(cell_cntr) ' has all control points with the same sign: ']);
             if lvl == b + 1
                 %Store this voxel, for debugging purposes
                 same_sign_voxels((size(same_sign_voxels, 1) + 1), 1:3) = ptcloud(cell_cntr, 1:3);
             end
+            if ~any(sign(current_ctrlpts))
+                zero_cp_cntr = zero_cp_cntr + 1;
+            end
             %Display the control points for all corners of this cell
-            disp(num2str(current_ctrlpts));
-            disp(' ');
+            %disp(num2str(current_ctrlpts));
+            %disp(' ');
             %Get the corner coordinates for each corner of this cell
-            cell_corners = corner_coords{lvl}((i:(i + lvl - 1)), 1:3);
-            disp('Cell corner coordinates:');
-            disp(num2str(cell_corners));
-            disp(' ');
+            %cell_corners = corner_coords{lvl}((i:(i + lvl - 1)), 1:3);
+            %disp('Cell corner coordinates:');
+            %disp(num2str(cell_corners));
+            %disp(' ');
         end
     end %End i
     disp(['TOTAL number of cells with all control points having the same sign, at level ' num2str(lvl) ', after quantization and reconstruction: ' num2str(same_sign_cntr) '/' num2str(length(all_ctrlpts{lvl})/8) ' (' num2str((same_sign_cntr/(length(all_ctrlpts{lvl})/8))*100) '%)']);
+    disp(['No. of leaf cells with all 0 control points at level ' num2str(lvl) ': ' num2str(zero_cp_cntr)]);
     disp(' ');
     if (lvl == b + 1) && (same_sign_cntr > 0)
         %Plot voxels that have the same control point signs
