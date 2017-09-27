@@ -513,6 +513,10 @@ for lvl = start_lvl:1:max_lvl
         cell_cntr = cell_cntr + 1;
         %Get all 8 control points for the corners of the current cell
         current_ctrlpts = all_ctrlpts{lvl}(i:(i + 7));
+%         if (lvl == 7)&&(cell_cntr == 3500)
+%             wcfs = wavelet_coeffs{lvl}(ctrl_pts_pointers{lvl}(i:(i + 7)))
+%             pause(1);
+%         end
         %Check if all control points of the current leaf cell have the same
         %sign, including the case where all the control points may be 0
         if (abs(sum(sign(current_ctrlpts))) == 8)||(~any(sign(current_ctrlpts)))

@@ -9,13 +9,8 @@ wavelet_coeffs = cell((b + 1), 1);  %These will be quantized coefficients
 %of each octree cell at every level from start_lvl to one level before the
 %leaves
 reconstructed_control_points = cell(size(control_points, 1), 1);
-
 %Quantize all the control points at octree level start_lvl
-for cpt = 1:size(control_points{start_lvl}, 1)
-    control_points{start_lvl}(cpt, :) = quantize_uniform_scalar(control_points{start_lvl}(cpt, :), q_stepsize);
-end
-%Add these control points to reconstructed_control_points
-reconstructed_control_points{start_lvl} = control_points{start_lvl};
+reconstructed_control_points{start_lvl} = quantize_uniform_scalar(control_points{start_lvl}, q_stepsize);
     
 %For each octree level, starting from start_lvl ...
 for lvl = start_lvl:(max_lvl - 1) 
@@ -38,7 +33,7 @@ for lvl = start_lvl:(max_lvl - 1)
         parent_avg_coords = sum(parent_corner_coords)./8;
         %Get the control points on all 8 corners of the current parent cell
         parent_ctrlpts_inds = ctrl_pts_pointers{lvl}((occ_cell*8 - 7):(occ_cell*8));
-        parent_control_points = control_points{lvl}(parent_ctrlpts_inds);
+        parent_control_points = reconstructed_control_points{lvl}(parent_ctrlpts_inds);
         %Find the midpoint coordinates of all the 12 edges of the current
         %parent block (we know in advance how the vertices are connected)
         parent_edge_midpoints = [(parent_corner_coords(1, :) + parent_corner_coords(2, :));

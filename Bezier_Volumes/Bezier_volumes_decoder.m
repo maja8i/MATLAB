@@ -127,51 +127,49 @@ for lvl = 1:(max_lvl - 1)
                 %It has no children (they were pruned off at the encoder),
                 %so do nothing further
                 continue;  
-            %If this cell is not a leaf (i.e., it is internal)
-            elseif post_pruning_array{lvl}(occ_cell) == 0
-                %We advance 1 step in OccupancyCode array each time we find
-                %an internal octree node
-                oc_code_cntr = oc_code_cntr + 1;
-                %Convert the OccupancyCode decimal value for this cell's 
-                %children, into its binary representation
-                bin_vec = dec2bin(OccupancyCode{lvl}(oc_code_cntr), 8);
-                %The number of "1"s in bin_vec indicates the number of 
-                %occupied children that this octree cell has
-                ChildCount{lvl}(oc_code_cntr) = numel(strfind(bin_vec, '1'));  
-                %Find the locations in bin_vec where the vector contains 
-                %'1's
-                ones_inds = strfind(bin_vec, '1');
-                %Compute SpatialIndex for each occupied child    
-                for occ_child = 1:length(ChildCount{lvl}(oc_code_cntr))
-                    %If we are currently at the root cell, we can obtain 
-                    %its children's spatial indices just by indexing into
-                    %SI_dict
-                    if lvl == 1
-                        SpatialIndex{lvl + 1}(1:ChildCount{1}, :) = uint16(SI_dict(ones_inds, :));
+            end
+            %If this cell is not a leaf (i.e., it is internal), we advance
+            %1 step in the OccupancyCode array
+            oc_code_cntr = oc_code_cntr + 1;
+            %Convert the OccupancyCode decimal value for this cell's 
+            %children, into its binary representation
+            bin_vec = dec2bin(OccupancyCode{lvl}(oc_code_cntr), 8);
+            %The number of "1"s in bin_vec indicates the number of 
+            %occupied children that this octree cell has
+            ChildCount{lvl}(oc_code_cntr) = numel(strfind(bin_vec, '1'));  
+            %Find the locations in bin_vec where the vector contains 
+            %'1's
+            ones_inds = strfind(bin_vec, '1');
+            %Compute SpatialIndex for each occupied child    
+            for occ_child = 1:length(ChildCount{lvl}(oc_code_cntr))
+                %If we are currently at the root cell, we can obtain 
+                %its children's spatial indices just by indexing into
+                %SI_dict
+                if lvl == 1
+                    SpatialIndex{lvl + 1}(1:ChildCount{1}, :) = uint16(SI_dict(ones_inds, :));
+                else
+                    %Find where the curent occupied cell's spatial 
+                    %index contains non-zero values: these are the 
+                    %positions to which we will add offsets to obtain 
+                    %the children's spatial indices, when necessary
+                    parent_SI_nonzero = uint16(find(SpatialIndex{lvl}(occ_cell, :) > 0));
+                    %If parent_SI_nonzero is empty (i.e., the current 
+                    %occupied cell's spatial index is (0, 0, 0)), then
+                    %the spatial indices of this cell's children can be 
+                    %obtained just by indexing into SI_dict
+                    if isempty(parent_SI_nonzero)
+                        SpatialIndex{lvl + 1}(1:ChildCount{lvl}(oc_code_cntr), :) = uint16(SI_dict(ones_inds, :));
                     else
-                        %Find where the curent occupied cell's spatial 
-                        %index contains non-zero values: these are the 
-                        %positions to which we will add offsets to obtain 
-                        %the children's spatial indices, when necessary
-                        parent_SI_nonzero = uint16(find(SpatialIndex{lvl}(occ_cell, :) > 0));
-                        %If parent_SI_nonzero is empty (i.e., the current 
-                        %occupied cell's spatial index is (0, 0, 0)), then
-                        %the spatial indices of this cell's children can be 
-                        %obtained just by indexing into SI_dict
-                        if isempty(parent_SI_nonzero)
-                            SpatialIndex{lvl + 1}(1:ChildCount{lvl}(oc_code_cntr), :) = uint16(SI_dict(ones_inds, :));
-                        else
-                            %Add an offset to corresponding locations in 
-                            %SI_dict, in the columns determined by 
-                            %parent_SI_nonzero
-                            SI_dict_locations = SI_dict(ones_inds, :);
-                            SI_dict_locations(:, parent_SI_nonzero) = uint16(SI_dict_locations(:, parent_SI_nonzero)) + uint16(2*SpatialIndex{lvl}(occ_cell, parent_SI_nonzero));
-                            SpatialIndex{lvl + 1}(total_child_cntr:(total_child_cntr + ChildCount{lvl}(oc_code_cntr) - 1), :) = uint16(SI_dict_locations);
-                        end
+                        %Add an offset to corresponding locations in 
+                        %SI_dict, in the columns determined by 
+                        %parent_SI_nonzero
+                        SI_dict_locations = SI_dict(ones_inds, :);
+                        SI_dict_locations(:, parent_SI_nonzero) = uint16(SI_dict_locations(:, parent_SI_nonzero)) + uint16(2*SpatialIndex{lvl}(occ_cell, parent_SI_nonzero));
+                        SpatialIndex{lvl + 1}(total_child_cntr:(total_child_cntr + ChildCount{lvl}(oc_code_cntr) - 1), :) = uint16(SI_dict_locations);
                     end
-                end %End occ_child  
-                total_child_cntr = total_child_cntr + ChildCount{lvl}(oc_code_cntr);
-            end %End check if post_pruning_array{lvl}(occ_cell) == 1
+                end
+            end %End occ_child  
+            total_child_cntr = total_child_cntr + ChildCount{lvl}(oc_code_cntr);
         end %End occ_cell
     end %End check if lvl < pp_first_nonempty 
     %Make ChildCount{lvl} a column vector rather than a row vector
