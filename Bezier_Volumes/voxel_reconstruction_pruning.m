@@ -309,9 +309,6 @@ for lvl = pp_first_nonempty:size(post_pruning_array, 1)
             %Check interpolated control point signs for each sub-cell (each
             %row of subcell_ctrlpts)
             ctrlpts_signs = sum(sign(subcell_ctrlpts), 2);
-            %Check if there are any sub-cells that have all of their
-            %control points equal to 0
-            zero_ctrlpts_signs = find(~any(sign(subcell_ctrlpts), 2));
             %Extract the row indices of the sub-cells that do NOT have the 
             %same control point signs on all of their corners: these sub-
             %cells will be considered OCCUPIED and their corner coordinates 
@@ -321,7 +318,6 @@ for lvl = pp_first_nonempty:size(post_pruning_array, 1)
             %their corner coordinates will be recorded directly in 
             %reconstructed_vox_pos_corners.
             occupied_subcell_inds = find((abs(ctrlpts_signs) ~= 8));
-            occupied_subcell_inds(ismember(occupied_subcell_inds, zero_ctrlpts_signs) == 1) = [];
             if ~isempty(occupied_subcell_inds)
                 first_inds = occupied_subcell_inds*8 - 7;
                 last_inds = occupied_subcell_inds*8;
@@ -427,7 +423,7 @@ if ~isempty(test_vox_diffs)
     figure;
     scatter3(test_vox_diffs(:, 1), test_vox_diffs(:, 2), test_vox_diffs(:, 3), 5, 'filled', 'MarkerFaceColor', 'm');
     axis equal; axis off;
-    title({'Voxels that were Not Reconstructed,', 'or Not Correctly Reconstructed, at Decoder', ['(' num2str(size(test_vox_diffs, 1)) '/' num2str(size(ptcloud, 1)) ' = ' num2str((size(test_vox_diffs, 1)/size(ptcloud, 1))*100) '%)']});
+    title({'Original Voxels that were NOT Reconstructed', ['at Decoder (' num2str(size(test_vox_diffs, 1)) '/' num2str(size(ptcloud, 1)) ' = ' num2str((size(test_vox_diffs, 1)/size(ptcloud, 1))*100) '%)']});
     savefig(['\\Pandora\builds\test\Data\Compression\PLY\Codec_Results\' ptcloud_name '\voxelized' num2str(b) '\BezierVolume\missing_voxels_post_pruning']);
     print('-bestfit', ['\\Pandora\builds\test\Data\Compression\PLY\Codec_Results\' ptcloud_name '\voxelized' num2str(b) '\BezierVolume\missing_voxels_post_pruning'], '-dpdf');
     disp('Saving missing voxels figure ...');
@@ -452,14 +448,14 @@ end
 %reconstructed_vox_pos that were NOT present in the original voxelized 
 %point cloud, and if so then plot these
 test_vox_diffs2 = setdiff(reconstructed_vox_pos, ptcloud(:, 1:3), 'rows');
-disp(['Number of incorrectly reconstructed voxels at decoder: ' num2str(size(test_vox_diffs2, 1))]);
+disp(['Total number of reconstructed voxels NOT present in the original point cloud: ' num2str(size(test_vox_diffs2, 1))]);
 if ~isempty(test_vox_diffs2)
     figure;
     scatter3(test_vox_diffs2(:, 1), test_vox_diffs2(:, 2), test_vox_diffs2(:, 3), 5, 'filled', 'MarkerFaceColor', 'r');
     axis equal; axis off;
-    title(['Incorrectly Reconstructed Voxels at Decoder: ' num2str(size(test_vox_diffs2, 1))]);
+    title(['Reconstructed Voxels that were NOT in Input Point Cloud: ' num2str(size(test_vox_diffs2, 1))]);
     savefig(['\\Pandora\builds\test\Data\Compression\PLY\Codec_Results\' ptcloud_name '\voxelized' num2str(b) '\BezierVolume\incorrect_voxels_post_pruning']);
     print('-bestfit', ['\\Pandora\builds\test\Data\Compression\PLY\Codec_Results\' ptcloud_name '\voxelized' num2str(b) '\BezierVolume\incorrect_voxels_post_pruning'], '-dpdf');
-    disp('Saving incorrect voxels figure ...');
+    disp('Saving surplus/incorrect voxels figure ...');
     disp('------------------------------------------------------------');
 end   

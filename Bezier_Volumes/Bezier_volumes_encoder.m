@@ -11,13 +11,18 @@
 % vis_levels_ot = 5; %No. of octree levels for which we want to visualize the octree cell subdivision
 % vis_levels_ctrlpts = 2; %No. of octree levels for which we want to visualize the control point computation
 
-function [occupancy_codes_forDec, rec_ctrlpts_forDec, wavelet_coeffs_forDec, total_geom_bits, total_geom_bpv, reconstructed_control_points, varargout] = Bezier_volumes_encoder(ptcloud_file, b, start_lvl, max_lvl, q_stepsize, ptcloud_name, prune_flag)
+function [occupancy_codes_forDec, rec_ctrlpts_forDec, wavelet_coeffs_forDec, total_geom_bits, total_geom_bpv, reconstructed_control_points, varargout] = Bezier_volumes_encoder(ptcloud_file, b, start_lvl, max_lvl, q_stepsize, ptcloud_name, prune_flag, varargin)
 
 disp(' ');
 disp('============================================================');
 disp('                   ENCODER RUNNING ...');
 disp('============================================================');
 disp(' ');
+
+if ~isempty(varargin)
+    %Threshold for pruning wavelet coefficients
+    zero_threshold = varargin{1};
+end
 
 %-------------------------- Octree Construction --------------------------%
 
@@ -211,50 +216,54 @@ disp(' ');
 [control_points, nearest_voxels, normal_nearest_vox, min_euclid_dist, difference_vectors, dot_products, thresh] = compute_control_points(myOT, corner_coords, unique_coords, ctrl_pts_pointers, occupied_voxel_coords, occupied_voxel_normals, occupied_voxel_centroids, occupied_voxel_normal_averages, occupied_voxel_centroid_averages, b, max_lvl);
 %[control_points, ~, ~, ~, ~, ~, thresh] = compute_control_points(myOT, corner_coords, unique_coords, ctrl_pts_pointers, occupied_voxel_coords, occupied_voxel_normals, occupied_voxel_centroids, occupied_voxel_normal_averages, occupied_voxel_centroid_averages, b, max_lvl);
 
-%For debugging purposes, check how many of the control points (out of the
-%control points for the UNIQUE occupied cell corners only) at each octree 
-%level, if any, are 0
-for lvl = start_lvl:1:max_lvl
-    zero_ctrlpt_cnt = length(find(control_points{lvl} == 0));
-    disp(['No. of 0 control points at level ' num2str(lvl) ', before quantization: ' num2str(zero_ctrlpt_cnt) '/' num2str(length(control_points{lvl}))]);
-end 
-disp(' ');
+% %For debugging purposes, check how many of the control points (out of the
+% %control points for the UNIQUE occupied cell corners only) at each octree 
+% %level, if any, are 0
+% for lvl = start_lvl:1:max_lvl
+%     zero_ctrlpt_cnt = length(find(control_points{lvl} == 0));
+%     disp(['No. of 0 control points at level ' num2str(lvl) ', before quantization: ' num2str(zero_ctrlpt_cnt) '/' num2str(length(control_points{lvl}))]);
+% end 
+% disp(' ');
 
 %For debugging purposes, print out how many occupied octree cells at each
 %octree level, if any, end up having all 8 of their control points with the
-%same sign (+/-) ...
+%same sign (+/-/0) ...
 [~, ptcloud, ~] = plyRead(ptcloud_file);
 %Accumulate the control points for ALL the occupied octree cell corners at
 %each level (not just the control points for the unique corners) into one 
 %cell array
 all_ctrlpts = get_all_ctrlpts(control_points, ctrl_pts_pointers, start_lvl, max_lvl); 
 same_sign_voxels = [];
+cells = [];
 disp(' ');
-for lvl = start_lvl:1:max_lvl
+for lvl = start_lvl:max_lvl
     same_sign_cntr = 0;
     cell_cntr = 0;
+    zero_cp_cntr = 0;
     for i = 1:8:(length(all_ctrlpts{lvl}) - 7) 
         cell_cntr = cell_cntr + 1;
         %Get all 8 control points for the corners of the current cell
         current_ctrlpts = all_ctrlpts{lvl}(i:(i + 7));
-        %Check the signs of current_ctrlpts
-        if abs(sum(sign(current_ctrlpts))) == 8
+        %Check if all control points of the current cell have the same
+        %sign, including the case where all the control points may be 0
+        if (abs(sum(sign(current_ctrlpts))) == 8)||(~any(sign(current_ctrlpts)))
             same_sign_cntr = same_sign_cntr + 1;
-    %         disp(' ');
-            disp(['Cell ' num2str(cell_cntr) ' has all control points with the same sign: ']);
-    %         disp(' ');
+            %disp(['Cell ' num2str(cell_cntr) ' has all control points with the same sign: ']);
+            if ~any(sign(current_ctrlpts))
+                zero_cp_cntr = zero_cp_cntr + 1;
+            end
             if lvl == b + 1
                 %Store this voxel, for debugging purposes
                 same_sign_voxels((size(same_sign_voxels, 1) + 1), 1:3) = ptcloud(cell_cntr, 1:3);
             end
-            %Display the control points for all corners of this cell
-            disp(num2str(current_ctrlpts));
-            disp(' ');
-            %Get the corner coordinates for each corner of this cell
-            cell_corners = corner_coords{lvl}((i:(i + lvl - 1)), 1:3);
-            disp('Cell corner coordinates:');
-            disp(num2str(cell_corners));
-            disp(' ');
+%             %Display the control points for all corners of this cell
+%             disp(num2str(current_ctrlpts));
+%             disp(' ');
+%             %Get the corner coordinates for each corner of this cell
+%             cell_corners = corner_coords{lvl}((i:(i + lvl - 1)), 1:3);
+%             disp('Cell corner coordinates:');
+%             disp(num2str(cell_corners));
+%             disp(' ');
     %         %Get the coordinates (either midpoint or centroid, whichever one of
     %         %these happened to be used in the control point computation) of the
     %         %nearest voxel found for each corner of the current voxel
@@ -288,6 +297,7 @@ for lvl = start_lvl:1:max_lvl
         end
     end %End i
     disp(['TOTAL number of cells with all control points having the same sign, at level ' num2str(lvl) ', before quantization: ' num2str(same_sign_cntr) '/' num2str(length(all_ctrlpts{lvl})/8) ' (' num2str((same_sign_cntr/(length(all_ctrlpts{lvl})/8))*100) '%)']);
+    disp(['No. of cells with all 0 control points at level ' num2str(lvl) ': ' num2str(zero_cp_cntr)]);
     disp(' ');
     if (lvl == b + 1) && (same_sign_cntr > 0)
         %Plot voxels that have the same control point signs
@@ -485,14 +495,14 @@ disp(' ');
 [wavelet_coeffs, reconstructed_control_points] = wavelet_analysis(myOT, corner_coords, control_points, ctrl_pts_pointers, start_lvl, max_lvl, b, q_stepsize);
 %[wavelet_coeffs, reconstructed_control_points] = wavelet_analysis_loop(myOT, corner_coords, control_points, ctrl_pts_pointers, start_lvl, max_lvl, b, q_stepsize, ptcloud_file);
 
-%For debugging purposes, check how many of the RECONSTRUCTED control points 
-%(out of the reconstructed control points for the UNIQUE occupied cell 
-%corners only) at each octree level, if any, are 0
-for lvl = start_lvl:1:max_lvl
-    zero_ctrlpt_cnt = length(find(reconstructed_control_points{lvl} == 0));
-    disp(['No. of 0 control points at level ' num2str(lvl) ', after quantization and reconstruction: ' num2str(zero_ctrlpt_cnt) '/' num2str(length(reconstructed_control_points{lvl}))]);
-end 
-disp(' ');
+% %For debugging purposes, check how many of the RECONSTRUCTED control points 
+% %(out of the reconstructed control points for the UNIQUE occupied cell 
+% %corners only) at each octree level, if any, are 0
+% for lvl = start_lvl:1:max_lvl
+%     zero_ctrlpt_cnt = length(find(reconstructed_control_points{lvl} == 0));
+%     disp(['No. of 0 control points at level ' num2str(lvl) ', after quantization and reconstruction: ' num2str(zero_ctrlpt_cnt) '/' num2str(length(reconstructed_control_points{lvl}))]);
+% end 
+% disp(' ');
 
 %For debugging purposes, print out how many occupied octree cells at each
 %octree level, if any, end up having all 8 of their RECONSTRUCTED control
@@ -505,7 +515,7 @@ disp(' ');
 all_ctrlpts = get_all_ctrlpts(reconstructed_control_points, ctrl_pts_pointers, start_lvl, max_lvl); 
 same_sign_voxels = [];
 disp(' ');
-for lvl = start_lvl:1:max_lvl
+for lvl = start_lvl:max_lvl
     same_sign_cntr = 0;
     cell_cntr = 0;
     zero_cp_cntr = 0;
@@ -513,21 +523,17 @@ for lvl = start_lvl:1:max_lvl
         cell_cntr = cell_cntr + 1;
         %Get all 8 control points for the corners of the current cell
         current_ctrlpts = all_ctrlpts{lvl}(i:(i + 7));
-%         if (lvl == 7)&&(cell_cntr == 3500)
-%             wcfs = wavelet_coeffs{lvl}(ctrl_pts_pointers{lvl}(i:(i + 7)))
-%             pause(1);
-%         end
-        %Check if all control points of the current leaf cell have the same
+        %Check if all control points of the current cell have the same sign
         %sign, including the case where all the control points may be 0
         if (abs(sum(sign(current_ctrlpts))) == 8)||(~any(sign(current_ctrlpts)))
             same_sign_cntr = same_sign_cntr + 1;
             %disp(['Cell ' num2str(cell_cntr) ' has all control points with the same sign: ']);
+            if ~any(sign(current_ctrlpts))
+                zero_cp_cntr = zero_cp_cntr + 1;
+            end
             if lvl == b + 1
                 %Store this voxel, for debugging purposes
                 same_sign_voxels((size(same_sign_voxels, 1) + 1), 1:3) = ptcloud(cell_cntr, 1:3);
-            end
-            if ~any(sign(current_ctrlpts))
-                zero_cp_cntr = zero_cp_cntr + 1;
             end
             %Display the control points for all corners of this cell
             %disp(num2str(current_ctrlpts));
@@ -540,7 +546,7 @@ for lvl = start_lvl:1:max_lvl
         end
     end %End i
     disp(['TOTAL number of cells with all control points having the same sign, at level ' num2str(lvl) ', after quantization and reconstruction: ' num2str(same_sign_cntr) '/' num2str(length(all_ctrlpts{lvl})/8) ' (' num2str((same_sign_cntr/(length(all_ctrlpts{lvl})/8))*100) '%)']);
-    disp(['No. of leaf cells with all 0 control points at level ' num2str(lvl) ': ' num2str(zero_cp_cntr)]);
+    disp(['No. of cells with all 0 control points at level ' num2str(lvl) ': ' num2str(zero_cp_cntr)]);
     disp(' ');
     if (lvl == b + 1) && (same_sign_cntr > 0)
         %Plot voxels that have the same control point signs
@@ -616,7 +622,10 @@ for lvl = (start_lvl + 1):max_lvl
         %Get the wavelet coefficient for each of the 8 corners of this cell
         current_wavelet_coeffs = wavelet_coeffs{lvl}(ctrl_pts_pointers{lvl}((occ_cell*8 - 7):(occ_cell*8)));
         %If the wavelet coefficients at all the corners of this cell are 0
-        if isempty(find((current_wavelet_coeffs ~= 0), 1))
+        %if isempty(find((current_wavelet_coeffs ~= 0), 1))
+        %If the wavelet coefficients at all the corners of this cell are
+        %near 0 (i.e., fit within +/- zero_threshold of 0)
+        if isempty(find((abs(current_wavelet_coeffs) > zero_threshold), 1))
             %disp(['All zero wavelet coefficients for occupied cell ' num2str(occ_cell)]);
             all_zero_wav_cfs{lvl}(zw_cntr) = occ_cell; 
             %Get the midpoints of the current cell (only needed for display

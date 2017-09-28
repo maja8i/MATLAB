@@ -206,12 +206,16 @@ unique_coords_decoder = cell((b + 1), 1);
 %corner. So, for each octree level "lvl", there will be 
 %numel(OccupancyCode{lvl}) pointer arrays containining 8 elements each.  
 ctrl_pts_pointers = cell((b + 1), 1);
+%Find the first octree level at which SpatialIndex is empty (assume that
+%SpatialIndex is also empty at all levels higher than first_SI_empty)
+first_SI_empty = find(cellfun(@isempty, SpatialIndex), 1);
 
 %Figure out the corner coordinates for each corner of each occupied cell at
 %each octree level, starting from start_lvl
 tic;
 %for lvl = start_lvl:(b + 1)
-for lvl = start_lvl:max_lvl
+%for lvl = start_lvl:max_lvl
+for lvl = start_lvl:(first_SI_empty - 1)
     
     disp(['Processing octree level ' num2str(lvl) ':']); 
     

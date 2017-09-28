@@ -16,9 +16,7 @@ reconstructed_control_points{start_lvl} = quantize_uniform_scalar(control_points
 for lvl = start_lvl:(max_lvl - 1) 
     disp(['Computing wavelet coefficients between octree levels ' num2str(lvl) ' and ' num2str(lvl + 1) ' ...']);
     disp('------------------------------------------------------------');
-    
     %profile on
-    
     tic;
     %Initialize a counter for the corner coordinates of the occupied cells 
     %at this level 
@@ -31,7 +29,7 @@ for lvl = start_lvl:(max_lvl - 1)
         parent_corner_coords = corner_coords{lvl}(parent_cnr_coords_cntr:(parent_cnr_coords_cntr + 7), :);  
         %Find the average parent x, y, z coordinates
         parent_avg_coords = sum(parent_corner_coords)./8;
-        %Get the control points on all 8 corners of the current parent cell
+        %Get the (reconstructed) control points on all 8 corners of the current parent cell
         parent_ctrlpts_inds = ctrl_pts_pointers{lvl}((occ_cell*8 - 7):(occ_cell*8));
         parent_control_points = reconstructed_control_points{lvl}(parent_ctrlpts_inds);
         %Find the midpoint coordinates of all the 12 edges of the current
@@ -167,7 +165,6 @@ for lvl = start_lvl:(max_lvl - 1)
     wcfs_time = toc;
     disp(['Time taken to compute wavelet coefficients and reconstructed control points for level ' num2str(lvl + 1) ': ' num2str(wcfs_time) ' seconds']);
     disp('------------------------------------------------------------');
-    
     %profile viewer
 end %End lvl
 

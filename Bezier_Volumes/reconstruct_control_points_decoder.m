@@ -8,6 +8,10 @@ if ~isempty(varargin)
     pp_first_nonempty = varargin{2};    %First octree level at which leaf cells are found (after pruning)
 end
 
+%Find the first octree level at which SpatialIndex is empty (assume that
+%SpatialIndex is also empty at all levels higher than first_SI_empty)
+first_SI_empty = find(cellfun(@isempty, SpatialIndex), 1);
+
 %Initialize a cell array to store the reconstructed signal (control point)
 %at each vertex of each octree cell at every level from start_lvl to the 
 %leaves
@@ -22,7 +26,8 @@ reconstruction_decoder{start_lvl} = dequantize_uniform_scalar(rec_ctrlpts_start_
 %Start from the start_lvl and work up to the leaves ...
 %tic;
 %for lvl = start_lvl:b
-for lvl = start_lvl:(max_lvl - 1)
+%for lvl = start_lvl:(max_lvl - 1)
+for lvl = start_lvl:(first_SI_empty - 2)
     disp(['Reconstructing control points at octree level ' num2str(lvl + 1) ' ...']);
     tic;
     %Dequantize the wavelet coefficients for all the corners (not just the
