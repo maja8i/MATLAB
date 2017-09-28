@@ -215,7 +215,12 @@ first_SI_empty = find(cellfun(@isempty, SpatialIndex), 1);
 tic;
 %for lvl = start_lvl:(b + 1)
 %for lvl = start_lvl:max_lvl
-for lvl = start_lvl:(first_SI_empty - 1)
+if isempty(first_SI_empty)
+    end_lvl = max_lvl;
+else
+    end_lvl = first_SI_empty - 1;
+end
+for lvl = start_lvl:end_lvl
     
     disp(['Processing octree level ' num2str(lvl) ':']); 
     

@@ -168,7 +168,7 @@ if (prune_flag == 1) && (~isempty(zero_threshold_for_pruning))
         close all;
         
         %Update counter for the next zero_threshold
-        zero_threshold_cntr = 1;
+        zero_threshold_cntr = zero_threshold_cntr + 1;
         
     end %End zero_threshold
 end %End check if (prune_flag == 1) && (~isempty(zero_threshold))

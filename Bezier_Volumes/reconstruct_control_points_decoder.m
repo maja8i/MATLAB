@@ -27,7 +27,12 @@ reconstruction_decoder{start_lvl} = dequantize_uniform_scalar(rec_ctrlpts_start_
 %tic;
 %for lvl = start_lvl:b
 %for lvl = start_lvl:(max_lvl - 1)
-for lvl = start_lvl:(first_SI_empty - 2)
+if isempty(first_SI_empty)
+    end_lvl = max_lvl - 1;
+else
+    end_lvl = first_SI_empty - 2;
+end
+for lvl = start_lvl:end_lvl
     disp(['Reconstructing control points at octree level ' num2str(lvl + 1) ' ...']);
     tic;
     %Dequantize the wavelet coefficients for all the corners (not just the
