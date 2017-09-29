@@ -885,9 +885,10 @@ end %End check if prune_flag == 1
 
 %---- Control Points at start_lvl ----
 
-%Get the quantized reconstructed control points (at start_lvl) that will be 
-%transmitted to the decoder
-rec_ctrlpts_forDec = reconstructed_control_points{start_lvl};
+%Get the quantized control points at start_lvl, which will be transmitted 
+%to the decoder
+%rec_ctrlpts_forDec = reconstructed_control_points{start_lvl};
+rec_ctrlpts_forDec = quantize_uniform_scalar(control_points{start_lvl}, q_stepsize);
 %Plot a histogram of the quantized control points inside rec_ctrlpts_forDec
 figure;
 histogram(rec_ctrlpts_forDec);

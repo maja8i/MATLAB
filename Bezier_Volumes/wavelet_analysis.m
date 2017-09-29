@@ -9,8 +9,12 @@ wavelet_coeffs = cell((b + 1), 1);  %These will be quantized coefficients
 %of each octree cell at every level from start_lvl to one level before the
 %leaves
 reconstructed_control_points = cell(size(control_points, 1), 1);
-%Quantize all the control points at octree level start_lvl
-reconstructed_control_points{start_lvl} = quantize_uniform_scalar(control_points{start_lvl}, q_stepsize);
+%Quantize and dequantize (reconstruct) all the control points at octree 
+%level start_lvl. The dequantized values will be used for wavelet analysis
+%and control point reconstruction, below, but the quantized values will be
+%transmitted to the decoder.
+quantized_cp = quantize_uniform_scalar(control_points{start_lvl}, q_stepsize);
+reconstructed_control_points{start_lvl} = dequantize_uniform_scalar(quantized_cp, q_stepsize);
     
 %For each octree level, starting from start_lvl ...
 for lvl = start_lvl:(max_lvl - 1) 
@@ -144,10 +148,13 @@ for lvl = start_lvl:(max_lvl - 1)
         wavelet_coeffs{lvl + 1}(cnr_coords_inds, 1) = child_control_points - averages;
         %Quantize the wavelet coefficients computed above
         wavelet_coeffs{lvl + 1}(cnr_coords_inds, 1) = quantize_uniform_scalar(wavelet_coeffs{lvl + 1}(cnr_coords_inds, 1), q_stepsize);
-        %Add the quantized wavelet coefficients to the corresponding values
-        %in "averages", to obtain the reconstructed signal (control point) 
-        %at each corresponding child corner
-        reconstructed_control_points{lvl + 1}(cnr_coords_inds, 1) = averages + wavelet_coeffs{lvl + 1}(cnr_coords_inds, 1);
+        %Dequantize the quantized wavelet coefficients and add them to the
+        %corresponding values in "averages", to obtain the reconstructed 
+        %signal (control point) at each corresponding child corner. Note
+        %that the QUANTIZED versions of these wavelet coefficients will be
+        %sent to the decoder.
+        dequant_wavelet_coeffs = dequantize_uniform_scalar(wavelet_coeffs{lvl + 1}(cnr_coords_inds, 1), q_stepsize);
+        reconstructed_control_points{lvl + 1}(cnr_coords_inds, 1) = averages + dequant_wavelet_coeffs;
         
         %Increment parent_cnr_coords_cntr before moving on to a new 
         %occupied (parent) cell at the current octree level
