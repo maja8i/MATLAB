@@ -30,7 +30,7 @@ disp('-------------------- Octree Construction -------------------');
 disp(' ');
 
 %Construct an octree of depth (b + 1), for the input point cloud
-[myOT, mortonCodes_sorted, xyz_sorted, normals_sorted, centroids_sorted] = construct_octree(ptcloud_file, b);
+[myOT, mortonCodes_sorted, xyz_sorted, normals_sorted, centroids_sorted] = construct_octree(ptcloud_file, b, ptcloud_name);
 %[myOT, mortonCodes_sorted, xyz_sorted, normals_sorted] = construct_octree(ptcloud_file, b);
 
 disp(' ');

@@ -7,7 +7,7 @@
 
 %Name of the input point cloud (do not include the _voxelizedN or .ply file 
 %extension in the name)
-ptcloud_name = 'boxer'; %Must be in PLY format
+ptcloud_name = 'redandblack_1550'; %Must be in PLY format
 %Bit depth for Morton codes and octree. b also determines the number of 
 %levels in the octree that will be generated (apart from the root level). 
 %The total number of octree levels INCLUDING the root level will therefore 
@@ -46,7 +46,7 @@ q_stepsizes = [0.25 0.5 1 2 3];
 prune_flag = 1;
 %Define threshold for pruning wavelet coefficients
 %zero_threshold_for_pruning = [0 1 2 3 4];
-zero_threshold_for_pruning = 4;
+zero_threshold_for_pruning = 1;
 
 %-------------------------------------------------------------------------%
 
