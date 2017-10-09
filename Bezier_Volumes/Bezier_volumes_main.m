@@ -7,7 +7,7 @@
 
 %Name of the input point cloud (do not include the _voxelizedN or .ply file 
 %extension in the name)
-ptcloud_name = 'redandblack_1550'; %Must be in PLY format
+ptcloud_name = 'boxer'; %Must be in PLY format
 %Bit depth for Morton codes and octree. b also determines the number of 
 %levels in the octree that will be generated (apart from the root level). 
 %The total number of octree levels INCLUDING the root level will therefore 

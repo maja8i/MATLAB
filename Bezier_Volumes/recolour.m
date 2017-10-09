@@ -1,8 +1,8 @@
 %Colour reconstructed voxels by using the colour of the nearest voxel in
 %the original (input) point cloud.
-ptcloud_file_orig = '\\pandora\builds\test\Data\Compression\PLY\Point_Clouds\8i\voxelized10_WithNormalsAndCentroids\redandblack_1550_voxelized10.ply';
-ptcloud_file_recon_rootdir = '\\pandora\builds\test\Data\Compression\PLY\Codec_Results\redandblack_1550\voxelized10\BezierVolume_thresh1\';
-ptcloud_recon_name = 'redandblack_1550_voxelized10_distorted05';
+ptcloud_file_orig = '\\pandora\builds\test\Data\Compression\PLY\Point_Clouds\8i\voxelized10_WithNormalsAndCentroids\longdress_1300_voxelized10.ply';
+ptcloud_file_recon_rootdir = '\\pandora\builds\test\Data\Compression\PLY\Codec_Results\longdress_1300\voxelized10\BezierVolume_thresh1\';
+ptcloud_recon_name = 'longdress_1300_voxelized10_distorted01';
 ptcloud_file_recon = [ptcloud_file_recon_rootdir ptcloud_recon_name];
 b = 10;
 
@@ -33,42 +33,132 @@ xyz_recon = ptcloud_recon(I2, 1:3);
 %Construct an octree based on the sorted Morton codes
 myOT_recon = octreeClass(mortonCodes_recon_sorted, b);    %b-level octree
 
-%SpatialIndex offset of a voxel and its 26 neighbours
+%SpatialIndex offset of an octree cell and its 26 neighbours
 neighborOffset = [-1 -1 -1; -1 -1 0; -1 -1 1; -1 0 -1; -1 0 0; -1 0 1; -1 1 -1; -1 1 0; -1 1 1;
  0 -1 -1;  0 -1 0;  0 -1 1;  0 0 -1;  0 0 0;  0 0 1;  0 1 -1;  0 1 0;  0 1 1;
  1 -1 -1;  1 -1 0;  1 -1 1;  1 0 -1;  1 0 0;  1 0 1;  1 1 -1;  1 1 0;  1 1 1];
 
 %Initialize a matrix to store the reconstructed voxel colours
-colours_recon = zeros(size(ptcloud_recon, 1), 3, 'single');
+colours_recon = zeros(size(xyz_recon, 1), 3, 'single');
 
 tic;
-%For each reconstructed voxel ...
-for v = 1:size(ptcloud_recon(:, 1:3), 1)
-    %Get the SpatialIndex of the current voxel
-    spatialIndexOfBlock = double(myOT_recon.SpatialIndex{b + 1}(v, :));
-    %Get the SpatialIndex of each of the current voxel's 26 neighbours
-    spatialIndicesOfNeighboringBlocks = neighborOffset + repmat(spatialIndexOfBlock, 27, 1);
-    spatialIndex = spatialIndicesOfNeighboringBlocks(all(spatialIndicesOfNeighboringBlocks >= 0, 2), :);
-    %Get pointers to the chosen neighbourhood voxels (including the current
-    %reconstructed voxel) in the original point cloud (if they exist)
-    nP = myOT_orig.nodePtr(spatialIndex, b);
-    %Get rid of neighbours that aren't occupied (i.e., only keep occupied
-    %neighbours)
-    nP = nP(nP > 0); 
-    %Get the x, y, z coordinates of the original voxels indexed by nP
-    orig_voxel_subset = xyz_orig(nP, :);
-    %Get the colours (R, G, B values) of the original voxels indexed by nP
-    orig_voxel_colours = colours_orig(nP, :);
-    %Find the nearest voxel in orig_voxel_subset, to the current
-    %reconstructed voxel
-    diffs = ptcloud_recon(v, :) - orig_voxel_subset;
-    dists = sum(diffs.^2, 2);
-    min_dist = min(dists);
-    %If more than one equidistant voxel is found, average the equidistant
-    %voxels' colours and map this average colour to the current
-    %reconstructed voxel
-    colours_recon(v, :) = mean(orig_voxel_colours((dists == min_dist), :), 1);
-end
+%For each occupied octree cell at level lvl in the RECONSTRUCTED point 
+%cloud ...
+all_occ_nodes = (1:myOT_recon.NodeCount(b + 1))';
+for lvl = (b + 1):-1:3
+    colours_recon_cnt = 0;
+    for occ_cell = all_occ_nodes'
+        %Get the SpatialIndex of the current occ_cell
+        spatialIndexOfBlock = double(myOT_recon.SpatialIndex{lvl}(occ_cell, :));
+        %Get the SpatialIndex of each of the occ_cell's 26 neighbours
+        spatialIndicesOfNeighboringBlocks = neighborOffset + repmat(spatialIndexOfBlock, 27, 1);
+        spatialIndex = spatialIndicesOfNeighboringBlocks(all(spatialIndicesOfNeighboringBlocks >= 0, 2), :);
+        %Get pointers to the chosen neighbourhood blocks (including the 
+        %current occ_cell) in the ORIGINAL point cloud
+        nP = myOT_orig.nodePtr(spatialIndex, (lvl - 1));
+        %Get rid of neighbours that are not occupied (i.e., only keep 
+        %occupied cells in the 27-neighbourhood)
+        nP = nP(nP > 0); 
+        if isempty(nP)
+            if lvl == b + 1
+                %If no corresponding neighbourhood is found in the original
+                %point cloud, at the voxel level, mark the corresponding 
+                %reconstructed voxels' colours as [NaN NaN NaN] for now
+                colours_recon(((colours_recon_cnt + 1):(colours_recon_cnt + myOT_recon.DescendantCount{lvl}(occ_cell))), :) = NaN;
+                colours_recon_cnt = colours_recon_cnt + myOT_recon.DescendantCount{lvl}(occ_cell);
+            end
+            continue;
+        end
+        %Count the total number of occupied voxels belonging to the current
+        %occ_cell and its 26 neighbours in the ORIGINAL point cloud
+        voxelCount = sum(myOT_orig.DescendantCount{lvl}(nP));
+        %Allocate space to store the x, y, z coordinates of all the 
+        %occupied voxels belonging to the octree cells in the current 
+        %27-neighbourhood
+        orig_voxel_subset = zeros(voxelCount, 3);
+        %Allocate space for the colours of all the occupied voxels in
+        %orig_voxel_subset
+        voxel_subset_colours = zeros(voxelCount, 3, 'single');
+        %Initialize counter for the total number of voxels (out of 
+        %voxelCount) processed so far
+        vox_count = 0;
+        %Get the x, y, z coordinates of all the ORIGINAL occupied voxels 
+        %belonging to the octree cells at level "lvl" denoted by nP, and 
+        %their corresponding colours
+        for n = nP'  
+            %Get the index of the first occupied voxel in the n-th occupied 
+            %cell at level lvl
+            begin = myOT_orig.FirstDescendantPtr{lvl}(n);   
+            %Get the total number of occupied voxels in the n-th occupied 
+            %cell at level lvl
+            count = myOT_orig.DescendantCount{lvl}(n);
+            %Get the x, y, z location values for all the occupied voxels 
+            %(at level b + 1) corresponding to the n-th occupied cell at 
+            %level lvl
+            orig_voxel_subset(((vox_count + 1):(vox_count + count)), :) = xyz_orig(begin:(begin + count - 1), :);
+            %Get the R, G, B colour values for the current occupied voxels
+            voxel_subset_colours(((vox_count + 1):(vox_count + count)), :) = colours_orig(begin:(begin + count - 1), :);
+            vox_count = vox_count + count;
+        end
+
+        %Get all the RECONSTRUCTED voxels belonging to the current occ_cell 
+        %in the reconstructed point cloud
+        begin2 = myOT_recon.FirstDescendantPtr{lvl}(occ_cell);
+        count2 = myOT_recon.DescendantCount{lvl}(occ_cell);
+        if lvl == b + 1
+            recon_voxel_subset = xyz_recon(begin2:(begin2 + count2 - 1), :);
+        else
+            %Only get the reconstructed voxels that currently have NaN
+            %colour values
+            current_colours_recon_row_inds = begin2:(begin2 + count2 - 1);
+            current_nan_cols_rows = all(isnan(colours_recon(current_colours_recon_row_inds, :)), 2);
+            recon_voxel_subset = xyz_recon(current_colours_recon_row_inds(current_nan_cols_rows), :);
+        end
+        %For each of the reconstructed voxels in recon_voxel_subset, find 
+        %their nearest neighbour inside orig_voxel_subset. Need to 
+        %replicate orig_voxel_subset and recon_voxel_subset, so we can do a 
+        %direct matrix subtraction between them.
+        recon_voxel_subset_rep = recon_voxel_subset(repmat(1:size(recon_voxel_subset, 1), size(orig_voxel_subset, 1), 1), :);    %Replicate each row "size(orig_voxel_subset, 1)" times
+        orig_voxel_subset_rep = repmat(orig_voxel_subset, size(recon_voxel_subset, 1), 1);    %Replicate entire matrix "size(recon_voxel_subset, 1)" times
+        diffs = recon_voxel_subset_rep - orig_voxel_subset_rep;
+        dists = sum(diffs.^2, 2);
+        dists_reshaped = reshape(dists, size(recon_voxel_subset, 1), size(orig_voxel_subset, 1));
+        min_dists = min(dists_reshaped, [], 2);
+        %For each reconstructed voxel within the current occ_cell, if more 
+        %than one equidistant original voxel is found, average the 
+        %equidistant original voxels' colours and map this average colour 
+        %to the corresponding reconstructed voxel
+        recon_voxel_subset_colours = zeros(size(recon_voxel_subset));
+        for rec_vox = 1:size(recon_voxel_subset, 1)
+            recon_voxel_subset_colours(rec_vox, :) = mean(voxel_subset_colours((dists_reshaped(rec_vox, :) == min_dists(rec_vox)), :), 1);
+        end
+        if lvl == b + 1
+            colours_recon(((colours_recon_cnt + 1):(colours_recon_cnt + count2)), :) = uint8(recon_voxel_subset_colours);
+            colours_recon_cnt = colours_recon_cnt + count2;
+        else
+            colours_recon(current_colours_recon_row_inds(current_nan_cols_rows), :) = uint8(recon_voxel_subset_colours);
+        end
+    end %End occ_cell    
+    %Check if there are any [NaN NaN NaN] colour values inside
+    %colours_recon
+    nan_rows = find(any(isnan(colours_recon), 2) == 1);
+    %If yes, look at the next octree level up, to try to find nearest 
+    %neighbours of the corresponding voxels 
+    if ~isempty(nan_rows)
+        %For each voxel indexed in nan_rows, find the pointer to its
+        %ancestor at level "lvl - 1"
+        firstDescendantPtr = myOT_recon.FirstDescendantPtr{lvl - 1};
+        tmp = zeros(size(xyz_recon, 1), 1);
+        tmp(firstDescendantPtr) = 1;
+        ancestorPtrs_all = cumsum(tmp); %Ancestor cells at level "lvl - 1" for each voxel
+        ancestorPtrs = ancestorPtrs_all(nan_rows);  %Extract only the ancestor pointers for voxels indexed in nan_rows
+        all_occ_nodes = unique(ancestorPtrs);   %As some cells may have the same ancestor
+    else
+        break;
+    end
+end %End lvl
+
+       
 recolouring_time = toc;
 disp('************************************************************');
 disp(['Time taken to recolour reconstructed voxels: ' num2str(recolouring_time) ' seconds']);
@@ -90,9 +180,9 @@ plyStruct2.propArrayListList = cell(1, 1);
 plyStruct2.propArrayListList{1}{1} = xyz_recon(:, 1);   %Reconstructed voxel X coordinates
 plyStruct2.propArrayListList{1}{2} = xyz_recon(:, 2);   %Reconstructed voxel Y coordinates
 plyStruct2.propArrayListList{1}{3} = xyz_recon(:, 3);   %Reconstructed voxel Z coordinates
-plyStruct2.propArrayListList{1}{4} = uint8(colours_recon(:, 1));   %R colour value
-plyStruct2.propArrayListList{1}{5} = uint8(colours_recon(:, 2));   %G colour value
-plyStruct2.propArrayListList{1}{6} = uint8(colours_recon(:, 3));   %B colour value
+plyStruct2.propArrayListList{1}{4} = colours_recon(:, 1);   %R colour value
+plyStruct2.propArrayListList{1}{5} = colours_recon(:, 2);   %G colour value
+plyStruct2.propArrayListList{1}{6} = colours_recon(:, 3);   %B colour value
 %Create a new cell array for the plyStruct2 property TYPES, which contains 
 %the data types of the reconstructed voxel x, y, z coordinates, and the 
 %data types of the colours 
