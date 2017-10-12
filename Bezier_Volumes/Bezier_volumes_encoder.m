@@ -743,7 +743,7 @@ if prune_flag == 1
     disp('-------------------- Pruning Octree ------------------------');
     disp(' ');
 
-    [pruned_occupancy_codes, post_pruning_array, toprune, toprune2] = prune_octree(myOT, all_zero_wav_cfs, start_lvl, max_lvl, b);
+    [pruned_occupancy_codes, post_pruning_array, toprune, toprune2] = prune_octree(myOT, all_zero_wav_cfs, start_lvl, max_lvl, b, reconstructed_control_points, ctrl_pts_pointers);
 
     disp(' ');
     disp('------------ Pruning Wavelet Coefficient Tree --------------');

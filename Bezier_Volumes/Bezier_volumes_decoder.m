@@ -60,7 +60,7 @@ SI_dict(8, :) = [1 1 1];    %(+x, +y, +z)
 
 if prune_flag == 1
     %Find the first non-empty location in post_pruning_array: this 
-    %indicates the first octree level at which leaf cells are found
+    %indicates the first octree level at which leaf cells are found.
     %NOTE: Currently assuming that there are no octree levels AFTER
     %pp_fist_nonempty that do not contain any leaf cells.
     pp_first_nonempty = find(~cellfun(@isempty, post_pruning_array), 1);
