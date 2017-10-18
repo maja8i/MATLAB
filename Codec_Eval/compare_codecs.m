@@ -26,12 +26,12 @@ codec_results_path = '\\Pandora\builds\test\Data\Compression\PLY\Codec_Results\'
 rd_path = '\\Pandora\builds\test\Data\Compression\PLY\R-D_Comparisons\';
 
 %Populate the cell array below with the names of codecs you wish to compare
-codec_names = {'BezierVolume_thresh1', 'trivar', 'tri7', 'tri8'};
+codec_names = {'BV', 'tri7', 'tri8', 'trivar'};
 
 %Populate the cell array below with the names of input point clouds that 
 %you wish to test. Don't include the _voxelizedN or .ply file extension in
 %the name.
-ptcloud_names = {'redandblack_1550'}; %Must be in PLY format for now
+ptcloud_names = {'longdress_1300'}; %Must be in PLY format for now
 
 %Enter the voxelization level that you wish to use for the input (and thus
 %output) point clouds. If no voxelization, put 0 here. Write the voxelizedN
@@ -44,7 +44,7 @@ voxelizedN = '10';
 %files in the corresponding codec_results_path\pt_cloud_name\voxelizedN\codec_name 
 %directory. Note that each number must be written as a string (i.e., inside 
 %quotation marks '').
-nbr_reconstructions = {'5', '14', '1', '1'};    %Each column represents a different codec, each row a different input point cloud
+nbr_reconstructions = {'4', '1', '1', '14'};    %Each column represents a different codec, each row a different input point cloud
 nbr_reconstructions = repmat(nbr_reconstructions, numel(ptcloud_names), 1);    %Since each column must represent a different codec, and each row a different input point cloud (assume that a given codec produces the same no. of reconstructions for any given input point cloud)
 
 %-------------------------------------------------------------------------%
@@ -325,7 +325,8 @@ for p = 1:numel(ptcloud_names)
         hold on;
         %Plot a dashed red line at the maximum possible geometric PSNR for
         %this input dataset
-        plot(bitrate_data(:, 1), repmat(max_geom_PSNR, 1, length(bitrate_data(:, 1))), 'r--');
+        %plot(bitrate_data(:, 1), repmat(max_geom_PSNR, 1, length(bitrate_data(:, 1))), 'r--');
+        plot(xlim(gca), [max_geom_PSNR max_geom_PSNR], 'r--');
         legend([codec_legend_list, 'Max. possible geometric PSNR'], 'Interpreter', 'none', 'Location', 'best');
     else
         legend(codec_legend_list, 'Interpreter', 'none', 'Location', 'best');
@@ -353,7 +354,8 @@ for p = 1:numel(ptcloud_names)
         hold on;
         %Plot a dashed red line at the maximum possible geometric PSNR for
         %this input dataset
-        plot(bitrate_data(:, 2), repmat(max_geom_PSNR, 1, length(bitrate_data(:, 2))), 'r--');
+        %plot(bitrate_data(:, 2), repmat(max_geom_PSNR, 1, length(bitrate_data(:, 2))), 'r--');
+        plot(xlim(gca), [max_geom_PSNR max_geom_PSNR], 'r--');
         legend([codec_legend_list, 'Max. possible geometric PSNR'], 'Interpreter', 'none', 'Location', 'best');
     else
         legend(codec_legend_list, 'Interpreter', 'none', 'Location', 'best');

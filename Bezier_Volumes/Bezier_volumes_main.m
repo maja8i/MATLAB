@@ -7,7 +7,7 @@
 
 %Name of the input point cloud (do not include the _voxelizedN or .ply file 
 %extension in the name)
-ptcloud_name = 'redandblack_1550'; %Must be in PLY format
+ptcloud_name = 'loot_1200'; %Must be in PLY format
 %Bit depth for Morton codes and octree. b also determines the number of 
 %levels in the octree that will be generated (apart from the root level). 
 %The total number of octree levels INCLUDING the root level will therefore 
@@ -39,7 +39,7 @@ max_OT_lvl = b + 1;  %Write numbers in DEscending order, because file ..._distor
 %points at the chosen base level (start_lvl) and for all of the wavelet
 %coefficients that will be computed at the encoder
 %q_stepsizes = [0.25 0.5 1 2 3];
-q_stepsizes = 0.25;
+q_stepsizes = 2;
 %Decide whether or not to prune the octree cells at the encoder, which
 %contain zero wavelet coefficients on all of their corners, and therefore
 %whether to prune the corresponding wavelet coefficient tree: 

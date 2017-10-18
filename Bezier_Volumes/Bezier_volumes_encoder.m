@@ -751,6 +751,37 @@ if prune_flag == 1
 
     pruned_wavelet_coeffs = prune_wavelet_coeff_tree(wavelet_coeffs, toprune, toprune2, ctrl_pts_pointers, myOT, start_lvl, max_lvl, b);
 end
+
+%The below is for debugging only: prune the reconstructed control points to
+%match the control points that will be reconstructed at the decoder, to
+%make sure that they are exactly the same
+pruned_reconstructed_control_points = cell(size(reconstructed_control_points));
+for i = start_lvl:(max_lvl - 1)
+    if isempty(toprune2{i})
+        %The below will represent only the control points for the UNIQUE
+        %corners
+        pruned_reconstructed_control_points{i} = reconstructed_control_points{i};
+    else
+        first_inds = toprune2{i}.*8 - 7;
+        last_inds = toprune2{i}.*8;
+        all_inds = [];
+        for j = 1:length(first_inds)
+            all_inds((end + 1):(end + 8), 1) = first_inds(j):last_inds(j);
+        end
+        pruned_reconstructed_control_points{i} = reconstructed_control_points{i}(ctrl_pts_pointers{i});
+        %The below will represent ALL the control points at each level
+        %after pruning (except the voxel level), not just the unique corner
+        %control points. NOTE that this differs from the control points
+        %stored in pruned_reconstructed_control_points at levels where
+        %toprune2 is empty, above, which are stored only for the unique
+        %corners. To compare the below with control points reconstructed
+        %at the decoder, expand the decoder-reconstructed control points by
+        %using ctrl_pts_pointers, to get the control points for ALL corners
+        %at the corresponding octree level.
+        pruned_reconstructed_control_points{i}(all_inds) = [];
+    end
+end
+save('pruned_reconstructed_control_points', 'pruned_reconstructed_control_points');
  
 %------------------------------- Encoding --------------------------------%
 

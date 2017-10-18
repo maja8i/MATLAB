@@ -1,0 +1,10 @@
+-For frame_0000.ply, removed all property names from the header file before
+using it, except for x, y, z, R, G, B. The removed properties were not 
+actually present in the PLY file anyway; just their names were.
+
+-For frame_0000.ply, the x axis is different to what it is for the 8i point
+clouds: x is vertical along her body, not horizontal, so the x shifts are 
+in the vertical direction.
+
+-Can't plot Y PSNR of input point cloud against itself (i.e., against shift
+of 0), because the PSNR in this case is infinite.

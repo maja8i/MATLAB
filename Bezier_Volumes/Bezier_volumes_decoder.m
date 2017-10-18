@@ -44,7 +44,8 @@ FirstChildPtr = cell(b, 1);
 %cell at each level
 SpatialIndex = cell((b + 1), 1);
 %Initialize SpatialIndex at the root to [0, 0, 0]
-SpatialIndex{1} = [uint16(0), uint16(0), uint16(0)];
+%SpatialIndex{1} = [uint16(0), uint16(0), uint16(0)];
+SpatialIndex{1} = [uint32(0), uint32(0), uint32(0)];
 
 %Initialize a matrix to serve as the SpatialIndex starting point
 %(dictionary)
@@ -88,26 +89,31 @@ for lvl = 1:(max_lvl - 1)
                 %If we are currently at the root cell, we can obtain its
                 %children's spatial indices just by indexing into SI_dict
                 if lvl == 1
-                    SpatialIndex{lvl + 1}(1:ChildCount{1}, :) = uint16(SI_dict(ones_inds, :));
+                    %SpatialIndex{lvl + 1}(1:ChildCount{1}, :) = uint16(SI_dict(ones_inds, :));
+                    SpatialIndex{lvl + 1}(1:ChildCount{1}, :) = uint32(SI_dict(ones_inds, :));
                 else
                     %Find where the curent occupied cell's spatial index 
                     %contains non-zero values: these are the positions to
                     %which we will add offsets to obtain the children's 
                     %spatial indices, when necessary
-                    parent_SI_nonzero = uint16(find(SpatialIndex{lvl}(occ_cell, :) > 0));
+                    %parent_SI_nonzero = uint16(find(SpatialIndex{lvl}(occ_cell, :) > 0));
+                    parent_SI_nonzero = uint32(find(SpatialIndex{lvl}(occ_cell, :) > 0));
                     %If parent_SI_nonzero is empty (i.e., the current 
                     %occupied cell's spatial index is (0, 0, 0)), then the 
                     %spatial indices of this cell's children can be 
                     %obtained just by indexing into SI_dict
                     if isempty(parent_SI_nonzero)
-                        SpatialIndex{lvl + 1}(1:ChildCount{lvl}(occ_cell), :) = uint16(SI_dict(ones_inds, :));
+                        %SpatialIndex{lvl + 1}(1:ChildCount{lvl}(occ_cell), :) = uint16(SI_dict(ones_inds, :));
+                        SpatialIndex{lvl + 1}(1:ChildCount{lvl}(occ_cell), :) = uint32(SI_dict(ones_inds, :));
                     else
                         %Add an offset to corresponding locations in 
                         %SI_dict, in the columns determined by 
                         %parent_SI_nonzero
                         SI_dict_locations = SI_dict(ones_inds, :);
-                        SI_dict_locations(:, parent_SI_nonzero) = uint16(SI_dict_locations(:, parent_SI_nonzero)) + uint16(2*SpatialIndex{lvl}(occ_cell, parent_SI_nonzero));
-                        SpatialIndex{lvl + 1}(total_child_cntr:(total_child_cntr + ChildCount{lvl}(occ_cell) - 1), :) = uint16(SI_dict_locations);
+                        %SI_dict_locations(:, parent_SI_nonzero) = uint16(SI_dict_locations(:, parent_SI_nonzero)) + uint16(2*SpatialIndex{lvl}(occ_cell, parent_SI_nonzero));
+                        SI_dict_locations(:, parent_SI_nonzero) = uint32(SI_dict_locations(:, parent_SI_nonzero)) + uint32(2*SpatialIndex{lvl}(occ_cell, parent_SI_nonzero));
+                        %SpatialIndex{lvl + 1}(total_child_cntr:(total_child_cntr + ChildCount{lvl}(occ_cell) - 1), :) = uint16(SI_dict_locations);
+                        SpatialIndex{lvl + 1}(total_child_cntr:(total_child_cntr + ChildCount{lvl}(occ_cell) - 1), :) = uint32(SI_dict_locations);
                     end
                 end
             end %End occ_child  
@@ -146,26 +152,31 @@ for lvl = 1:(max_lvl - 1)
                 %its children's spatial indices just by indexing into
                 %SI_dict
                 if lvl == 1
-                    SpatialIndex{lvl + 1}(1:ChildCount{1}, :) = uint16(SI_dict(ones_inds, :));
+                    %SpatialIndex{lvl + 1}(1:ChildCount{1}, :) = uint16(SI_dict(ones_inds, :));
+                    SpatialIndex{lvl + 1}(1:ChildCount{1}, :) = uint32(SI_dict(ones_inds, :));
                 else
                     %Find where the curent occupied cell's spatial 
                     %index contains non-zero values: these are the 
                     %positions to which we will add offsets to obtain 
                     %the children's spatial indices, when necessary
-                    parent_SI_nonzero = uint16(find(SpatialIndex{lvl}(occ_cell, :) > 0));
+                    %parent_SI_nonzero = uint16(find(SpatialIndex{lvl}(occ_cell, :) > 0));
+                    parent_SI_nonzero = uint32(find(SpatialIndex{lvl}(occ_cell, :) > 0));
                     %If parent_SI_nonzero is empty (i.e., the current 
                     %occupied cell's spatial index is (0, 0, 0)), then
                     %the spatial indices of this cell's children can be 
                     %obtained just by indexing into SI_dict
                     if isempty(parent_SI_nonzero)
-                        SpatialIndex{lvl + 1}(1:ChildCount{lvl}(oc_code_cntr), :) = uint16(SI_dict(ones_inds, :));
+                        %SpatialIndex{lvl + 1}(1:ChildCount{lvl}(oc_code_cntr), :) = uint16(SI_dict(ones_inds, :));
+                        SpatialIndex{lvl + 1}(1:ChildCount{lvl}(oc_code_cntr), :) = uint32(SI_dict(ones_inds, :));
                     else
                         %Add an offset to corresponding locations in 
                         %SI_dict, in the columns determined by 
                         %parent_SI_nonzero
                         SI_dict_locations = SI_dict(ones_inds, :);
-                        SI_dict_locations(:, parent_SI_nonzero) = uint16(SI_dict_locations(:, parent_SI_nonzero)) + uint16(2*SpatialIndex{lvl}(occ_cell, parent_SI_nonzero));
-                        SpatialIndex{lvl + 1}(total_child_cntr:(total_child_cntr + ChildCount{lvl}(oc_code_cntr) - 1), :) = uint16(SI_dict_locations);
+                        %SI_dict_locations(:, parent_SI_nonzero) = uint16(SI_dict_locations(:, parent_SI_nonzero)) + uint16(2*SpatialIndex{lvl}(occ_cell, parent_SI_nonzero));
+                        SI_dict_locations(:, parent_SI_nonzero) = uint32(SI_dict_locations(:, parent_SI_nonzero)) + uint32(2*SpatialIndex{lvl}(occ_cell, parent_SI_nonzero));
+                        %SpatialIndex{lvl + 1}(total_child_cntr:(total_child_cntr + ChildCount{lvl}(oc_code_cntr) - 1), :) = uint16(SI_dict_locations);
+                        SpatialIndex{lvl + 1}(total_child_cntr:(total_child_cntr + ChildCount{lvl}(oc_code_cntr) - 1), :) = uint32(SI_dict_locations);
                     end
                 end
             end %End occ_child  
@@ -336,7 +347,7 @@ if prune_flag == 0
     disp(' ');
 
     %[reconstructed_vox_pos, reconstructed_vox_pos_corners, subcell_coords_all] = voxel_reconstruction_nopruning(SpatialIndex, corner_coords_decoder, reconstruction_decoder, ctrl_pts_pointers, b, max_lvl, ptcloud_file, ptcloud_name);
-    [reconstructed_vox_pos, ~, ~] = voxel_reconstruction_nopruning(SpatialIndex, corner_coords_decoder, reconstruction_decoder, ctrl_pts_pointers, b, max_lvl, ptcloud_file, ptcloud_name);
+    [reconstructed_vox_pos, ~, ~] = voxel_reconstruction_pruning(SpatialIndex, corner_coords_decoder, reconstruction_decoder, ctrl_pts_pointers, b, max_lvl, ptcloud_file, ptcloud_name);
 end
 
 %--------------- Voxel Reconstruction using Pruned Octree ----------------%
@@ -353,7 +364,7 @@ if prune_flag == 1
     disp(' ');
     
     %[reconstructed_vox_pos, reconstructed_vox_pos_corners, subcell_coords_all] = voxel_reconstruction_pruning(pp_first_nonempty, SpatialIndex, corner_coords_decoder, post_pruning_array, reconstruction_decoder, ctrl_pts_pointers, b, ptcloud_file, ptcloud_name);
-    [reconstructed_vox_pos, ~] = voxel_reconstruction_pruning(pp_first_nonempty, corner_coords_decoder, post_pruning_array, reconstruction_decoder, ctrl_pts_pointers, b, ptcloud_file, ptcloud_name);
+    [reconstructed_vox_pos, ~] = voxel_reconstruction_pruning(pp_first_nonempty, corner_coords_decoder, post_pruning_array, reconstruction_decoder, ctrl_pts_pointers, b, q_stepsize, ptcloud_file, ptcloud_name);
 end
 
 disp(' ');
