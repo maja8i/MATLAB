@@ -8,13 +8,15 @@
 %OccupancyCode = myOT.OccupancyCode; %Should be from start_lvl only
 %vis_levels_ot = 4; %No. of octree levels for which we want to visualize the octree cell subdivision
 
-function [reconstruction_decoder, reconstructed_vox_pos] = Bezier_volumes_decoder(occupancy_codes_forDec, rec_ctrlpts_forDec, wavelet_coeffs_forDec, start_lvl, max_lvl, q_stepsize, b, ptcloud_name, ptcloud_file, reconstructed_control_points, prune_flag, varargin)
+function [reconstruction_decoder, reconstructed_vox_pos] = Bezier_volumes_decoder(debug_flag, occupancy_codes_forDec, rec_ctrlpts_forDec, wavelet_coeffs_forDec, start_lvl, max_lvl, q_stepsize, b, ptcloud_name, ptcloud_file, reconstructed_control_points, prune_flag, varargin)
 
 disp(' ');
 disp('============================================================');
 disp('                   DECODER RUNNING ...');
 disp('============================================================');
 disp(' ');
+
+start_dec_time = tic;
 
 OccupancyCode = occupancy_codes_forDec;
 %post_pruning_array = post_pruning_array_forDec;
@@ -30,7 +32,7 @@ end
 disp('------------------- Octree Reconstruction ------------------');
 disp(' ');
 
-tic;
+start_OT_recon_time = tic;
 
 %Initialize a cell array to store the number of children for each occupied
 %octree cell at each level
@@ -70,7 +72,9 @@ end
 %For each octree level ...
 %for lvl = 1:b
 for lvl = 1:(max_lvl - 1)
-    disp(['Processing octree level ' num2str(lvl) ':']);
+    if debug_flag == 1
+        disp(['Processing octree level ' num2str(lvl) ':']);
+    end
     %Counter for all children of all occupied nodes at this level
     total_child_cntr = 1;
     if ((prune_flag == 1)&&(lvl < pp_first_nonempty))||(prune_flag == 0)
@@ -185,15 +189,19 @@ for lvl = 1:(max_lvl - 1)
     end %End check if lvl < pp_first_nonempty 
     %Make ChildCount{lvl} a column vector rather than a row vector
     ChildCount{lvl} = ChildCount{lvl}';
-    disp('Finished computing ChildCount for each occupied cell at this level, and SpatialIndex for each occupied child of each occupied cell');
+    if debug_flag == 1
+        disp('Finished computing ChildCount for each occupied cell at this level, and SpatialIndex for each occupied child of each occupied cell');
+    end
     %Compute the first child pointer for each occupied cell at the current
     %octree level
     lastChildPtr = cumsum(int32(ChildCount{lvl}));
     FirstChildPtr{lvl} = uint32(lastChildPtr - int32(ChildCount{lvl}) + 1);
-    disp('Finished computing lastChildPtr and FirstChildPtr for each occupied cell at this level');
-    disp('------------------------------------------------------------');
+    if debug_flag == 1
+        disp('Finished computing lastChildPtr and FirstChildPtr for each occupied cell at this level');
+        disp('------------------------------------------------------------');
+    end
 end %End lvl
-OT_recon_time = toc;
+OT_recon_time = toc(start_OT_recon_time);
 disp(' ');
 disp('************************************************************');
 disp(['Time taken for octree reconstruction: ' num2str(OT_recon_time) ' seconds']);
@@ -223,7 +231,7 @@ first_SI_empty = find(cellfun(@isempty, SpatialIndex), 1);
 
 %Figure out the corner coordinates for each corner of each occupied cell at
 %each octree level, starting from start_lvl
-tic;
+start_cornercoords_time = tic;
 %for lvl = start_lvl:(b + 1)
 %for lvl = start_lvl:max_lvl
 if isempty(first_SI_empty)
@@ -232,11 +240,11 @@ else
     end_lvl = first_SI_empty - 1;
 end
 for lvl = start_lvl:end_lvl
-    
-    disp(['Processing octree level ' num2str(lvl) ':']); 
-    
-    disp('Computing corner coordinates for each occupied cell ...');
-    disp('------------------------------------------------------------');
+    if debug_flag == 1
+        disp(['Processing octree level ' num2str(lvl) ':']); 
+        disp('Computing corner coordinates for each occupied cell ...');
+        disp('------------------------------------------------------------');
+    end
     
     %Find the (x, y, z) coordinates of the origin of each occupied octree
     %cell at the current level (origin is at the bottom left-hand corner 
@@ -274,7 +282,7 @@ for lvl = start_lvl:end_lvl
     %distance value) associated with it.
     [unique_coords_decoder{lvl}, ~, ctrl_pts_pointers{lvl}] = unique(corner_coords_decoder{lvl}, 'rows', 'stable');
 end
-cornercoords_time = toc;
+cornercoords_time = toc(start_cornercoords_time);
 disp(' ');
 disp('************************************************************');
 disp(['Time taken to compute all corner coordinates: ' num2str(cornercoords_time) ' seconds']);
@@ -287,9 +295,9 @@ disp('-------------- Control Point Reconstruction ----------------');
 disp(' ');
 
 if prune_flag == 0
-    reconstruction_decoder = reconstruct_control_points_decoder(rec_ctrlpts_forDec, wavelet_coeffs_forDec, SpatialIndex, FirstChildPtr, ChildCount, corner_coords_decoder, ctrl_pts_pointers, start_lvl, max_lvl, b, q_stepsize, prune_flag, reconstructed_control_points);
+    reconstruction_decoder = reconstruct_control_points_decoder(debug_flag, rec_ctrlpts_forDec, wavelet_coeffs_forDec, SpatialIndex, FirstChildPtr, ChildCount, corner_coords_decoder, ctrl_pts_pointers, start_lvl, max_lvl, b, q_stepsize, prune_flag, reconstructed_control_points);
 elseif prune_flag == 1
-    reconstruction_decoder = reconstruct_control_points_decoder(rec_ctrlpts_forDec, wavelet_coeffs_forDec, SpatialIndex, FirstChildPtr, ChildCount, corner_coords_decoder, ctrl_pts_pointers, start_lvl, max_lvl, b, q_stepsize, prune_flag, reconstructed_control_points, post_pruning_array, pp_first_nonempty);
+    reconstruction_decoder = reconstruct_control_points_decoder(debug_flag, rec_ctrlpts_forDec, wavelet_coeffs_forDec, SpatialIndex, FirstChildPtr, ChildCount, corner_coords_decoder, ctrl_pts_pointers, start_lvl, max_lvl, b, q_stepsize, prune_flag, reconstructed_control_points, post_pruning_array, pp_first_nonempty);
 end
 
 % %--------------- Reconstructed Bezier Volume Visualization ---------------%
@@ -347,7 +355,7 @@ if prune_flag == 0
     disp(' ');
 
     %[reconstructed_vox_pos, reconstructed_vox_pos_corners, subcell_coords_all] = voxel_reconstruction_nopruning(SpatialIndex, corner_coords_decoder, reconstruction_decoder, ctrl_pts_pointers, b, max_lvl, ptcloud_file, ptcloud_name);
-    [reconstructed_vox_pos, ~, ~] = voxel_reconstruction_pruning(SpatialIndex, corner_coords_decoder, reconstruction_decoder, ctrl_pts_pointers, b, max_lvl, ptcloud_file, ptcloud_name);
+    [reconstructed_vox_pos, ~, ~] = voxel_reconstruction_nopruning(SpatialIndex, corner_coords_decoder, reconstruction_decoder, ctrl_pts_pointers, b, max_lvl, ptcloud_file, ptcloud_name);
 end
 
 %--------------- Voxel Reconstruction using Pruned Octree ----------------%
@@ -364,11 +372,119 @@ if prune_flag == 1
     disp(' ');
     
     %[reconstructed_vox_pos, reconstructed_vox_pos_corners, subcell_coords_all] = voxel_reconstruction_pruning(pp_first_nonempty, SpatialIndex, corner_coords_decoder, post_pruning_array, reconstruction_decoder, ctrl_pts_pointers, b, ptcloud_file, ptcloud_name);
-    [reconstructed_vox_pos, ~] = voxel_reconstruction_pruning(pp_first_nonempty, corner_coords_decoder, post_pruning_array, reconstruction_decoder, ctrl_pts_pointers, b, q_stepsize, ptcloud_file, ptcloud_name);
+    [reconstructed_vox_pos, ~] = voxel_reconstruction_pruning(debug_flag, pp_first_nonempty, corner_coords_decoder, post_pruning_array, reconstruction_decoder, ctrl_pts_pointers, b, q_stepsize);
 end
+
+total_decoder_time = toc(start_dec_time);
+
+disp(' ');
+disp('----------- Displaying Reconstruction Results --------------');
+disp(' ');
+
+%Plot the reconstructed voxels
+figure;
+%NOTE: Below, we are only reading in the original PLY file in order to get 
+%the corresponding colours assigned to each reconstructed voxel (this will
+%only work when the same number of voxels is reconstructed as in the 
+%original point cloud, and these voxels are in the same order as the 
+%original voxels, which will be done below)
+[~, ptcloud, ~] = plyRead(ptcloud_file);
+if size(reconstructed_vox_pos, 1) == size(ptcloud, 1)
+    %Order the reconstructed voxels according to their Morton codes, so
+    %that they are in the same order as the input point cloud at the
+    %encoder
+    if debug_flag == 1
+        disp('Reordering reconstructed voxels according to Morton codes ...');
+    end
+    %Get Morton codes for the reconstructed voxel x, y, z coordinates
+    mortonCodes = xyzToMorton(reconstructed_vox_pos, b);   %"b" bits for each Morton code
+    if debug_flag == 1
+        disp('Morton codes computed');
+    end
+    %Sort the Morton codes obtained above, in ascending order
+    [~, I_vox] = sort(mortonCodes);
+    if debug_flag == 1
+        disp('Morton codes sorted');
+    end
+    %Sort the voxel x, y, z locations in the same order as the sorted 
+    %Morton codes
+    reconstructed_vox_pos = reconstructed_vox_pos(I_vox, 1:3);
+    if debug_flag == 1
+        disp('Reconstructed voxels sorted');
+        disp('------------------------------------------------------------');
+    end
+    %Plot the reconstructed point cloud with the original colours
+    %assigned to each reconstructed voxel
+    scatter3(reconstructed_vox_pos(:, 1), reconstructed_vox_pos(:, 2), reconstructed_vox_pos(:, 3), 5, [ptcloud(:, 7)./255, ptcloud(:, 8)./255, ptcloud(:, 9)./255], 'filled');
+else
+    %Plot the reconstructed point cloud using a default colour for 
+    %all the voxels, since the reconstruction does not contain the same 
+    %number of voxels as the original point cloud 
+    scatter3(reconstructed_vox_pos(:, 1), reconstructed_vox_pos(:, 2), reconstructed_vox_pos(:, 3), 5, 'filled');
+end
+axis equal; axis off;
+title({'Voxel Reconstruction after using Pruned Octree', 'and Pruned Wavelet Coefficient Tree'});
+%Save the above reconstruction as a MATLAB figure and as a PDF image in
+%our network directory (NB: The '-bestfit' option maximizes the size of 
+%the figure to fill the page, but preserves the aspect ratio of the 
+%figure. The figure might not fill the entire page. This option leaves 
+%a minimum page margin of .25 inches).
+savefig(['\\Pandora\builds\test\Data\Compression\PLY\Codec_Results\' ptcloud_name '\voxelized' num2str(b) '\BezierVolume\vox_recon_post_pruning']);
+print('-bestfit', ['\\Pandora\builds\test\Data\Compression\PLY\Codec_Results\' ptcloud_name '\voxelized' num2str(b) '\BezierVolume\vox_recon_post_pruning'], '-dpdf');
+disp('Saving reconstructed voxels figure ...');
+disp('------------------------------------------------------------');
+
+%For debugging purposes, check if there are any voxels in the original 
+%voxelized point cloud that have NOT been reconstructed (i.e., are not 
+%present in reconstructed_vox_pos), and if so, plot them
+test_vox_diffs = setdiff(ptcloud(:, 1:3), reconstructed_vox_pos, 'rows');
+disp(['Total number of original voxels NOT present in the reconstruction: ' num2str(size(test_vox_diffs, 1)) '/' num2str(size(ptcloud, 1)) ' (' num2str((size(test_vox_diffs, 1)/size(ptcloud, 1))*100) '%)']);  
+if ~isempty(test_vox_diffs)
+    figure;
+    scatter3(test_vox_diffs(:, 1), test_vox_diffs(:, 2), test_vox_diffs(:, 3), 5, 'filled', 'MarkerFaceColor', 'm');
+    axis equal; axis off;
+    title({'Original Voxels that were NOT Reconstructed', ['at Decoder (' num2str(size(test_vox_diffs, 1)) '/' num2str(size(ptcloud, 1)) ' = ' num2str((size(test_vox_diffs, 1)/size(ptcloud, 1))*100) '%)']});
+    savefig(['\\Pandora\builds\test\Data\Compression\PLY\Codec_Results\' ptcloud_name '\voxelized' num2str(b) '\BezierVolume\missing_voxels_post_pruning']);
+    print('-bestfit', ['\\Pandora\builds\test\Data\Compression\PLY\Codec_Results\' ptcloud_name '\voxelized' num2str(b) '\BezierVolume\missing_voxels_post_pruning'], '-dpdf');
+    disp('Saving missing voxels figure ...');
+    disp('------------------------------------------------------------');
+end
+%Overlay the missing voxels over the reconstructed voxels, to see where
+%the gaps are
+if ~isempty(test_vox_diffs)
+    figure;
+    scatter3(reconstructed_vox_pos(:, 1), reconstructed_vox_pos(:, 2), reconstructed_vox_pos(:, 3), 5, 'filled', 'MarkerFaceColor', 'b');
+    hold on;
+    scatter3(test_vox_diffs(:, 1), test_vox_diffs(:, 2), test_vox_diffs(:, 3), 5, 'filled', 'MarkerFaceColor', 'm');
+    axis equal; axis off;
+    title('Reconstructed and Not-Reconstructed Voxels at Decoder');
+    legend('Reconstructed', 'Not Reconstructed', 'Location', 'best');
+    savefig(['\\Pandora\builds\test\Data\Compression\PLY\Codec_Results\' ptcloud_name '\voxelized' num2str(b) '\BezierVolume\reconstructed_vs_notreconstructed_voxels_post_pruning']);
+    print('-bestfit', ['\\Pandora\builds\test\Data\Compression\PLY\Codec_Results\' ptcloud_name '\voxelized' num2str(b) '\BezierVolume\reconstructed_vs_notreconstructed_voxels_post_pruning'], '-dpdf');
+    disp('Saving reconstructed vs not-reconstructed voxels figure ...');
+    disp('------------------------------------------------------------');
+end
+%For debugging purposes, also check if any voxels are present in 
+%reconstructed_vox_pos that were NOT present in the original voxelized 
+%point cloud, and if so then plot these
+test_vox_diffs2 = setdiff(reconstructed_vox_pos, ptcloud(:, 1:3), 'rows');
+disp(['Total number of reconstructed voxels NOT present in the original point cloud: ' num2str(size(test_vox_diffs2, 1))]);
+if ~isempty(test_vox_diffs2)
+    figure;
+    scatter3(test_vox_diffs2(:, 1), test_vox_diffs2(:, 2), test_vox_diffs2(:, 3), 5, 'filled', 'MarkerFaceColor', 'r');
+    axis equal; axis off;
+    title(['Reconstructed Voxels that were NOT in Input Point Cloud: ' num2str(size(test_vox_diffs2, 1))]);
+    savefig(['\\Pandora\builds\test\Data\Compression\PLY\Codec_Results\' ptcloud_name '\voxelized' num2str(b) '\BezierVolume\incorrect_voxels_post_pruning']);
+    print('-bestfit', ['\\Pandora\builds\test\Data\Compression\PLY\Codec_Results\' ptcloud_name '\voxelized' num2str(b) '\BezierVolume\incorrect_voxels_post_pruning'], '-dpdf');
+    disp('Saving surplus/incorrect voxels figure ...');
+    disp('------------------------------------------------------------');
+end   
 
 disp(' ');
 disp('------------------- DECODER FINISHED -----------------------');
+disp(' ');
+
+disp(['TOTAL DECODER TIME (excluding displaying of results): ' num2str(total_decoder_time) ' seconds']);
 disp(' ');
 
 

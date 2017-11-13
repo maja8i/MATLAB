@@ -1,4 +1,4 @@
-function [wavelet_coeffs, reconstructed_control_points] = wavelet_analysis(myOT, corner_coords, control_points, ctrl_pts_pointers, start_lvl, max_lvl, b, q_stepsize)
+function [wavelet_coeffs, reconstructed_control_points] = wavelet_analysis(debug_flag, myOT, corner_coords, control_points, ctrl_pts_pointers, start_lvl, max_lvl, b, q_stepsize)
 
 %Initialize a cell array to store the transform (wavelet) coefficients for
 %all the unique corner vertices (1 coefficient per vertex) across all 
@@ -9,6 +9,9 @@ wavelet_coeffs = cell((b + 1), 1);  %These will be quantized coefficients
 %of each octree cell at every level from start_lvl to one level before the
 %leaves
 reconstructed_control_points = cell(size(control_points, 1), 1);
+
+start_wcfs_time = tic;
+
 %Quantize and dequantize (reconstruct) all the control points at octree 
 %level start_lvl. The dequantized values will be used for wavelet analysis
 %and control point reconstruction, below, but the quantized values will be
@@ -18,10 +21,12 @@ reconstructed_control_points{start_lvl} = dequantize_uniform_scalar(quantized_cp
     
 %For each octree level, starting from start_lvl ...
 for lvl = start_lvl:(max_lvl - 1) 
-    disp(['Computing wavelet coefficients between octree levels ' num2str(lvl) ' and ' num2str(lvl + 1) ' ...']);
-    disp('------------------------------------------------------------');
     %profile on
-    tic;
+    if debug_flag == 1
+        disp(['Computing wavelet coefficients between octree levels ' num2str(lvl) ' and ' num2str(lvl + 1) ' ...']);
+        disp('------------------------------------------------------------');
+        start_wcfs_time_lvl = tic;
+    end
     %Initialize a counter for the corner coordinates of the occupied cells 
     %at this level 
     parent_cnr_coords_cntr = 1;
@@ -169,10 +174,17 @@ for lvl = start_lvl:(max_lvl - 1)
     wavelet_coeffs{lvl + 1} = wavelet_coeffs{lvl + 1}(unique_ctrl_pts_pointers_inds);
     reconstructed_control_points{lvl + 1} = reconstructed_control_points{lvl + 1}(unique_ctrl_pts_pointers_inds);
     
-    wcfs_time = toc;
-    disp(['Time taken to compute wavelet coefficients and reconstructed control points for level ' num2str(lvl + 1) ': ' num2str(wcfs_time) ' seconds']);
-    disp('------------------------------------------------------------');
+    if debug_flag == 1
+        wcfs_time_lvl = toc(start_wcfs_time_lvl);
+        disp(['Time taken to compute wavelet coefficients and reconstructed control points for level ' num2str(lvl + 1) ': ' num2str(wcfs_time_lvl) ' seconds']);
+        disp('------------------------------------------------------------');
+    end
     %profile viewer
 end %End lvl
+wcfs_time = toc(start_wcfs_time);
+disp(' ');
+disp('************************************************************');
+disp(['Time taken to compute all wavelet coefficients and reconstructed control points: ' num2str(wcfs_time) ' seconds']);
+disp('************************************************************');
 
 %profile off

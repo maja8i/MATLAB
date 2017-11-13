@@ -11,13 +11,18 @@
 % vis_levels_ot = 5; %No. of octree levels for which we want to visualize the octree cell subdivision
 % vis_levels_ctrlpts = 2; %No. of octree levels for which we want to visualize the control point computation
 
-function [occupancy_codes_forDec, rec_ctrlpts_forDec, wavelet_coeffs_forDec, total_geom_bits, total_geom_bpv, reconstructed_control_points, varargout] = Bezier_volumes_encoder(ptcloud_file, b, start_lvl, max_lvl, q_stepsize, ptcloud_name, prune_flag, varargin)
+function [occupancy_codes_forDec, rec_ctrlpts_forDec, wavelet_coeffs_forDec, total_geom_bits, total_geom_bpv, reconstructed_control_points, varargout] = Bezier_volumes_encoder(debug_flag, ptcloud_file, b, start_lvl, max_lvl, q_stepsize, ptcloud_name, prune_flag, varargin)
 
 disp(' ');
 disp('============================================================');
 disp('                   ENCODER RUNNING ...');
 disp('============================================================');
 disp(' ');
+
+%Read in the input point cloud (assume PLY format)
+[~, ptcloud, ~] = plyRead(ptcloud_file);
+
+start_enc_time = tic;
 
 if ~isempty(varargin)
     %Threshold for pruning wavelet coefficients
@@ -30,7 +35,7 @@ disp('-------------------- Octree Construction -------------------');
 disp(' ');
 
 %Construct an octree of depth (b + 1), for the input point cloud
-[myOT, mortonCodes_sorted, xyz_sorted, normals_sorted, centroids_sorted] = construct_octree(ptcloud_file, b, ptcloud_name);
+[myOT, mortonCodes_sorted, xyz_sorted, normals_sorted, centroids_sorted] = construct_octree(debug_flag, ptcloud_file, b, ptcloud_name);
 %[myOT, mortonCodes_sorted, xyz_sorted, normals_sorted] = construct_octree(ptcloud_file, b);
 
 disp(' ');
@@ -51,19 +56,18 @@ unique_coords = cell((b + 1), 1);
 %containining 8 elements each.  
 ctrl_pts_pointers = cell((b + 1), 1);
 
+start_cornercoords_time = tic;
 %For each octree level ...
-tic;
 %for lvl = 1:(b + 1) 
 for lvl = 1:max_lvl 
-
-    disp(['Processing octree level ' num2str(lvl) ':']); 
-    
-    disp('Computing corner coordinates for each occupied cell ...');
-    disp('------------------------------------------------------------');
+    if debug_flag == 1
+        disp(['Processing octree level ' num2str(lvl) ':']); 
+        disp('Computing corner coordinates for each occupied cell ...');
+        disp('------------------------------------------------------------');
+    end
     
     %Find the (x, y, z) coordinates of the origin of each occupied octree
-    %cell at the current level (origin is at the bottom left-hand corner 
-    %farthest from the viewer)
+    %cell at the current level
     corners1 = double(myOT.SpatialIndex{lvl})*(2^(b + 1 - lvl)) - [0.5 0.5 0.5];
     %Replicate each row of corners1 7 times, so that we can directly add
     %this matrix to offsets_from_origin_rep (below)
@@ -75,8 +79,10 @@ for lvl = 1:max_lvl
     offsets_from_origin_rep = repmat(offsets_from_origin, size(corners1, 1), 1);
     corners2_8 = corners1_rep + offsets_from_origin_rep;
     
-    %Store all the corner coordinates for the current cell in their
-    %corresponding locations inside corner_coords
+    %Store all the corner coordinates for the current level in their
+    %corresponding locations inside corner_coords (want all 8 corner
+    %coordinates for one octree cell to be listed one after the other, in
+    %an 8 x 3 matrix inside corner_coords{lvl})
     corner_coords{lvl} = zeros((myOT.NodeCount(lvl)*8), 3);
     corner_coords{lvl}(1:8:(myOT.NodeCount(lvl)*8 - 7), :) = corners1;   
     corners2_8_cntr = 1;
@@ -96,7 +102,7 @@ for lvl = 1:max_lvl
     %Bezier control point (signed distance value) associated with it.
     [unique_coords{lvl}, ~, ctrl_pts_pointers{lvl}] = unique(corner_coords{lvl}, 'rows', 'stable');
 end %end "lvl"
-cornercoords_time = toc;
+cornercoords_time = toc(start_cornercoords_time);
 disp(' ');
 disp('************************************************************');
 disp(['Time taken to compute all corner coordinates: ' num2str(cornercoords_time) ' seconds']);
@@ -206,112 +212,114 @@ disp(' ');
 
 %Extract the set of occupied voxel coordinates (x, y, z) at all levels of
 %the octree myOT 
-[~, occupied_voxel_coords, occupied_voxel_normals, occupied_voxel_normal_averages, occupied_voxel_centroids, occupied_voxel_centroid_averages] = extract_occupied_voxels(myOT, mortonCodes_sorted, xyz_sorted, normals_sorted, centroids_sorted);
+[~, occupied_voxel_coords, occupied_voxel_normals, occupied_voxel_normal_averages, occupied_voxel_centroids, occupied_voxel_centroid_averages] = extract_occupied_voxels(debug_flag, myOT, mortonCodes_sorted, xyz_sorted, normals_sorted, centroids_sorted);
 %[~, occupied_voxel_coords, occupied_voxel_normals] = extract_occupied_voxels(myOT, mortonCodes_sorted, xyz_sorted, normals_sorted);
 
 disp(' ');
 disp('------------ Computing Bezier Control Points ---------------');
 disp(' ');
 
-[control_points, nearest_voxels, normal_nearest_vox, min_euclid_dist, difference_vectors, dot_products, thresh] = compute_control_points(myOT, corner_coords, unique_coords, ctrl_pts_pointers, occupied_voxel_coords, occupied_voxel_normals, occupied_voxel_centroids, occupied_voxel_normal_averages, occupied_voxel_centroid_averages, b, max_lvl);
+[control_points, nearest_voxels, normal_nearest_vox, min_euclid_dist, difference_vectors, dot_products, thresh] = compute_control_points(debug_flag, myOT, corner_coords, unique_coords, ctrl_pts_pointers, occupied_voxel_coords, occupied_voxel_normals, occupied_voxel_centroids, occupied_voxel_normal_averages, occupied_voxel_centroid_averages, b, max_lvl);
 %[control_points, ~, ~, ~, ~, ~, thresh] = compute_control_points(myOT, corner_coords, unique_coords, ctrl_pts_pointers, occupied_voxel_coords, occupied_voxel_normals, occupied_voxel_centroids, occupied_voxel_normal_averages, occupied_voxel_centroid_averages, b, max_lvl);
 
-% %For debugging purposes, check how many of the control points (out of the
-% %control points for the UNIQUE occupied cell corners only) at each octree 
-% %level, if any, are 0
-% for lvl = start_lvl:1:max_lvl
-%     zero_ctrlpt_cnt = length(find(control_points{lvl} == 0));
-%     disp(['No. of 0 control points at level ' num2str(lvl) ', before quantization: ' num2str(zero_ctrlpt_cnt) '/' num2str(length(control_points{lvl}))]);
-% end 
-% disp(' ');
-
-%For debugging purposes, print out how many occupied octree cells at each
-%octree level, if any, end up having all 8 of their control points with the
-%same sign (+/-/0) ...
-[~, ptcloud, ~] = plyRead(ptcloud_file);
-%Accumulate the control points for ALL the occupied octree cell corners at
-%each level (not just the control points for the unique corners) into one 
-%cell array
-all_ctrlpts = get_all_ctrlpts(control_points, ctrl_pts_pointers, start_lvl, max_lvl); 
-same_sign_voxels = [];
-cells = [];
-disp(' ');
-for lvl = start_lvl:max_lvl
-    same_sign_cntr = 0;
-    cell_cntr = 0;
-    zero_cp_cntr = 0;
-    for i = 1:8:(length(all_ctrlpts{lvl}) - 7) 
-        cell_cntr = cell_cntr + 1;
-        %Get all 8 control points for the corners of the current cell
-        current_ctrlpts = all_ctrlpts{lvl}(i:(i + 7));
-        %Check if all control points of the current cell have the same
-        %sign, including the case where all the control points may be 0
-        if (abs(sum(sign(current_ctrlpts))) == 8)||(~any(sign(current_ctrlpts)))
-            same_sign_cntr = same_sign_cntr + 1;
-            %disp(['Cell ' num2str(cell_cntr) ' has all control points with the same sign: ']);
-            if ~any(sign(current_ctrlpts))
-                zero_cp_cntr = zero_cp_cntr + 1;
-            end
-            if lvl == b + 1
-                %Store this voxel, for debugging purposes
-                same_sign_voxels((size(same_sign_voxels, 1) + 1), 1:3) = ptcloud(cell_cntr, 1:3);
-            end
-%             %Display the control points for all corners of this cell
-%             disp(num2str(current_ctrlpts));
-%             disp(' ');
-%             %Get the corner coordinates for each corner of this cell
-%             cell_corners = corner_coords{lvl}((i:(i + lvl - 1)), 1:3);
-%             disp('Cell corner coordinates:');
-%             disp(num2str(cell_corners));
-%             disp(' ');
-    %         %Get the coordinates (either midpoint or centroid, whichever one of
-    %         %these happened to be used in the control point computation) of the
-    %         %nearest voxel found for each corner of the current voxel
-    %         curr_nearest_vox = nearest_voxels{max_lvl}(ctrl_pts_pointers{max_lvl}(i:(i + max_lvl - 1)), 1:3);
-    %         disp('Nearest voxel found for each corner of the current voxel: ');
-    %         disp(num2str(curr_nearest_vox));
-    %         disp(' ');
-    %         %Get the normal vector for the current voxel, from the input
-    %         %voxelized point cloud
-    %         disp('Voxel normal:');
-    %         disp(normals_sorted(vox, :));
-    %         %Get the normal vector for each nearest voxel found above
-    %         curr_normal_vec = normal_nearest_vox{max_lvl}(ctrl_pts_pointers{max_lvl}(i:(i + max_lvl - 1)), 1:3);
-    %         disp('Nearest voxel normal for each corner: ');
-    %         disp(num2str(curr_normal_vec));
-    %         disp(' ');
-    %         %Get the difference vector for each of the 8 corners of this voxel
-    %         %(difference vector between each corner and the chosen voxel)
-    %         vox_diff_vecs = difference_vectors{max_lvl}(ctrl_pts_pointers{max_lvl}(i:(i + max_lvl - 1)), 1:3);
-    %         disp('Voxel corner difference vectors:');
-    %         disp(num2str(vox_diff_vecs));
-    %         disp(' ');
-    %         %Get the dot product between the difference vector of each corner
-    %         %of this voxel and the normal vector of the chosen nearest voxel
-    %         %(the chosen voxel may not be the current voxel itself, as
-    %         %neighbouring voxels are the same distance away)
-    %         vox_dp = dot_products{max_lvl}(ctrl_pts_pointers{max_lvl}(i:(i + max_lvl - 1)));
-    %         disp('Voxel corner dot products:');
-    %         disp(num2str(vox_dp));
-    %         disp(' ');
-        end
-    end %End i
-    disp(['TOTAL number of cells with all control points having the same sign, at level ' num2str(lvl) ', before quantization: ' num2str(same_sign_cntr) '/' num2str(length(all_ctrlpts{lvl})/8) ' (' num2str((same_sign_cntr/(length(all_ctrlpts{lvl})/8))*100) '%)']);
-    disp(['No. of cells with all 0 control points at level ' num2str(lvl) ': ' num2str(zero_cp_cntr)]);
+if debug_flag == 1
     disp(' ');
-    if (lvl == b + 1) && (same_sign_cntr > 0)
-        %Plot voxels that have the same control point signs
-        figure;
-        %Original, input voxels
-        scatter3(ptcloud(:, 1), ptcloud(:, 2), ptcloud(:, 3), 5, 'filled', 'MarkerFaceColor', 'b');
-        hold on;
-        %Voxels with same-sign control points
-        scatter3(same_sign_voxels(:, 1), same_sign_voxels(:, 2), same_sign_voxels(:, 3), 5, 'filled', 'MarkerFaceColor', 'm');
-        axis equal; axis off;
-        title({'Voxels with Same-Sign Control Points at Encoder', 'Before Quantization'});
-        legend('Original Voxels', 'Voxels with Same-Sign Control Points (BQ)', 'Location', 'best');
-    end
-end %End lvl
+    %For debugging purposes, check how many of the control points (out of 
+    %the control points for the UNIQUE occupied cell corners only) at each 
+    %octree level, if any, are 0
+    for lvl = start_lvl:1:max_lvl
+        zero_ctrlpt_cnt = length(find(control_points{lvl} == 0));
+        disp(['No. of 0 control points at level ' num2str(lvl) ', before quantization: ' num2str(zero_ctrlpt_cnt) '/' num2str(length(control_points{lvl}))]);
+    end 
+    disp(' ');
+
+    %For debugging purposes, print out how many occupied octree cells at 
+    %each octree level, if any, end up having all 8 of their control points 
+    %with the same sign (+/-/0) ...
+    %[~, ptcloud, ~] = plyRead(ptcloud_file);
+    %Accumulate the control points for ALL the occupied octree cell corners 
+    %at each level (not just the control points for the unique corners) 
+    %into one cell array
+    all_ctrlpts = get_all_ctrlpts(control_points, ctrl_pts_pointers, start_lvl, max_lvl); 
+    same_sign_voxels = [];
+%     cells = [];
+    for lvl = start_lvl:max_lvl
+        same_sign_cntr = 0;
+        cell_cntr = 0;
+        zero_cp_cntr = 0;
+        for i = 1:8:(length(all_ctrlpts{lvl}) - 7) 
+            cell_cntr = cell_cntr + 1;
+            %Get all 8 control points for the corners of the current cell
+            current_ctrlpts = all_ctrlpts{lvl}(i:(i + 7));
+            %Check if all control points of the current cell have the same
+            %sign, including the case where all the control points may be 0
+            if (abs(sum(sign(current_ctrlpts))) == 8)||(~any(sign(current_ctrlpts)))
+                same_sign_cntr = same_sign_cntr + 1;
+                %disp(['Cell ' num2str(cell_cntr) ' has all control points with the same sign: ']);
+                if ~any(sign(current_ctrlpts))
+                    zero_cp_cntr = zero_cp_cntr + 1;
+                end
+                if lvl == b + 1
+                    %Store this voxel, for debugging purposes
+                    same_sign_voxels((size(same_sign_voxels, 1) + 1), 1:3) = ptcloud(cell_cntr, 1:3);
+                end
+    %             %Display the control points for all corners of this cell
+    %             disp(num2str(current_ctrlpts));
+    %             disp(' ');
+    %             %Get the corner coordinates for each corner of this cell
+    %             cell_corners = corner_coords{lvl}((i:(i + lvl - 1)), 1:3);
+    %             disp('Cell corner coordinates:');
+    %             disp(num2str(cell_corners));
+    %             disp(' ');
+        %         %Get the coordinates (either midpoint or centroid, whichever one of
+        %         %these happened to be used in the control point computation) of the
+        %         %nearest voxel found for each corner of the current voxel
+        %         curr_nearest_vox = nearest_voxels{max_lvl}(ctrl_pts_pointers{max_lvl}(i:(i + max_lvl - 1)), 1:3);
+        %         disp('Nearest voxel found for each corner of the current voxel: ');
+        %         disp(num2str(curr_nearest_vox));
+        %         disp(' ');
+        %         %Get the normal vector for the current voxel, from the input
+        %         %voxelized point cloud
+        %         disp('Voxel normal:');
+        %         disp(normals_sorted(vox, :));
+        %         %Get the normal vector for each nearest voxel found above
+        %         curr_normal_vec = normal_nearest_vox{max_lvl}(ctrl_pts_pointers{max_lvl}(i:(i + max_lvl - 1)), 1:3);
+        %         disp('Nearest voxel normal for each corner: ');
+        %         disp(num2str(curr_normal_vec));
+        %         disp(' ');
+        %         %Get the difference vector for each of the 8 corners of this voxel
+        %         %(difference vector between each corner and the chosen voxel)
+        %         vox_diff_vecs = difference_vectors{max_lvl}(ctrl_pts_pointers{max_lvl}(i:(i + max_lvl - 1)), 1:3);
+        %         disp('Voxel corner difference vectors:');
+        %         disp(num2str(vox_diff_vecs));
+        %         disp(' ');
+        %         %Get the dot product between the difference vector of each corner
+        %         %of this voxel and the normal vector of the chosen nearest voxel
+        %         %(the chosen voxel may not be the current voxel itself, as
+        %         %neighbouring voxels are the same distance away)
+        %         vox_dp = dot_products{max_lvl}(ctrl_pts_pointers{max_lvl}(i:(i + max_lvl - 1)));
+        %         disp('Voxel corner dot products:');
+        %         disp(num2str(vox_dp));
+        %         disp(' ');
+            end
+        end %End i
+        disp(['TOTAL number of octree cells with all control points having the same sign, at level ' num2str(lvl) ', before quantization: ' num2str(same_sign_cntr) '/' num2str(length(all_ctrlpts{lvl})/8) ' (' num2str((same_sign_cntr/(length(all_ctrlpts{lvl})/8))*100) '%)']);
+        disp(['No. of cells with all 0 control points at level ' num2str(lvl) ': ' num2str(zero_cp_cntr)]);
+        disp(' ');
+        if (lvl == b + 1) && (same_sign_cntr > 0)
+            %Plot voxels that have the same control point signs
+            figure;
+            %Original, input voxels
+            scatter3(ptcloud(:, 1), ptcloud(:, 2), ptcloud(:, 3), 5, 'filled', 'MarkerFaceColor', 'b');
+            hold on;
+            %Voxels with same-sign control points
+            scatter3(same_sign_voxels(:, 1), same_sign_voxels(:, 2), same_sign_voxels(:, 3), 5, 'filled', 'MarkerFaceColor', 'm');
+            axis equal; axis off;
+            title({'Voxels with Same-Sign Control Points at Encoder', 'Before Quantization'});
+            legend('Original Voxels', 'Voxels with Same-Sign Control Points (BQ)', 'Location', 'best');
+        end
+    end %End lvl
+end
 
 % %------------- Visualization of Control Point Computation ----------------%
 % 
@@ -492,105 +500,111 @@ disp(' ');
 disp('----------------- Wavelet Decomposition --------------------');
 disp(' ');
 
-[wavelet_coeffs, reconstructed_control_points] = wavelet_analysis(myOT, corner_coords, control_points, ctrl_pts_pointers, start_lvl, max_lvl, b, q_stepsize);
+[wavelet_coeffs, reconstructed_control_points] = wavelet_analysis(debug_flag, myOT, corner_coords, control_points, ctrl_pts_pointers, start_lvl, max_lvl, b, q_stepsize);
 %[wavelet_coeffs, reconstructed_control_points] = wavelet_analysis_loop(myOT, corner_coords, control_points, ctrl_pts_pointers, start_lvl, max_lvl, b, q_stepsize, ptcloud_file);
 
-% %For debugging purposes, check how many of the RECONSTRUCTED control points 
-% %(out of the reconstructed control points for the UNIQUE occupied cell 
-% %corners only) at each octree level, if any, are 0
-% for lvl = start_lvl:1:max_lvl
-%     zero_ctrlpt_cnt = length(find(reconstructed_control_points{lvl} == 0));
-%     disp(['No. of 0 control points at level ' num2str(lvl) ', after quantization and reconstruction: ' num2str(zero_ctrlpt_cnt) '/' num2str(length(reconstructed_control_points{lvl}))]);
-% end 
-% disp(' ');
-
-%For debugging purposes, print out how many occupied octree cells at each
-%octree level, if any, end up having all 8 of their RECONSTRUCTED control
-%points (i.e., after quantization of control points at start_lvl and adding
-%back quantized wavelet coefficients) with the same sign (+/-/0) ...
-
-%Accumulate the reconstructed control points for ALL the occupied octree 
-%cell corners at each level (not just the control points for the unique 
-%corners) into one cell array
-all_ctrlpts = get_all_ctrlpts(reconstructed_control_points, ctrl_pts_pointers, start_lvl, max_lvl); 
-same_sign_voxels = [];
-disp(' ');
-for lvl = start_lvl:max_lvl
-    same_sign_cntr = 0;
-    cell_cntr = 0;
-    zero_cp_cntr = 0;
-    for i = 1:8:(length(all_ctrlpts{lvl}) - 7) 
-        cell_cntr = cell_cntr + 1;
-        %Get all 8 control points for the corners of the current cell
-        current_ctrlpts = all_ctrlpts{lvl}(i:(i + 7));
-        %Check if all control points of the current cell have the same sign
-        %sign, including the case where all the control points may be 0
-        if (abs(sum(sign(current_ctrlpts))) == 8)||(~any(sign(current_ctrlpts)))
-            same_sign_cntr = same_sign_cntr + 1;
-            %disp(['Cell ' num2str(cell_cntr) ' has all control points with the same sign: ']);
-            if ~any(sign(current_ctrlpts))
-                zero_cp_cntr = zero_cp_cntr + 1;
-            end
-            if lvl == b + 1
-                %Store this voxel, for debugging purposes
-                same_sign_voxels((size(same_sign_voxels, 1) + 1), 1:3) = ptcloud(cell_cntr, 1:3);
-            end
-            %Display the control points for all corners of this cell
-            %disp(num2str(current_ctrlpts));
-            %disp(' ');
-            %Get the corner coordinates for each corner of this cell
-            %cell_corners = corner_coords{lvl}((i:(i + lvl - 1)), 1:3);
-            %disp('Cell corner coordinates:');
-            %disp(num2str(cell_corners));
-            %disp(' ');
-        end
-    end %End i
-    disp(['TOTAL number of cells with all control points having the same sign, at level ' num2str(lvl) ', after quantization and reconstruction: ' num2str(same_sign_cntr) '/' num2str(length(all_ctrlpts{lvl})/8) ' (' num2str((same_sign_cntr/(length(all_ctrlpts{lvl})/8))*100) '%)']);
-    disp(['No. of cells with all 0 control points at level ' num2str(lvl) ': ' num2str(zero_cp_cntr)]);
+if debug_flag == 1
     disp(' ');
-    if (lvl == b + 1) && (same_sign_cntr > 0)
-        %Plot voxels that have the same control point signs
-        figure;
-        %Original, input voxels
-        scatter3(ptcloud(:, 1), ptcloud(:, 2), ptcloud(:, 3), 5, 'filled', 'MarkerFaceColor', 'b');
-        hold on;
-        %Voxels with same-sign control points
-        scatter3(same_sign_voxels(:, 1), same_sign_voxels(:, 2), same_sign_voxels(:, 3), 5, 'filled', 'MarkerFaceColor', 'm');
-        axis equal; axis off;
-        title({'Voxels with Same-Sign Control Points at Encoder', 'After Quantization and Reconstruction'});
-        legend('Original Voxels', 'Voxels with Same-Sign Control Points (AQ)', 'Location', 'best');
-    end
-end %End lvl
+    %For debugging purposes, check how many of the RECONSTRUCTED control 
+    %points (out of the reconstructed control points for the UNIQUE 
+    %occupied cell corners only) at each octree level, if any, are 0
+    for lvl = start_lvl:1:max_lvl
+        zero_ctrlpt_cnt = length(find(reconstructed_control_points{lvl} == 0));
+        disp(['No. of 0 control points at level ' num2str(lvl) ', after quantization and reconstruction: ' num2str(zero_ctrlpt_cnt) '/' num2str(length(reconstructed_control_points{lvl}))]);
+    end 
+    disp(' ');
+
+    %For debugging purposes, print out how many occupied octree cells at 
+    %each octree level, if any, end up having all 8 of their RECONSTRUCTED 
+    %control points (i.e., after quantization of control points at 
+    %start_lvl and adding back quantized wavelet coefficients) with the 
+    %same sign (+/-/0) ...
+
+    %Accumulate the reconstructed control points for ALL the occupied 
+    %octree cell corners at each level (not just the control points for the
+    %unique corners) into one cell array
+    all_ctrlpts = get_all_ctrlpts(reconstructed_control_points, ctrl_pts_pointers, start_lvl, max_lvl); 
+    same_sign_voxels = [];
+    disp(' ');
+    for lvl = start_lvl:max_lvl
+        same_sign_cntr = 0;
+        cell_cntr = 0;
+        zero_cp_cntr = 0;
+        for i = 1:8:(length(all_ctrlpts{lvl}) - 7) 
+            cell_cntr = cell_cntr + 1;
+            %Get all 8 control points for the corners of the current cell
+            current_ctrlpts = all_ctrlpts{lvl}(i:(i + 7));
+            %Check if all control points of the current cell have the same 
+            %sign, including the case where all the control points may be 0
+            if (abs(sum(sign(current_ctrlpts))) == 8)||(~any(sign(current_ctrlpts)))
+                same_sign_cntr = same_sign_cntr + 1;
+                %disp(['Cell ' num2str(cell_cntr) ' has all control points with the same sign: ']);
+                if ~any(sign(current_ctrlpts))
+                    zero_cp_cntr = zero_cp_cntr + 1;
+                end
+                if lvl == b + 1
+                    %Store this voxel, for debugging purposes
+                    same_sign_voxels((size(same_sign_voxels, 1) + 1), 1:3) = ptcloud(cell_cntr, 1:3);
+                end
+                %Display the control points for all corners of this cell
+                %disp(num2str(current_ctrlpts));
+                %disp(' ');
+                %Get the corner coordinates for each corner of this cell
+                %cell_corners = corner_coords{lvl}((i:(i + lvl - 1)), 1:3);
+                %disp('Cell corner coordinates:');
+                %disp(num2str(cell_corners));
+                %disp(' ');
+            end
+        end %End i
+        disp(['TOTAL number of octree cells with all control points having the same sign, at level ' num2str(lvl) ', after quantization and reconstruction: ' num2str(same_sign_cntr) '/' num2str(length(all_ctrlpts{lvl})/8) ' (' num2str((same_sign_cntr/(length(all_ctrlpts{lvl})/8))*100) '%)']);
+        disp(['No. of cells with all 0 control points at level ' num2str(lvl) ': ' num2str(zero_cp_cntr)]);
+        disp(' ');
+        if (lvl == b + 1) && (same_sign_cntr > 0)
+            %Plot voxels that have the same control point signs
+            figure;
+            %Original, input voxels
+            scatter3(ptcloud(:, 1), ptcloud(:, 2), ptcloud(:, 3), 5, 'filled', 'MarkerFaceColor', 'b');
+            hold on;
+            %Voxels with same-sign control points
+            scatter3(same_sign_voxels(:, 1), same_sign_voxels(:, 2), same_sign_voxels(:, 3), 5, 'filled', 'MarkerFaceColor', 'm');
+            axis equal; axis off;
+            title({'Voxels with Same-Sign Control Points at Encoder', 'After Quantization and Reconstruction'});
+            legend('Original Voxels', 'Voxels with Same-Sign Control Points (AQ)', 'Location', 'best');
+        end
+    end %End lvl
+end
 
 %----------------------------- Distributions -----------------------------%
 
-%Plot the distribution of reconstructed control points (low-pass
-%coefficients) at different octree levels
-for lvl = start_lvl:max_lvl
-    figure;
-    histogram(reconstructed_control_points{lvl});
-    title(['Histogram of (Encoder-Reconstructed) Control Points at Octree Level ' num2str(lvl)]);
-    %Save the above histogram as a MATLAB figure and as a PDF image in our
-    %network directory (NB: The '-bestfit' option maximizes the size of the 
-    %figure to fill the page, but preserves the aspect ratio of the figure. 
-    %The figure might not fill the entire page. This option leaves a 
-    %minimum page margin of .25 inches).
-    savefig(['\\Pandora\builds\test\Data\Compression\PLY\Codec_Results\' ptcloud_name '\voxelized' num2str(b) '\BezierVolume\histogram_ctrlpts_lvl' num2str(lvl)]);
-    print('-bestfit', ['\\Pandora\builds\test\Data\Compression\PLY\Codec_Results\' ptcloud_name '\voxelized' num2str(b) '\BezierVolume\histogram_ctrlpts_lvl' num2str(lvl)], '-dpdf');
-end
-%Plot the distribution of quantized wavelet coefficients at different
-%octree levels
-for lvl = start_lvl:(max_lvl - 1)
-    figure;
-    histogram(wavelet_coeffs{lvl + 1});
-    title(['Histogram of Quantized Wavelet Coefficients between Octree Levels ' num2str(lvl) ' and ' num2str(lvl + 1)]);
-    %Save the above histogram as a MATLAB figure and as a PDF image in our
-    %network directory (NB: The '-bestfit' option maximizes the size of the 
-    %figure to fill the page, but preserves the aspect ratio of the figure. 
-    %The figure might not fill the entire page. This option leaves a 
-    %minimum page margin of .25 inches).
-    savefig(['\\Pandora\builds\test\Data\Compression\PLY\Codec_Results\' ptcloud_name '\voxelized' num2str(b) '\BezierVolume\histogram_wavcfs_lvls' num2str(lvl) '-' num2str(lvl + 1)]);
-    print('-bestfit', ['\\Pandora\builds\test\Data\Compression\PLY\Codec_Results\' ptcloud_name '\voxelized' num2str(b) '\BezierVolume\histogram_wavcfs_lvls' num2str(lvl) '-' num2str(lvl + 1)], '-dpdf');
+if debug_flag == 1
+    %Plot the distribution of reconstructed control points (low-pass
+    %coefficients) at different octree levels
+    for lvl = start_lvl:max_lvl
+        figure;
+        histogram(reconstructed_control_points{lvl});
+        title(['Histogram of (Encoder-Reconstructed) Control Points at Octree Level ' num2str(lvl)]);
+        %Save the above histogram as a MATLAB figure and as a PDF image in 
+        %our network directory (NB: The '-bestfit' option maximizes the 
+        %size of the figure to fill the page, but preserves the aspect 
+        %ratio of the figure. The figure might not fill the entire page. 
+        %This option leaves a minimum page margin of .25 inches).
+        savefig(['\\Pandora\builds\test\Data\Compression\PLY\Codec_Results\' ptcloud_name '\voxelized' num2str(b) '\BezierVolume\histogram_ctrlpts_lvl' num2str(lvl)]);
+        print('-bestfit', ['\\Pandora\builds\test\Data\Compression\PLY\Codec_Results\' ptcloud_name '\voxelized' num2str(b) '\BezierVolume\histogram_ctrlpts_lvl' num2str(lvl)], '-dpdf');
+    end
+    %Plot the distribution of quantized wavelet coefficients at different
+    %octree levels
+    for lvl = start_lvl:(max_lvl - 1)
+        figure;
+        histogram(wavelet_coeffs{lvl + 1});
+        title(['Histogram of Quantized Wavelet Coefficients between Octree Levels ' num2str(lvl) ' and ' num2str(lvl + 1)]);
+        %Save the above histogram as a MATLAB figure and as a PDF image in 
+        %our network directory (NB: The '-bestfit' option maximizes the 
+        %size of the figure to fill the page, but preserves the aspect 
+        %ratio of the figure. The figure might not fill the entire page. 
+        %This option leaves a minimum page margin of .25 inches).
+        savefig(['\\Pandora\builds\test\Data\Compression\PLY\Codec_Results\' ptcloud_name '\voxelized' num2str(b) '\BezierVolume\histogram_wavcfs_lvls' num2str(lvl) '-' num2str(lvl + 1)]);
+        print('-bestfit', ['\\Pandora\builds\test\Data\Compression\PLY\Codec_Results\' ptcloud_name '\voxelized' num2str(b) '\BezierVolume\histogram_wavcfs_lvls' num2str(lvl) '-' num2str(lvl + 1)], '-dpdf');
+    end
 end
 
 %---------------- Checking for Zero Wavelet Coefficients -----------------%
@@ -614,7 +628,9 @@ all_zero_wav_cfs = cell(size(wavelet_coeffs));
 %At each octree level, check which occupied octree cells (if any) have zero
 %wavelet coefficients on all of their corners
 for lvl = (start_lvl + 1):max_lvl
-    disp(['Processing octree level ' num2str(lvl) ' ...']);
+    if debug_flag == 1
+        disp(['Processing octree level ' num2str(lvl) ' ...']);
+    end
     %Counter for number of occupied cells at this level, which contain all
     %zero wavelet coefficients
     zw_cntr = 1;
@@ -637,8 +653,10 @@ for lvl = (start_lvl + 1):max_lvl
             zw_cntr = zw_cntr + 1;
         end
     end
-    disp(['TOTAL no. of occupied cells with all zero wavelet coefficients at this level: ' num2str(length(all_zero_wav_cfs{lvl}))]);
-    disp('------------------------------------------------------------');
+    if debug_flag == 1
+        disp(['TOTAL no. of occupied octree cells with all zero wavelet coefficients at this level: ' num2str(length(all_zero_wav_cfs{lvl}))]);
+        disp('------------------------------------------------------------');
+    end
 end
 
 % %---------- Visualization of Zero Wavelet Coefficient Locations ----------%
@@ -743,45 +761,45 @@ if prune_flag == 1
     disp('-------------------- Pruning Octree ------------------------');
     disp(' ');
 
-    [pruned_occupancy_codes, post_pruning_array, toprune, toprune2] = prune_octree(myOT, all_zero_wav_cfs, start_lvl, max_lvl, b, reconstructed_control_points, ctrl_pts_pointers);
+    [pruned_occupancy_codes, post_pruning_array, toprune, toprune2] = prune_octree(debug_flag, myOT, all_zero_wav_cfs, start_lvl, max_lvl, b, reconstructed_control_points, ctrl_pts_pointers);
 
     disp(' ');
     disp('------------ Pruning Wavelet Coefficient Tree --------------');
     disp(' ');
 
-    pruned_wavelet_coeffs = prune_wavelet_coeff_tree(wavelet_coeffs, toprune, toprune2, ctrl_pts_pointers, myOT, start_lvl, max_lvl, b);
+    pruned_wavelet_coeffs = prune_wavelet_coeff_tree(debug_flag, wavelet_coeffs, toprune, toprune2, ctrl_pts_pointers, myOT, start_lvl, max_lvl, b);
 end
 
-%The below is for debugging only: prune the reconstructed control points to
-%match the control points that will be reconstructed at the decoder, to
-%make sure that they are exactly the same
-pruned_reconstructed_control_points = cell(size(reconstructed_control_points));
-for i = start_lvl:(max_lvl - 1)
-    if isempty(toprune2{i})
-        %The below will represent only the control points for the UNIQUE
-        %corners
-        pruned_reconstructed_control_points{i} = reconstructed_control_points{i};
-    else
-        first_inds = toprune2{i}.*8 - 7;
-        last_inds = toprune2{i}.*8;
-        all_inds = [];
-        for j = 1:length(first_inds)
-            all_inds((end + 1):(end + 8), 1) = first_inds(j):last_inds(j);
-        end
-        pruned_reconstructed_control_points{i} = reconstructed_control_points{i}(ctrl_pts_pointers{i});
-        %The below will represent ALL the control points at each level
-        %after pruning (except the voxel level), not just the unique corner
-        %control points. NOTE that this differs from the control points
-        %stored in pruned_reconstructed_control_points at levels where
-        %toprune2 is empty, above, which are stored only for the unique
-        %corners. To compare the below with control points reconstructed
-        %at the decoder, expand the decoder-reconstructed control points by
-        %using ctrl_pts_pointers, to get the control points for ALL corners
-        %at the corresponding octree level.
-        pruned_reconstructed_control_points{i}(all_inds) = [];
-    end
-end
-save('pruned_reconstructed_control_points', 'pruned_reconstructed_control_points');
+% %The below is for debugging only: prune the reconstructed control points to
+% %match the control points that will be reconstructed at the decoder, to
+% %make sure that they are exactly the same
+% pruned_reconstructed_control_points = cell(size(reconstructed_control_points));
+% for i = start_lvl:(max_lvl - 1)
+%     if isempty(toprune2{i})
+%         %The below will represent only the control points for the UNIQUE
+%         %corners
+%         pruned_reconstructed_control_points{i} = reconstructed_control_points{i};
+%     else
+%         first_inds = toprune2{i}.*8 - 7;
+%         last_inds = toprune2{i}.*8;
+%         all_inds = [];
+%         for j = 1:length(first_inds)
+%             all_inds((end + 1):(end + 8), 1) = first_inds(j):last_inds(j);
+%         end
+%         pruned_reconstructed_control_points{i} = reconstructed_control_points{i}(ctrl_pts_pointers{i});
+%         %The below will represent ALL the control points at each level
+%         %after pruning (except the voxel level), not just the unique corner
+%         %control points. NOTE that this differs from the control points
+%         %stored in pruned_reconstructed_control_points at levels where
+%         %toprune2 is empty, above, which are stored only for the unique
+%         %corners. To compare the below with control points reconstructed
+%         %at the decoder, expand the decoder-reconstructed control points by
+%         %using ctrl_pts_pointers, to get the control points for ALL corners
+%         %at the corresponding octree level.
+%         pruned_reconstructed_control_points{i}(all_inds) = [];
+%     end
+% end
+% save('pruned_reconstructed_control_points', 'pruned_reconstructed_control_points');
  
 %------------------------------- Encoding --------------------------------%
 
@@ -789,9 +807,7 @@ disp(' ');
 disp('--------------- Encoding for Transmission ------------------');
 disp(' ');
 
-%Read in the input point cloud (assume PLY format), in order to get the
-%total number of input voxels
-[~, ptcloud, ~] = plyRead(ptcloud_file);
+start_compute_bitrates_time = tic;
 
 %---- Occupancy Codes ----
 
@@ -812,17 +828,19 @@ for l = 1:(max_lvl - 1)
     occ_codes_array(oc_cntr:(oc_cntr + numel(occupancy_codes_forDec{l}) - 1)) = occupancy_codes_forDec{l};
     oc_cntr = oc_cntr + numel(occupancy_codes_forDec{l});
 end
-%Plot a histogram of the occupancy codes inside occ_codes_array
-figure;
-histogram(occ_codes_array);
-title(['Histogram of Octree Occupancy Codes from Level 1-' num2str(max_lvl - 1)]);
-%Save the above histogram as a MATLAB figure and as a PDF image in our
-%network directory (NB: The '-bestfit' option maximizes the size of the 
-%figure to fill the page, but preserves the aspect ratio of the figure. 
-%The figure might not fill the entire page. This option leaves a 
-%minimum page margin of .25 inches).
-savefig(['\\Pandora\builds\test\Data\Compression\PLY\Codec_Results\' ptcloud_name '\voxelized' num2str(b) '\BezierVolume\transmitted_histogram_occ_codes_lvl1-' num2str(max_lvl - 1)]);
-print('-bestfit', ['\\Pandora\builds\test\Data\Compression\PLY\Codec_Results\' ptcloud_name '\voxelized' num2str(b) '\BezierVolume\transmitted_histogram_occ_codes_lvl1-' num2str(max_lvl - 1)], '-dpdf');
+if debug_flag == 1
+    %Plot a histogram of the occupancy codes inside occ_codes_array
+    figure;
+    histogram(occ_codes_array);
+    title(['Histogram of Octree Occupancy Codes from Level 1-' num2str(max_lvl - 1)]);
+    %Save the above histogram as a MATLAB figure and as a PDF image in our
+    %network directory (NB: The '-bestfit' option maximizes the size of the 
+    %figure to fill the page, but preserves the aspect ratio of the figure. 
+    %The figure might not fill the entire page. This option leaves a 
+    %minimum page margin of .25 inches).
+    savefig(['\\Pandora\builds\test\Data\Compression\PLY\Codec_Results\' ptcloud_name '\voxelized' num2str(b) '\BezierVolume\transmitted_histogram_occ_codes_lvl1-' num2str(max_lvl - 1)]);
+    print('-bestfit', ['\\Pandora\builds\test\Data\Compression\PLY\Codec_Results\' ptcloud_name '\voxelized' num2str(b) '\BezierVolume\transmitted_histogram_occ_codes_lvl1-' num2str(max_lvl - 1)], '-dpdf');
+end
 %Compute the number of bits required for these occupancy codes
 bits_occ_codes_persymbol = entropy_calc(occ_codes_array);    %Avg. minimum no. of bits per symbol
 bits_occ_codes = bits_occ_codes_persymbol*length(occ_codes_array);    %Total no. of bits for all symbols
@@ -830,34 +848,36 @@ disp(['Total entropy bits for occupancy codes: ' num2str(bits_occ_codes) ' (' nu
 disp(['Occupancy codes bpv (bits per input voxel): ' num2str(bits_occ_codes/size(ptcloud, 1))]);
 disp(' ');
 
-%Do the below for comparison only, of the number of bits required for
-%unpruned vs pruned occupancy codes
-if prune_flag == 1
-    %Get the unpruned occupancy codes that would be transmitted to the 
-    %decoder
-    occupancy_codes_wout_pruning = cell(b, 1);
-    for i = 1:(max_lvl - 1)
-        occupancy_codes_wout_pruning{i} = myOT.OccupancyCode{i};
+if debug_flag == 1
+    %Do the below for comparison only, of the number of bits required for
+    %unpruned vs pruned occupancy codes
+    if prune_flag == 1
+        %Get the unpruned occupancy codes that would be transmitted to the 
+        %decoder
+        occupancy_codes_wout_pruning = cell(b, 1);
+        for i = 1:(max_lvl - 1)
+            occupancy_codes_wout_pruning{i} = myOT.OccupancyCode{i};
+        end
+        %Concatenate all of the occupancy codes (decimal values) at all
+        %octree levels from the root to (max_lvl - 1), into one long array
+        oc_cntr_wout_pruning = 1;
+        occ_codes_wout_pruning = [];
+        for l = 1:(max_lvl - 1)
+            occ_codes_wout_pruning(oc_cntr_wout_pruning:(oc_cntr_wout_pruning + numel(occupancy_codes_wout_pruning{l}) - 1)) = occupancy_codes_wout_pruning{l};
+            oc_cntr_wout_pruning = oc_cntr_wout_pruning + numel(occupancy_codes_wout_pruning{l});
+        end
+        %Compute the number of bits that would be required for the unpruned
+        %occupancy codes
+        disp('******** FOR COMPARISON ONLY ********');
+        disp(' ');
+        bits_unpruned_occ_codes_persymbol = entropy_calc(occ_codes_wout_pruning);    %Avg. minimum no. of bits per symbol
+        bits_unpruned_occ_codes = bits_unpruned_occ_codes_persymbol*length(occ_codes_wout_pruning);    %Total no. of bits for all symbols
+        disp(['Total entropy bits for UNpruned occupancy codes: ' num2str(bits_unpruned_occ_codes) ' (' num2str(bits_unpruned_occ_codes_persymbol) ' bits per symbol)']);
+        disp(['UNpruned occupancy codes bpv (bits per input voxel): ' num2str(bits_unpruned_occ_codes/size(ptcloud, 1))]);
+        disp(' ');
+        disp('*************************************');
+        disp(' ');
     end
-    %Concatenate all of the occupancy codes (decimal values) at all octree 
-    %levels from the root to (max_lvl - 1), into one long array
-    oc_cntr_wout_pruning = 1;
-    occ_codes_wout_pruning = [];
-    for l = 1:(max_lvl - 1)
-        occ_codes_wout_pruning(oc_cntr_wout_pruning:(oc_cntr_wout_pruning + numel(occupancy_codes_wout_pruning{l}) - 1)) = occupancy_codes_wout_pruning{l};
-        oc_cntr_wout_pruning = oc_cntr_wout_pruning + numel(occupancy_codes_wout_pruning{l});
-    end
-    %Compute the number of bits that would be required for the unpruned
-    %occupancy codes
-    disp('******** FOR COMPARISON ONLY ********');
-    disp(' ');
-    bits_unpruned_occ_codes_persymbol = entropy_calc(occ_codes_wout_pruning);    %Avg. minimum no. of bits per symbol
-    bits_unpruned_occ_codes = bits_unpruned_occ_codes_persymbol*length(occ_codes_wout_pruning);    %Total no. of bits for all symbols
-    disp(['Total entropy bits for unpruned occupancy codes: ' num2str(bits_unpruned_occ_codes) ' (' num2str(bits_unpruned_occ_codes_persymbol) ' bits per symbol)']);
-    disp(['Unpruned occupancy codes bpv (bits per input voxel): ' num2str(bits_unpruned_occ_codes/size(ptcloud, 1))]);
-    disp(' ');
-    disp('*************************************');
-    disp(' ');
 end
 
 %---- Post-Pruning Array (only if pruning has been done) ----
@@ -890,17 +910,19 @@ if prune_flag == 1
             pp_cntr = pp_cntr + numel(post_pruning_array_forDec{l});
         end
     end
-    %Plot a histogram of the bits inside pp_array
-    figure;
-    histogram(pp_array);
-    title({'Histogram of Bits Indicating Leaf/Non-Leaf Octree Cell', ['from Level 1-' num2str(max_lvl - 1)]});
-    %Save the above histogram as a MATLAB figure and as a PDF image in our
-    %network directory (NB: The '-bestfit' option maximizes the size of the 
-    %figure to fill the page, but preserves the aspect ratio of the figure. 
-    %The figure might not fill the entire page. This option leaves a 
-    %minimum page margin of .25 inches).
-    savefig(['\\Pandora\builds\test\Data\Compression\PLY\Codec_Results\' ptcloud_name '\voxelized' num2str(b) '\BezierVolume\transmitted_histogram_pp_bits_lvl1-' num2str(max_lvl - 1)]);
-    print('-bestfit', ['\\Pandora\builds\test\Data\Compression\PLY\Codec_Results\' ptcloud_name '\voxelized' num2str(b) '\BezierVolume\transmitted_histogram_pp_bits_lvl1-' num2str(max_lvl - 1)], '-dpdf');
+    if debug_flag == 1
+        %Plot a histogram of the bits inside pp_array
+        figure;
+        histogram(pp_array);
+        title({'Histogram of Bits Indicating Leaf/Non-Leaf Octree Cell', ['from Level 1-' num2str(max_lvl - 1)]});
+        %Save the above histogram as a MATLAB figure and as a PDF image in 
+        %our network directory (NB: The '-bestfit' option maximizes the 
+        %size of the figure to fill the page, but preserves the aspect 
+        %ratio of the figure. The figure might not fill the entire page. 
+        %This option leaves a minimum page margin of .25 inches).
+        savefig(['\\Pandora\builds\test\Data\Compression\PLY\Codec_Results\' ptcloud_name '\voxelized' num2str(b) '\BezierVolume\transmitted_histogram_pp_bits_lvl1-' num2str(max_lvl - 1)]);
+        print('-bestfit', ['\\Pandora\builds\test\Data\Compression\PLY\Codec_Results\' ptcloud_name '\voxelized' num2str(b) '\BezierVolume\transmitted_histogram_pp_bits_lvl1-' num2str(max_lvl - 1)], '-dpdf');
+    end
     %Compute the number of bits required for pp_array
     bits_pp_array_persymbol = entropy_calc(pp_array);    %Avg. minimum no. of bits per symbol
     bits_pp_array = bits_pp_array_persymbol*length(pp_array);    %Total no. of bits for all symbols
@@ -920,17 +942,20 @@ end %End check if prune_flag == 1
 %to the decoder
 %rec_ctrlpts_forDec = reconstructed_control_points{start_lvl};
 rec_ctrlpts_forDec = quantize_uniform_scalar(control_points{start_lvl}, q_stepsize);
-%Plot a histogram of the quantized control points inside rec_ctrlpts_forDec
-figure;
-histogram(rec_ctrlpts_forDec);
-title(['Histogram of Quantized Control Points at Level ' num2str(start_lvl)]);
-%Save the above histogram as a MATLAB figure and as a PDF image in our
-%network directory (NB: The '-bestfit' option maximizes the size of the 
-%figure to fill the page, but preserves the aspect ratio of the figure. 
-%The figure might not fill the entire page. This option leaves a 
-%minimum page margin of .25 inches).
-savefig(['\\Pandora\builds\test\Data\Compression\PLY\Codec_Results\' ptcloud_name '\voxelized' num2str(b) '\BezierVolume\transmitted_histogram_quant_ctrlpts_lvl' num2str(start_lvl)]);
-print('-bestfit', ['\\Pandora\builds\test\Data\Compression\PLY\Codec_Results\' ptcloud_name '\voxelized' num2str(b) '\BezierVolume\transmitted_histogram_quant_ctrlpts_lvl' num2str(start_lvl)], '-dpdf');
+if debug_flag == 1
+    %Plot a histogram of the quantized control points inside 
+    %rec_ctrlpts_forDec
+    figure;
+    histogram(rec_ctrlpts_forDec);
+    title(['Histogram of Quantized Control Points at Level ' num2str(start_lvl)]);
+    %Save the above histogram as a MATLAB figure and as a PDF image in our
+    %network directory (NB: The '-bestfit' option maximizes the size of the 
+    %figure to fill the page, but preserves the aspect ratio of the figure. 
+    %The figure might not fill the entire page. This option leaves a 
+    %minimum page margin of .25 inches).
+    savefig(['\\Pandora\builds\test\Data\Compression\PLY\Codec_Results\' ptcloud_name '\voxelized' num2str(b) '\BezierVolume\transmitted_histogram_quant_ctrlpts_lvl' num2str(start_lvl)]);
+    print('-bestfit', ['\\Pandora\builds\test\Data\Compression\PLY\Codec_Results\' ptcloud_name '\voxelized' num2str(b) '\BezierVolume\transmitted_histogram_quant_ctrlpts_lvl' num2str(start_lvl)], '-dpdf');
+end
 %Compute the number of bits required for these control points
 bits_ctrlpts_persymbol = entropy_calc(rec_ctrlpts_forDec);  %Avg. minimum no. of bits per symbol
 bits_ctrlpts = bits_ctrlpts_persymbol*length(rec_ctrlpts_forDec);    %Total no. of bits for all symbols
@@ -958,18 +983,20 @@ for l = (start_lvl + 1):max_lvl
     wavelet_cfs_array(wcf_cntr:(wcf_cntr + numel(wavelet_coeffs_forDec{l}) - 1)) = wavelet_coeffs_forDec{l};
     wcf_cntr = wcf_cntr + numel(wavelet_coeffs_forDec{l});
 end
-%Plot a histogram of the quantized wavelet coefficients inside 
-%wavelet_cfs_array
-figure;
-histogram(wavelet_cfs_array);
-title(['Histogram of Quantized Wavelet Coefficients from Level ' num2str((start_lvl + 1)) '-' num2str(max_lvl)]);
-%Save the above histogram as a MATLAB figure and as a PDF image in our
-%network directory (NB: The '-bestfit' option maximizes the size of the 
-%figure to fill the page, but preserves the aspect ratio of the figure. 
-%The figure might not fill the entire page. This option leaves a 
-%minimum page margin of .25 inches).
-savefig(['\\Pandora\builds\test\Data\Compression\PLY\Codec_Results\' ptcloud_name '\voxelized' num2str(b) '\BezierVolume\transmitted_histogram_quant_wavcfs_lvl' num2str(start_lvl + 1) '-' num2str(max_lvl)]);
-print('-bestfit', ['\\Pandora\builds\test\Data\Compression\PLY\Codec_Results\' ptcloud_name '\voxelized' num2str(b) '\BezierVolume\transmitted_histogram_quant_wavcfs_lvl' num2str(start_lvl + 1) '-' num2str(max_lvl)], '-dpdf');
+if debug_flag == 1
+    %Plot a histogram of the quantized wavelet coefficients inside 
+    %wavelet_cfs_array
+    figure;
+    histogram(wavelet_cfs_array);
+    title(['Histogram of Quantized Wavelet Coefficients from Level ' num2str((start_lvl + 1)) '-' num2str(max_lvl)]);
+    %Save the above histogram as a MATLAB figure and as a PDF image in our
+    %network directory (NB: The '-bestfit' option maximizes the size of the 
+    %figure to fill the page, but preserves the aspect ratio of the figure. 
+    %The figure might not fill the entire page. This option leaves a 
+    %minimum page margin of .25 inches).
+    savefig(['\\Pandora\builds\test\Data\Compression\PLY\Codec_Results\' ptcloud_name '\voxelized' num2str(b) '\BezierVolume\transmitted_histogram_quant_wavcfs_lvl' num2str(start_lvl + 1) '-' num2str(max_lvl)]);
+    print('-bestfit', ['\\Pandora\builds\test\Data\Compression\PLY\Codec_Results\' ptcloud_name '\voxelized' num2str(b) '\BezierVolume\transmitted_histogram_quant_wavcfs_lvl' num2str(start_lvl + 1) '-' num2str(max_lvl)], '-dpdf');
+end
 %Compute the number of bits required for these wavelet coefficients
 bits_wavelet_cfs_persymbol = entropy_calc(wavelet_cfs_array);  %Avg. minimum no. of bits per symbol
 bits_wavelet_cfs = bits_wavelet_cfs_persymbol*length(wavelet_cfs_array);    %Total no. of bits for all symbols
@@ -977,34 +1004,36 @@ disp(['Total entropy bits for wavelet coefficients: ' num2str(bits_wavelet_cfs) 
 disp(['Wavelet coefficients bpv (bits per input voxel): ' num2str(bits_wavelet_cfs/size(ptcloud, 1))]);
 disp(' ');
 
-%Do the below for comparison only, of the number of bits required for
-%unpruned vs pruned wavelet coefficients
-if prune_flag == 1
-    %Get the unpruned quantized wavelet coefficients that would be 
-    %transmitted to the decoder
-    wavelet_coeffs_wout_pruning = cell(b, 1);
-    for j = (start_lvl + 1):max_lvl
-        wavelet_coeffs_wout_pruning{j} = wavelet_coeffs{j};
+if debug_flag == 1
+    %Do the below for comparison only, of the number of bits required for
+    %unpruned vs pruned wavelet coefficients
+    if prune_flag == 1
+        %Get the unpruned quantized wavelet coefficients that would be 
+        %transmitted to the decoder
+        wavelet_coeffs_wout_pruning = cell(b, 1);
+        for j = (start_lvl + 1):max_lvl
+            wavelet_coeffs_wout_pruning{j} = wavelet_coeffs{j};
+        end
+        %Concatenate all of the wavelet coefficients at all octree levels
+        %from (start_lvl + 1) to max_lvl, into one long array
+        wcf_cntr_wout_pruning = 1;
+        wcf_array_wout_pruning = [];
+        for l = (start_lvl + 1):max_lvl
+            wcf_array_wout_pruning(wcf_cntr_wout_pruning:(wcf_cntr_wout_pruning + numel(wavelet_coeffs_wout_pruning{l}) - 1)) = wavelet_coeffs_wout_pruning{l};
+            wcf_cntr_wout_pruning = wcf_cntr_wout_pruning + numel(wavelet_coeffs_wout_pruning{l});
+        end
+        %For comparison only, compute the number of bits that would be 
+        %required for the unpruned wavelet coefficients
+        disp('******** FOR COMPARISON ONLY ********');
+        disp(' ');
+        bits_unpruned_wcf_persymbol = entropy_calc(wcf_array_wout_pruning);    %Avg. minimum no. of bits per symbol
+        bits_unpruned_wcf = bits_unpruned_wcf_persymbol*length(wcf_array_wout_pruning);    %Total no. of bits for all symbols
+        disp(['Total entropy bits for UNpruned wavelet coefficients: ' num2str(bits_unpruned_wcf) ' (' num2str(bits_unpruned_wcf_persymbol) ' bits per symbol)']);
+        disp(['UNpruned wavelet coefficients bpv (bits per input voxel): ' num2str(bits_unpruned_wcf/size(ptcloud, 1))]);
+        disp(' ');
+        disp('*************************************');
+        disp(' ');
     end
-    %Concatenate all of the wavelet coefficients at all octree levels from 
-    %(start_lvl + 1) to max_lvl, into one long array
-    wcf_cntr_wout_pruning = 1;
-    wcf_array_wout_pruning = [];
-    for l = (start_lvl + 1):max_lvl
-        wcf_array_wout_pruning(wcf_cntr_wout_pruning:(wcf_cntr_wout_pruning + numel(wavelet_coeffs_wout_pruning{l}) - 1)) = wavelet_coeffs_wout_pruning{l};
-        wcf_cntr_wout_pruning = wcf_cntr_wout_pruning + numel(wavelet_coeffs_wout_pruning{l});
-    end
-    %For comparison only, compute the number of bits that would be required 
-    %for the unpruned wavelet coefficients
-    disp('******** FOR COMPARISON ONLY ********');
-    disp(' ');
-    bits_unpruned_wcf_persymbol = entropy_calc(wcf_array_wout_pruning);    %Avg. minimum no. of bits per symbol
-    bits_unpruned_wcf = bits_unpruned_wcf_persymbol*length(wcf_array_wout_pruning);    %Total no. of bits for all symbols
-    disp(['Total entropy bits for unpruned wavelet coefficients: ' num2str(bits_unpruned_wcf) ' (' num2str(bits_unpruned_wcf_persymbol) ' bits per symbol)']);
-    disp(['Unpruned wavelet coefficients bpv (bits per input voxel): ' num2str(bits_unpruned_wcf/size(ptcloud, 1))]);
-    disp(' ');
-    disp('*************************************');
-    disp(' ');
 end
 
 %---- TOTALS (Geometry) ----
@@ -1018,8 +1047,20 @@ end
 total_geom_bpv = total_geom_bits/size(ptcloud, 1);
 disp(['TOTAL bits: ' num2str(total_geom_bits)]);
 disp(['TOTAL bpv: ' num2str(total_geom_bpv)]);
+
+compute_bitrates_time = toc(start_compute_bitrates_time);
+disp(' ');
+disp('************************************************************');
+disp(['Time taken to compute all bitrates for transmission: ' num2str(compute_bitrates_time) ' seconds']);
+disp('************************************************************');
+
+total_encoder_time = toc(start_enc_time);
+
 disp(' ');
 disp('------------------- ENCODER FINISHED -----------------------');
+disp(' ');
+
+disp(['TOTAL ENCODER TIME: ' num2str(total_encoder_time) ' seconds']);
 disp(' ');
 
 % %For debugging only: check which, if any, of the voxels that were not

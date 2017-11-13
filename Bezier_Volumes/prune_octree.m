@@ -1,4 +1,4 @@
-function [pruned_occupancy_codes, post_pruning_array, toprune, toprune2] = prune_octree(myOT, all_zero_wav_cfs, start_lvl, max_lvl, b, reconstructed_control_points, ctrl_pts_pointers)
+function [pruned_occupancy_codes, post_pruning_array, toprune, toprune2] = prune_octree(debug_flag, myOT, all_zero_wav_cfs, start_lvl, max_lvl, b, reconstructed_control_points, ctrl_pts_pointers)
 
 %Create a copy of the myOT.OccupancyCode cell array, which will contain
 %the pruned set of occupancy codes
@@ -45,8 +45,8 @@ toprune2 = cell(size(myOT.OccupancyCode));
 %The below code prunes branches (occupancy codes) of octree cells that 
 %have all zero wavelet coefficients throughout the branch, so the 
 %pruning is done bottom-up from the voxel level ...
-tic;
 lvl = max_lvl;  %Here assume max_lvl = b + 1
+start_ot_pruning_time = tic;
 %If there exist any occupied voxels, which contain all zero wavelet 
 %coefficients ...
 if ~isempty(all_zero_wav_cfs{lvl})
@@ -86,7 +86,9 @@ if ~isempty(all_zero_wav_cfs{lvl})
     %(but all of its children do, hence why they can be pruned away). 
     post_pruning_array{lvl - 1}(parents(ismember(parents, all_zero_wav_cfs{lvl - 1}) == 0)) = 1;
 end %End check if ~isempty(all_zero_wav_cfs{lvl})
-disp(['Finished marking level ' num2str(lvl) ' for pruning']);
+if debug_flag == 1
+    disp(['Finished marking level ' num2str(lvl) ' for pruning']);
+end
 
 %Go through other octree levels, to see if we can prune further up the
 %octree
@@ -186,9 +188,13 @@ for lvl = (max_lvl - 1):-1:(start_lvl + 1)
             end
         end %End check if ~isempty(parents_with_not_all_children_toprune)
     end %End check if ~isempty(toprune{lvl})
-    disp(['Finished marking level ' num2str(lvl) ' for pruning']);
+    if debug_flag == 1
+        disp(['Finished marking level ' num2str(lvl) ' for pruning']);
+    end
 end %End lvl
-disp('------------------------------------------------------------');
+if debug_flag == 1
+    disp('------------------------------------------------------------');
+end
 
 % %Check if all the marked leaf cells have different control point signs on
 % %their corners; if not, make these cells internal and look for the next
@@ -308,8 +314,10 @@ for lvl = 1:size(toprune, 1)
         %Prune the occupancy codes of the octree cells that have been 
         %marked
         pruned_occupancy_codes{lvl}(toprune{lvl}) = [];
-        disp(['Level ' num2str(lvl) ' octree pruning done']);
-        disp('------------------------------------------------------------');
+        if debug_flag == 1
+            disp(['Level ' num2str(lvl) ' octree pruning done']);
+            disp('------------------------------------------------------------');
+        end
     end
 end
 
@@ -318,8 +326,10 @@ for lvl = 1:size(toprune2, 1)
     if ~isempty(toprune2{lvl})
         %Prune the post_pruning_array accordingly
         post_pruning_array{lvl}(toprune2{lvl}) = [];
-        disp(['Level ' num2str(lvl) ' post-pruning array pruning done']);
-        disp('------------------------------------------------------------');
+        if debug_flag == 1
+            disp(['Level ' num2str(lvl) ' post-pruning array pruning done']);
+            disp('------------------------------------------------------------');
+        end
     end
 end
 
@@ -329,12 +339,14 @@ end
 for lvl = 1:size(post_pruning_array, 1)
     if ~isempty(post_pruning_array{lvl}) && (~any(post_pruning_array{lvl}))
         post_pruning_array{lvl} = [];
-        disp(['Cleared level ' num2str(lvl) ' of post_pruning_array: no leaves']);
-        disp('------------------------------------------------------------');
+        if debug_flag == 1
+            disp(['Cleared level ' num2str(lvl) ' of post_pruning_array: no leaves']);
+            disp('------------------------------------------------------------');
+        end
     end
 end
 
-ot_pruning_time = toc;
+ot_pruning_time = toc(start_ot_pruning_time);
 disp(' ');
 disp('************************************************************');
 disp(['Time taken to prune octree: ' num2str(ot_pruning_time) ' seconds']);

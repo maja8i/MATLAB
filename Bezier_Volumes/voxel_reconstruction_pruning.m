@@ -1,6 +1,6 @@
-function [reconstructed_vox_pos, reconstructed_vox_pos_corners] = voxel_reconstruction_pruning(pp_first_nonempty, corner_coords_decoder, post_pruning_array, reconstruction_decoder, ctrl_pts_pointers, b, q_stepsize, ptcloud_file, ptcloud_name)
+function [reconstructed_vox_pos, reconstructed_vox_pos_corners] = voxel_reconstruction_pruning(debug_flag, pp_first_nonempty, corner_coords_decoder, post_pruning_array, reconstruction_decoder, ctrl_pts_pointers, b, q_stepsize)
 
-tic;
+start_vox_recon_time = tic;
 
 %Matrix to store the reconstructed voxel corners: initialize to some large
 %value (can shrink later)
@@ -12,9 +12,10 @@ rec_vox_pos_cnrs_cntr = 1;
 %pruning was done further up the octree for these voxels), get their corner
 %coordinates
 if ~isempty(corner_coords_decoder{b + 1})
-    disp(' ');
-    disp('Getting corner coordinates for already-reconstructed occupied voxels ...');
-    disp(' ');    
+    if debug_flag == 1
+        disp('Getting corner coordinates for already-reconstructed occupied voxels ...');
+        disp(' ');    
+    end
     reconstructed_vox_pos_corners(rec_vox_pos_cnrs_cntr:size(corner_coords_decoder{b + 1}, 1), 1:3) = corner_coords_decoder{b + 1};
     rec_vox_pos_cnrs_cntr = rec_vox_pos_cnrs_cntr + size(corner_coords_decoder{b + 1}, 1);
 end
@@ -67,9 +68,11 @@ for lvl = pp_first_nonempty:size(post_pruning_array, 1)
             %disp(' ');
         end
     end %End occ_cell
-    disp(['TOTAL number of leaf cells with all control points having the same sign, at level ' num2str(lvl) ': ' num2str(same_sign_cntr) '/' num2str(length(pp_leaves_only{lvl})) ' (' num2str((same_sign_cntr/(length(pp_leaves_only{lvl}))*100)) '%)']);
-    disp(['No. of leaf cells with all 0 control points at level ' num2str(lvl) ': ' num2str(zero_cp_cntr)]);
-    disp(' ');
+    if debug_flag == 1
+        disp(['TOTAL number of leaf cells with all control points having the same sign, at level ' num2str(lvl) ': ' num2str(same_sign_cntr) '/' num2str(length(pp_leaves_only{lvl})) ' (' num2str((same_sign_cntr/(length(pp_leaves_only{lvl}))*100)) '%)']);
+        disp(['No. of leaf cells with all 0 control points at level ' num2str(lvl) ': ' num2str(zero_cp_cntr)]);
+        disp(' ');
+    end
 end %End lvl
 
 %Find the first octree level at which same_sign_leaves_ctrlpts is not empty
@@ -92,12 +95,15 @@ for lvl = pp_first_nonempty:size(post_pruning_array, 1)
     %profile on
     %For each leaf cell at this level ...
     for occ_cell = pp_leaves_only{lvl}'
-        disp(['Reconstructing voxels for leaf cell (occ_cell) ' num2str(occ_cell) ' at level ' num2str(lvl) ':']);
+        if debug_flag == 1
+            disp(' ');
+            disp(['Reconstructing voxels for leaf cell (occ_cell) ' num2str(occ_cell) ' at level ' num2str(lvl) ':']);
+        end
         %Get the 8 corner coordinates of the current leaf cell
         current_corner_coords = corner_coords_decoder{lvl}(((occ_cell*8 - 7):(occ_cell*8)), :);
-        if (lvl == 10) && (occ_cell == 26121)
-            pause(1);
-        end
+%         if (lvl == 10) && (occ_cell == 26121)
+%             pause(1);
+%         end
 %         scatter3(current_corner_coords(:, 1), current_corner_coords(:, 2), current_corner_coords(:, 3), 5, 'filled', 'r');
 %         axis equal; axis off;
 %         hold on;
@@ -156,7 +162,9 @@ for lvl = pp_first_nonempty:size(post_pruning_array, 1)
             %Compute the corner coordinates of each of the sub-cells at
             %lvl_d ...
             if lvl_d == (lvl + 1)
-                disp(['--Processing sub-cells at lvl_d ' num2str(lvl_d) ': 8 sub-cells to process at current lvl_d']);
+                if debug_flag == 1
+                    disp(['--Processing sub-cells at lvl_d ' num2str(lvl_d) ': 8 sub-cells to process at current lvl_d']);
+                end
                 %If we are at the first level after the leaf, get the 
                 %minimum, maximum and midpoint of the x, y, and z 
                 %coordinates of the leaf cell. These will be used to 
@@ -173,7 +181,9 @@ for lvl = pp_first_nonempty:size(post_pruning_array, 1)
                 mid_z = (min_z + max_z)/2;   
                 zc_coords = current_corner_coords;  %"zc" stands for zero crossing, as we will only subdivide occupied cells
             else
-                disp(['--Processing sub-cells at lvl_d ' num2str(lvl_d) ': ' num2str(size(subcell_coords_occupied, 1)/8) ' occupied sub-cells at previous lvl_d, so ' num2str(size(subcell_coords_occupied, 1)) ' sub-cells to process at current lvl_d']);    
+                if debug_flag == 1
+                    disp(['--Processing sub-cells at lvl_d ' num2str(lvl_d) ': ' num2str(size(subcell_coords_occupied, 1)/8) ' occupied sub-cells at previous lvl_d, so ' num2str(size(subcell_coords_occupied, 1)) ' sub-cells to process at current lvl_d']);    
+                end
                 %If none of the sub-cells at the previous lvl_d were marked
                 %as candidates for further subdivision (i.e., none of them
                 %were considered occupied), then do not check any more sub-
@@ -205,7 +215,9 @@ for lvl = pp_first_nonempty:size(post_pruning_array, 1)
             %corner coordinates of each of the 8 sub-cells resulting from
             %subdividing each of the cells whose coordinates are stored in
             %zc_coords
-            disp(['  Computing corner coordinates for each sub-cell at this level (' num2str(size(zc_coords, 1)) ' sub-cells in total)']);           
+            if debug_flag == 1
+                disp(['  Computing corner coordinates for each sub-cell at this level (' num2str(size(zc_coords, 1)) ' sub-cells in total)']);           
+            end
             %Corner coordinates of sub-cells 1 of each cell in zc_coords: 
             %each set of length(min_x) rows in subcell_coords_temp, below, 
             %represents one of the 8 corners of sub-cell 1 of each cell in 
@@ -257,7 +269,9 @@ for lvl = pp_first_nonempty:size(post_pruning_array, 1)
             %interpolated control point for this corner, by trilinearly
             %interpolating between the original parent control points,
             %current_ctrlpts ...
-            disp(['  Computing interpolated control points for each sub-cell at this level (8 control points per sub-cell, ' num2str(size(subcell_coords, 1)/8) ' sub-cells in total)']);
+            if debug_flag == 1
+                disp(['  Computing interpolated control points for each sub-cell at this level (8 control points per sub-cell, ' num2str(size(subcell_coords, 1)/8) ' sub-cells in total)']);
+            end
             %Collect all "corner 1"s of the sub-cells inside subcell_coords
             corners1 = subcell_coords(1:8:(end - 7), :);
             %Collect all "corner 2"s of the sub-cells inside subcell_coords
@@ -490,8 +504,10 @@ end %End lvl
 %reconstructed_vox_pos_corners((ismember(reconstructed_vox_pos_corners, [0 0 0], 'rows') == 1), :) = [];
 reconstructed_vox_pos_corners((rec_vox_pos_cnrs_cntr:end), :) = [];
 
-disp('------------------------------------------------------------');
-disp('Finding the centre coordinates of all reconstructed occupied voxels ...');
+if debug_flag == 1
+    disp('------------------------------------------------------------');
+    disp('Finding the centre coordinates (midpoints) of all reconstructed occupied voxels ...');
+end
 %Our input point cloud's voxel coordinates were considered to be the
 %centres of the occupied voxels, so find the midpoint of each voxel in 
 %reconstructed_vox_pos_corners: these midpoints will represent our 
@@ -509,101 +525,11 @@ for vc = 1:8:(size(reconstructed_vox_pos_corners, 1) - 7)
     %parent_indices_final(vox_cntr, 1) = parent_indices(vc);
     vox_cntr = vox_cntr + 1;
 end
-vox_recon_time = toc;
-disp('------------------------------------------------------------');
+vox_recon_time = toc(start_vox_recon_time);
+if debug_flag == 1
+    disp('------------------------------------------------------------');
+end
 disp(' ');
 disp('************************************************************');
 disp(['Time taken to reconstruct voxels: ' num2str(vox_recon_time) ' seconds']);
 disp('************************************************************');
-disp(' ');
-
-%Plot the reconstructed voxels
-figure;
-%NOTE: Below, we are only reading in the original PLY file in order 
-%to get the corresponding colours assigned to each reconstructed 
-%voxel (this will only work when the same number of voxels is 
-%reconstructed as in the original point cloud, and these voxels are
-%in the same order as the original voxels, which will be done below)
-[~, ptcloud, ~] = plyRead(ptcloud_file);
-if size(reconstructed_vox_pos, 1) == size(ptcloud, 1)
-    %Order the reconstructed voxels according to their Morton codes, so
-    %that they are in the same order as the input point cloud at the
-    %encoder
-    disp('Reordering reconstructed voxels according to Morton codes ...');
-    %Get Morton codes for the reconstructed voxel x, y, z coordinates
-    mortonCodes = xyzToMorton(reconstructed_vox_pos, b);   %"b" bits for each Morton code
-    disp('Morton codes computed');
-    %Sort the Morton codes obtained above, in ascending order
-    [~, I_vox] = sort(mortonCodes);
-    disp('Morton codes sorted');
-    %Sort the voxel x, y, z locations in the same order as the sorted 
-    %Morton codes
-    reconstructed_vox_pos = reconstructed_vox_pos(I_vox, 1:3);
-    disp('Reconstructed voxels sorted');
-    disp('------------------------------------------------------------');
-    %Plot the reconstructed point cloud with the original colours
-    %assigned to each reconstructed voxel
-    scatter3(reconstructed_vox_pos(:, 1), reconstructed_vox_pos(:, 2), reconstructed_vox_pos(:, 3), 5, [ptcloud(:, 7)./255, ptcloud(:, 8)./255, ptcloud(:, 9)./255], 'filled');
-else
-    %Plot the reconstructed point cloud using a default colour for 
-    %all the voxels, since the reconstruction does not contain the same 
-    %number of voxels as the original point cloud 
-    scatter3(reconstructed_vox_pos(:, 1), reconstructed_vox_pos(:, 2), reconstructed_vox_pos(:, 3), 5, 'filled');
-end
-axis equal; axis off;
-title({'Voxel Reconstruction after using Pruned Octree', 'and Pruned Wavelet Coefficient Tree'});
-%Save the above reconstruction as a MATLAB figure and as a PDF image in
-%our network directory (NB: The '-bestfit' option maximizes the size of 
-%the figure to fill the page, but preserves the aspect ratio of the 
-%figure. The figure might not fill the entire page. This option leaves 
-%a minimum page margin of .25 inches).
-savefig(['\\Pandora\builds\test\Data\Compression\PLY\Codec_Results\' ptcloud_name '\voxelized' num2str(b) '\BezierVolume\vox_recon_post_pruning']);
-print('-bestfit', ['\\Pandora\builds\test\Data\Compression\PLY\Codec_Results\' ptcloud_name '\voxelized' num2str(b) '\BezierVolume\vox_recon_post_pruning'], '-dpdf');
-disp('Saving reconstructed voxels figure ...');
-disp('------------------------------------------------------------');
-
-%For debugging purposes, check if there are any voxels in the original 
-%voxelized point cloud that have NOT been reconstructed (i.e., are not 
-%present in reconstructed_vox_pos), and if so, plot them
-test_vox_diffs = setdiff(ptcloud(:, 1:3), reconstructed_vox_pos, 'rows');
-disp(['Total number of original voxels NOT present in the reconstruction: ' num2str(size(test_vox_diffs, 1)) '/' num2str(size(ptcloud, 1)) ' (' num2str((size(test_vox_diffs, 1)/size(ptcloud, 1))*100) '%)']);  
-if ~isempty(test_vox_diffs)
-    figure;
-    scatter3(test_vox_diffs(:, 1), test_vox_diffs(:, 2), test_vox_diffs(:, 3), 5, 'filled', 'MarkerFaceColor', 'm');
-    axis equal; axis off;
-    title({'Original Voxels that were NOT Reconstructed', ['at Decoder (' num2str(size(test_vox_diffs, 1)) '/' num2str(size(ptcloud, 1)) ' = ' num2str((size(test_vox_diffs, 1)/size(ptcloud, 1))*100) '%)']});
-    savefig(['\\Pandora\builds\test\Data\Compression\PLY\Codec_Results\' ptcloud_name '\voxelized' num2str(b) '\BezierVolume\missing_voxels_post_pruning']);
-    print('-bestfit', ['\\Pandora\builds\test\Data\Compression\PLY\Codec_Results\' ptcloud_name '\voxelized' num2str(b) '\BezierVolume\missing_voxels_post_pruning'], '-dpdf');
-    disp('Saving missing voxels figure ...');
-    disp('------------------------------------------------------------');
-end
-%Overlay the missing voxels over the reconstructed voxels, to see where
-%the gaps are
-if ~isempty(test_vox_diffs)
-    figure;
-    scatter3(reconstructed_vox_pos(:, 1), reconstructed_vox_pos(:, 2), reconstructed_vox_pos(:, 3), 5, 'filled', 'MarkerFaceColor', 'b');
-    hold on;
-    scatter3(test_vox_diffs(:, 1), test_vox_diffs(:, 2), test_vox_diffs(:, 3), 5, 'filled', 'MarkerFaceColor', 'm');
-    axis equal; axis off;
-    title('Reconstructed and Not-Reconstructed Voxels at Decoder');
-    legend('Reconstructed', 'Not Reconstructed', 'Location', 'best');
-    savefig(['\\Pandora\builds\test\Data\Compression\PLY\Codec_Results\' ptcloud_name '\voxelized' num2str(b) '\BezierVolume\reconstructed_vs_notreconstructed_voxels_post_pruning']);
-    print('-bestfit', ['\\Pandora\builds\test\Data\Compression\PLY\Codec_Results\' ptcloud_name '\voxelized' num2str(b) '\BezierVolume\reconstructed_vs_notreconstructed_voxels_post_pruning'], '-dpdf');
-    disp('Saving reconstructed vs not-reconstructed voxels figure ...');
-    disp('------------------------------------------------------------');
-end
-%For debugging purposes, also check if any voxels are present in 
-%reconstructed_vox_pos that were NOT present in the original voxelized 
-%point cloud, and if so then plot these
-test_vox_diffs2 = setdiff(reconstructed_vox_pos, ptcloud(:, 1:3), 'rows');
-disp(['Total number of reconstructed voxels NOT present in the original point cloud: ' num2str(size(test_vox_diffs2, 1))]);
-if ~isempty(test_vox_diffs2)
-    figure;
-    scatter3(test_vox_diffs2(:, 1), test_vox_diffs2(:, 2), test_vox_diffs2(:, 3), 5, 'filled', 'MarkerFaceColor', 'r');
-    axis equal; axis off;
-    title(['Reconstructed Voxels that were NOT in Input Point Cloud: ' num2str(size(test_vox_diffs2, 1))]);
-    savefig(['\\Pandora\builds\test\Data\Compression\PLY\Codec_Results\' ptcloud_name '\voxelized' num2str(b) '\BezierVolume\incorrect_voxels_post_pruning']);
-    print('-bestfit', ['\\Pandora\builds\test\Data\Compression\PLY\Codec_Results\' ptcloud_name '\voxelized' num2str(b) '\BezierVolume\incorrect_voxels_post_pruning'], '-dpdf');
-    disp('Saving surplus/incorrect voxels figure ...');
-    disp('------------------------------------------------------------');
-end   

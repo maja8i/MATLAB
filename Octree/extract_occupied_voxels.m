@@ -1,9 +1,9 @@
 %-------------------------------------------------------------------------%
 
 %Extract the occupied voxel coordinates, and their corresponding normals
-%(if the input point cloud has normals) in each occupied cell at each level
-%of an octree, and plot the occupied voxels from each cell in a different
-%colour on the same plot.
+%and centroids (if the input point cloud has those), in each occupied cell 
+%at each level of an octree, and plot the occupied voxels from each cell in 
+%a different colour on the same plot.
 
 %---- INPUTS ----
 
@@ -57,7 +57,7 @@
 %-------------------------------------------------------------------------%
 
 %function [occupied_Morton_codes, occupied_voxel_coords, occupied_voxel_normals, occupied_voxel_centroids] = extract_occupied_voxels(myOT, mortonCodes_sorted, xyz_sorted, varargin)
-function [occupied_Morton_codes, occupied_voxel_coords, varargout] = extract_occupied_voxels(myOT, mortonCodes_sorted, xyz_sorted, varargin)
+function [occupied_Morton_codes, occupied_voxel_coords, varargout] = extract_occupied_voxels(debug_flag, myOT, mortonCodes_sorted, xyz_sorted, varargin)
 
 %Initialize cell arrays to store Morton codes and corresponding x, y, z
 %coordinates for occupied voxels in each occupied cell at each level of the
@@ -95,15 +95,19 @@ if numel(varargin) >= 2
     occupied_voxel_centroid_averages = cell((myOT.Depth), max(myOT.NodeCount));
 end
 
+start_extract_vox_time = tic;
+
 %For each level of the octree myOT ...
 for lvl = 1:(myOT.Depth + 1)  
-    if numel(varargin) == 1
-        disp(['Extracting occupied voxel coordinates, centroids and associated normal vectors in all occupied cells at octree level ' num2str(lvl) ' ...']);
-    else
-        disp(['Extracting occupied voxel coordinates and centroids in all occupied cells at octree level ' num2str(lvl) ' ...']);
+    if debug_flag == 1
+        if numel(varargin) == 1
+            disp(['Extracting occupied voxel coordinates and associated normal vectors in all occupied cells at octree level ' num2str(lvl) ' ...']);
+        elseif numel(varargin) == 2
+            disp(['Extracting occupied voxel coordinates and associated normal vectors and centroids in all occupied cells at octree level ' num2str(lvl) ' ...']);
+        end
+        disp(['Total no. of occupied cells to process: ' num2str(myOT.NodeCount(lvl))]);
+        disp('------------------------------------------------------------');
     end
-    disp(['Total no. of occupied cells to process: ' num2str(myOT.NodeCount(lvl))]);
-    disp('------------------------------------------------------------');
     %For each occupied cell at this level ...
     for n = 1:myOT.NodeCount(lvl)   %NodeCount gives the no. of occupied cells at each octree level   
         %Get the index of the first occupied voxel in the n-th occupied 
@@ -151,6 +155,11 @@ if numel(varargin) >= 2
     varargout{4} = occupied_voxel_centroid_averages;
 end
 
+extract_vox_time = toc(start_extract_vox_time);
+disp(' ');
+disp('************************************************************');
+disp(['Time taken to extract occupied voxels and associated normals and centroids: ' num2str(extract_vox_time) ' seconds']);
+disp('************************************************************');
 
 % %For each level of the octree myOT ...
 % for lvl = 1:(myOT.Depth + 1)

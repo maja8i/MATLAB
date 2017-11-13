@@ -1,4 +1,4 @@
-function reconstruction_decoder = reconstruct_control_points_decoder(rec_ctrlpts_forDec, wavelet_coeffs_forDec, SpatialIndex, FirstChildPtr, ChildCount, corner_coords_decoder, ctrl_pts_pointers, start_lvl, max_lvl, b, q_stepsize, prune_flag, reconstructed_control_points, varargin)
+function reconstruction_decoder = reconstruct_control_points_decoder(debug_flag, rec_ctrlpts_forDec, wavelet_coeffs_forDec, SpatialIndex, FirstChildPtr, ChildCount, corner_coords_decoder, ctrl_pts_pointers, start_lvl, max_lvl, b, q_stepsize, prune_flag, reconstructed_control_points, varargin)
 
 %Assign inputs to new variables
 rec_ctrlpts_start_lvl = rec_ctrlpts_forDec;
@@ -7,6 +7,8 @@ if ~isempty(varargin)
     post_pruning_array = varargin{1};
     pp_first_nonempty = varargin{2};    %First octree level at which leaf cells are found (after pruning)
 end
+
+start_ctrlpts_recon_time = tic;
 
 %Find the first octree level at which SpatialIndex is empty (assume that
 %SpatialIndex is also empty at all levels higher than first_SI_empty)
@@ -24,7 +26,6 @@ reconstruction_decoder = cell((b + 1), 1);
 reconstruction_decoder{start_lvl} = dequantize_uniform_scalar(rec_ctrlpts_start_lvl, q_stepsize);
 
 %Start from the start_lvl and work up to the leaves ...
-%tic;
 %for lvl = start_lvl:b
 %for lvl = start_lvl:(max_lvl - 1)
 if isempty(first_SI_empty)
@@ -32,9 +33,12 @@ if isempty(first_SI_empty)
 else
     end_lvl = first_SI_empty - 2;
 end
+
 for lvl = start_lvl:end_lvl
-    disp(['Reconstructing control points at octree level ' num2str(lvl + 1) ' ...']);
-    tic;
+    if debug_flag == 1
+        disp(['Reconstructing control points at octree level ' num2str(lvl + 1) ' ...']);
+        start_cp_recon_time_lvl = tic;
+    end
     %Dequantize the wavelet coefficients for all the corners (not just the
     %unique ones) of all the occupied children (at level lvl + 1) of all 
     %the occupied octree cells at the current level (lvl) - that is, get
@@ -183,46 +187,47 @@ for lvl = start_lvl:end_lvl
     [~, unique_ctrl_pts_pointers_inds, ~] = unique(ctrl_pts_pointers{lvl + 1}, 'stable');
     reconstruction_decoder{lvl + 1} = reconstruction_decoder{lvl + 1}(unique_ctrl_pts_pointers_inds, 1);
 
-    cp_time = toc;
-    disp(' ');
-    disp(['Time taken to reconstruct control points at level ' num2str(lvl + 1) ': ' num2str(cp_time) ' seconds']);
-    disp('------------------------------------------------------------');
+    if debug_flag == 1
+        cp_recon_time_lvl = toc(start_cp_recon_time_lvl);
+        disp(' ');
+        disp(['Time taken to reconstruct control points at level ' num2str(lvl + 1) ': ' num2str(cp_recon_time_lvl) ' seconds']);
     
-    same_sign_cntr = 0;
-    zero_cp_cntr = 0;
-    for occ_cell = 1:size(SpatialIndex{lvl + 1}, 1)
-        %Get all 8 control points for the corners of the current leaf cell
-        current_ctrlpts = reconstruction_decoder{lvl + 1}(ctrl_pts_pointers{lvl + 1}((occ_cell*8 - 7):(occ_cell*8)));
-        %Check if all control points of the current cell have the same
-        %sign, including the case where all the control points may be 0
-        if (abs(sum(sign(current_ctrlpts))) == 8)||(~any(sign(current_ctrlpts)))
-            same_sign_cntr = same_sign_cntr + 1;
-            %disp(['Cell ' num2str(occ_cell) ' has all control points with the same sign: ']);
-            if ~any(sign(current_ctrlpts))
-                zero_cp_cntr = zero_cp_cntr + 1;
+        same_sign_cntr = 0;
+        zero_cp_cntr = 0;
+        for occ_cell = 1:size(SpatialIndex{lvl + 1}, 1)
+            %Get all 8 control points for the corners of the current leaf cell
+            current_ctrlpts = reconstruction_decoder{lvl + 1}(ctrl_pts_pointers{lvl + 1}((occ_cell*8 - 7):(occ_cell*8)));
+            %Check if all control points of the current cell have the same
+            %sign, including the case where all the control points may be 0
+            if (abs(sum(sign(current_ctrlpts))) == 8)||(~any(sign(current_ctrlpts)))
+                same_sign_cntr = same_sign_cntr + 1;
+                %disp(['Cell ' num2str(occ_cell) ' has all control points with the same sign: ']);
+                if ~any(sign(current_ctrlpts))
+                    zero_cp_cntr = zero_cp_cntr + 1;
+                end
             end
-        end
-    end %End occ_cell
-    disp(['TOTAL number of cells with all control points having the same sign, at level ' num2str(lvl + 1) ': ' num2str(same_sign_cntr)]);
-    disp(['No. of cells with all 0 control points at level ' num2str(lvl + 1) ': ' num2str(zero_cp_cntr)]);
-    disp(' ');
-    
-    %BELOW IS FOR DEBUGGING PURPOSES ONLY:
-    if prune_flag == 0
-        %Check if the control points at this level have been correctly
-        %reconstructed (i.e., if they are identical to the control points
-        %at the encoder)
-        test_ctrlpts = reconstructed_control_points{lvl + 1} - reconstruction_decoder{lvl + 1};
-        test_ctrlpts_wrong = find(test_ctrlpts ~= 0);
-        if isempty(test_ctrlpts_wrong)
-            disp('All control points reconstructed correctly');
-        else
-            disp(['Number of incorrectly reconstructed control points: ' num2str(length(test_ctrlpts_wrong))]);
-        end
-    end
+        end %End occ_cell
+        disp(' ');
+        disp(['TOTAL number of cells with all control points having the same sign, at level ' num2str(lvl + 1) ': ' num2str(same_sign_cntr)]);
+        disp(['No. of cells with all 0 control points at level ' num2str(lvl + 1) ': ' num2str(zero_cp_cntr)]);
+        disp('------------------------------------------------------------');
+    end   
+%     %BELOW IS FOR DEBUGGING PURPOSES ONLY:
+%     if prune_flag == 0
+%         %Check if the control points at this level have been correctly
+%         %reconstructed (i.e., if they are identical to the control points
+%         %at the encoder)
+%         test_ctrlpts = reconstructed_control_points{lvl + 1} - reconstruction_decoder{lvl + 1};
+%         test_ctrlpts_wrong = find(test_ctrlpts ~= 0);
+%         if isempty(test_ctrlpts_wrong)
+%             disp('All control points reconstructed correctly');
+%         else
+%             disp(['Number of incorrectly reconstructed control points: ' num2str(length(test_ctrlpts_wrong))]);
+%         end
+%     end
 end %End lvl
-% ctrlpt_recon_time = toc;
-% disp(' ');
-% disp('************************************************************');
-% disp(['Time taken to reconstruct all control points: ' num2str(ctrlpt_recon_time) ' seconds']);
-% disp('************************************************************');
+ctrlpts_recon_time = toc(start_ctrlpts_recon_time);
+disp(' ');
+disp('************************************************************');
+disp(['Time taken to reconstruct all control points: ' num2str(ctrlpts_recon_time) ' seconds']);
+disp('************************************************************');

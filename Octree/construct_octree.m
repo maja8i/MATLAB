@@ -55,10 +55,12 @@
 
 %-------------------------------------------------------------------------%
 
-function [myOT, mortonCodes_sorted, xyz_sorted, normals_sorted, varargout] = construct_octree(ptcloud_file, b, varargin)
+function [myOT, mortonCodes_sorted, xyz_sorted, normals_sorted, varargout] = construct_octree(debug_flag, ptcloud_file, b, varargin)
 
-disp(['b = ' num2str(b)]);
-disp(' ');
+if debug_flag == 1
+    disp(['b = ' num2str(b)]);
+    disp(' ');
+end
 
 if numel(varargin) == 1
     ptcloud_name = varargin{1};
@@ -67,38 +69,47 @@ end
 %Read in input PLY point cloud
 [plyStruct, ptcloud, ~] = plyRead(ptcloud_file);
 
+start_ot_time = tic;
+
 %Get Morton codes for all x, y, z coordinates in the input point cloud
 mortonCodes = xyzToMorton(ptcloud(:, 1:3), b);   %b bits for each Morton code
-disp('Morton codes computed for input x, y, z');
+if debug_flag == 1
+    disp('Morton codes computed for input x, y, z');
+end
 
 %Sort the Morton codes obtained above, in ascending order
-[mortonCodes_sorted, I] = sort(mortonCodes);
-disp('Morton codes sorted');
+%[mortonCodes_sorted, I] = sort(mortonCodes);
+%disp('Morton codes sorted');
+
+%Morton codes in 8i voxelized point clouds have already been sorted!
+mortonCodes_sorted = mortonCodes;
 
 %Arrange the input x, y, z locations in the same order as the sorted Morton
 %codes, and the input normals and centroids in the same order (if the input
 %point cloud file contains normals and/or centroids)
-xyz_sorted = ptcloud(I, 1:3);
-disp('x, y, z locations sorted');
+%xyz_sorted = ptcloud(I, 1:3);
+%disp('x, y, z locations sorted');
+xyz_sorted = ptcloud(:, 1:3);
 if size(ptcloud, 2) >= 9
-    normals_sorted = ptcloud(I, 4:6);   %Assuming normals are in columns 4:6
-    disp('Normals sorted');
+    %normals_sorted = ptcloud(I, 4:6);   %Assuming normals are in columns 4:6
+    %disp('Normals sorted');
+    normals_sorted = ptcloud(:, 4:6);
     %Check if any normal vectors are [0, 0, 0]
     zero_normals = find(ismember(normals_sorted, [0, 0, 0], 'rows') == 1);
     %If there are any [0, 0, 0] normals ...
     if ~isempty(zero_normals)
-        %Plot location(s) of the voxel(s) corresponding to zero_normals
-        figure;
-        %All voxels
-        scatter3(ptcloud(:, 1), ptcloud(:, 2), ptcloud(:, 3), 0.5, 'filled');
-        hold on;
-        %Voxels that have voxelized normals of [0, 0, 0]
-        scatter3(ptcloud(zero_normals, 1), ptcloud(zero_normals, 2), ptcloud(zero_normals, 3), 5, 'filled', 'MarkerFaceColor', 'm');
-        axis equal; axis off;
-        title('Voxels with Voxelized Normals of [0, 0, 0]');
-        legend('All Voxels', 'Voxels with Normals [0, 0, 0]', 'Location', 'best');
-        savefig(['\\Pandora\builds\test\Data\Compression\PLY\Codec_Results\' ptcloud_name '\voxelized' num2str(b) '\BezierVolume\0_normals_voxels']);
-        print('-bestfit', ['\\Pandora\builds\test\Data\Compression\PLY\Codec_Results\' ptcloud_name '\voxelized' num2str(b) '\BezierVolume\0_normals_voxels'], '-dpdf');
+%         %Plot location(s) of the voxel(s) corresponding to zero_normals
+%         figure;
+%         %All voxels
+%         scatter3(ptcloud(:, 1), ptcloud(:, 2), ptcloud(:, 3), 0.5, 'filled');
+%         hold on;
+%         %Voxels that have voxelized normals of [0, 0, 0]
+%         scatter3(ptcloud(zero_normals, 1), ptcloud(zero_normals, 2), ptcloud(zero_normals, 3), 5, 'filled', 'MarkerFaceColor', 'm');
+%         axis equal; axis off;
+%         title('Voxels with Voxelized Normals of [0, 0, 0]');
+%         legend('All Voxels', 'Voxels with Normals [0, 0, 0]', 'Location', 'best');
+%         savefig(['\\Pandora\builds\test\Data\Compression\PLY\Codec_Results\' ptcloud_name '\voxelized' num2str(b) '\BezierVolume\0_normals_voxels']);
+%         print('-bestfit', ['\\Pandora\builds\test\Data\Compression\PLY\Codec_Results\' ptcloud_name '\voxelized' num2str(b) '\BezierVolume\0_normals_voxels'], '-dpdf');
         %Replace the [0, 0, 0] normals with the normals of their previous 
         %neighbour (in Morton order). Currently assuming that these 
         %neighbours will not be [0, 0, 0] too.
@@ -106,8 +117,9 @@ if size(ptcloud, 2) >= 9
     end
 end
 if size(ptcloud, 2) == 12
-    centroids_sorted = ptcloud(I, 10:12);   %Assuming centroids are in columns 10:12
-    disp('Centroids sorted');
+    %centroids_sorted = ptcloud(I, 10:12);   %Assuming centroids are in columns 10:12
+    %disp('Centroids sorted');
+    centroids_sorted = ptcloud(:, 10:12);
 %     %Transform the centroids to the same coordinate system as the input
 %     %voxels
 %     frame_to_world_translation = str2num(plyStruct.comments{3}(36:end));
@@ -119,10 +131,20 @@ if size(ptcloud, 2) == 12
 end
 
 %Construct an octree based on the sorted Morton codes computed above
-disp(' ');
-disp('Constructing octree ...');
+if debug_flag == 1
+    disp(' ');
+    disp('Constructing octree ...');
+end
 myOT = octreeClass(mortonCodes_sorted, b);    %b-level octree
-disp('Octree constructed');
+if debug_flag == 1
+    disp('Octree constructed');
+end
+
+octree_contruction_time = toc(start_ot_time);
+disp(' ');
+disp('************************************************************');
+disp(['Time taken to construct octree: ' num2str(octree_contruction_time) ' seconds']);
+disp('************************************************************');
 
 % if numel(varargin) == 1
 %     %If the input point cloud in ptcloud_file was a voxelized point cloud,
@@ -228,5 +250,4 @@ disp('Octree constructed');
 %     disp('Obtained original x, y, z points that were mapped to each voxel');
    
 % end
-disp('------------------------------------------------------------');
 

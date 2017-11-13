@@ -7,7 +7,7 @@
 
 %Name of the input point cloud (do not include the _voxelizedN or .ply file 
 %extension in the name)
-ptcloud_name = 'loot_1200'; %Must be in PLY format
+ptcloud_name = 'boxer'; %Must be in PLY format
 %Bit depth for Morton codes and octree. b also determines the number of 
 %levels in the octree that will be generated (apart from the root level). 
 %The total number of octree levels INCLUDING the root level will therefore 
@@ -39,7 +39,7 @@ max_OT_lvl = b + 1;  %Write numbers in DEscending order, because file ..._distor
 %points at the chosen base level (start_lvl) and for all of the wavelet
 %coefficients that will be computed at the encoder
 %q_stepsizes = [0.25 0.5 1 2 3];
-q_stepsizes = 2;
+q_stepsizes = 1;
 %Decide whether or not to prune the octree cells at the encoder, which
 %contain zero wavelet coefficients on all of their corners, and therefore
 %whether to prune the corresponding wavelet coefficient tree: 
@@ -48,6 +48,12 @@ prune_flag = 1;
 %Define threshold for pruning wavelet coefficients
 %zero_threshold_for_pruning = [0 1 2 3 4];
 zero_threshold_for_pruning = 0;
+%Choose whether to run in "debug" mode (debug_flag = 1), where a lot of 
+%information is written to the log file and certain figures are displayed,
+%which can be used to check that the program is working correctly. If
+%debug_flag = 0, only a few basic outputs are written to log file, which 
+%also speeds up execution of the code.
+debug_flag = 1;
 
 %-------------------------------------------------------------------------%
 
@@ -56,8 +62,10 @@ zero_threshold_for_pruning = 0;
 output_dir = ['\\Pandora\builds\test\Data\Compression\PLY\Codec_Results\' ptcloud_name '\voxelized' num2str(b) '\BezierVolume\'];
 newdir_stat = mkdir(output_dir);
 if newdir_stat == 1
+    disp(' ');
     disp(['Created PLY output directory: ' output_dir]);
 else
+    disp(' ');
     error(['ERROR: Could not create output directory ' output_dir]);
 end
 disp(' ');
@@ -80,6 +88,8 @@ disp('------------------------------------------------------------');
 %Start recording command line input and output
 diary on;
 %Write in the user inputs first
+disp(['debug_flag = ' num2str(debug_flag)]);
+disp(' ');
 disp(['ptcloud_name = ' ptcloud_name]);
 disp(['b = ' num2str(b)]);
 disp(['ptcloud_file = ' ptcloud_file]);
@@ -124,16 +134,17 @@ if (prune_flag == 1) && (~isempty(zero_threshold_for_pruning))
     %one zero_threshold value at a time below, and just vary q_stepsize
     for zero_threshold = zero_threshold_for_pruning
         disp(' ');
+        disp('prune_flag = 1');
         disp(['zero_threshold = ' num2str(zero_threshold)]);
         for q_stepsize = q_stepsizes
             disp(['q_stepsize = ' num2str(q_stepsize)]);
             
             %Run encoder
-            [occupancy_codes_forDec, rec_ctrlpts_forDec, wavelet_coeffs_forDec, total_geom_bits, total_geom_bpv, reconstructed_control_points, post_pruning_array_forDec] = Bezier_volumes_encoder(ptcloud_file, b, start_lvl, max_lvl, q_stepsize, ptcloud_name, prune_flag, zero_threshold);
-
+            [occupancy_codes_forDec, rec_ctrlpts_forDec, wavelet_coeffs_forDec, total_geom_bits, total_geom_bpv, reconstructed_control_points, post_pruning_array_forDec] = Bezier_volumes_encoder(debug_flag, ptcloud_file, b, start_lvl, max_lvl, q_stepsize, ptcloud_name, prune_flag, zero_threshold);
+            
             %Run decoder
-            [reconstruction_decoder, reconstructed_vox_pos] = Bezier_volumes_decoder(occupancy_codes_forDec, rec_ctrlpts_forDec, wavelet_coeffs_forDec, start_lvl, max_lvl, q_stepsize, b, ptcloud_name, ptcloud_file, reconstructed_control_points, prune_flag, post_pruning_array_forDec);
-
+            [reconstruction_decoder, reconstructed_vox_pos] = Bezier_volumes_decoder(debug_flag, occupancy_codes_forDec, rec_ctrlpts_forDec, wavelet_coeffs_forDec, start_lvl, max_lvl, q_stepsize, b, ptcloud_name, ptcloud_file, reconstructed_control_points, prune_flag, post_pruning_array_forDec);
+            
             %Create a new cell array for the plyStruct2 property arrays, which contains
             %only the reconstructed voxel x, y, z coordinates, and not the normals or
             %colour data

@@ -1,11 +1,11 @@
-function pruned_wavelet_coeffs = prune_wavelet_coeff_tree(wavelet_coeffs, toprune, toprune2, ctrl_pts_pointers, myOT, start_lvl, max_lvl, b)
+function pruned_wavelet_coeffs = prune_wavelet_coeff_tree(debug_flag, wavelet_coeffs, toprune, toprune2, ctrl_pts_pointers, myOT, start_lvl, max_lvl, b)
 
 %Create a copy of the wavelet_coeffs cell array, which will contain the 
 %pruned set of wavelet coefficients
 pruned_wavelet_coeffs = wavelet_coeffs;
 
 %For each octree level at which there are wavelet coefficients ...
-tic;
+start_w_pruning_time = tic;
 for lvl = (start_lvl + 1):max_lvl
     %profile on
     %If we are not at the voxel level, we can look at the toprune2 cell
@@ -80,13 +80,15 @@ for lvl = (start_lvl + 1):max_lvl
             pruned_wavelet_coeffs{lvl} = wavelet_coeffs_expanded(unique_ctrl_pts_pointers_inds);
         end %End check if ~isempty(toprune{lvl - 1})   
     end %End check if lvl < (b + 1)
-    disp(['Level ' num2str(lvl) ' done']);
-    disp('------------------------------------------------------------');
+    if debug_flag == 1
+        disp(['Level ' num2str(lvl) ' done']);
+        disp('------------------------------------------------------------');
+    end
     %profile viewer
 end %End lvl   
 %profile off
 
-w_pruning_time = toc;
+w_pruning_time = toc(start_w_pruning_time);
 disp(' ');
 disp('************************************************************');
 disp(['Time taken to prune wavelet coefficient tree: ' num2str(w_pruning_time) ' seconds']);

@@ -1,4 +1,4 @@
-function [control_points, nearest_voxels, normal_nearest_vox, min_euclid_dist, difference_vectors, dot_products, thresh] = compute_control_points(myOT, corner_coords, unique_coords, ctrl_pts_pointers, occupied_voxel_coords, occupied_voxel_normals, occupied_voxel_centroids, occupied_voxel_normal_averages, occupied_voxel_centroid_averages, b, max_lvl)
+function [control_points, nearest_voxels, normal_nearest_vox, min_euclid_dist, difference_vectors, dot_products, thresh] = compute_control_points(debug_flag, myOT, corner_coords, unique_coords, ctrl_pts_pointers, occupied_voxel_coords, occupied_voxel_normals, occupied_voxel_centroids, occupied_voxel_normal_averages, occupied_voxel_centroid_averages, b, max_lvl)
 
 %Initialize cell array to store the indices of octree cells that share each
 %unique corner, at each octree level
@@ -46,13 +46,15 @@ control_points = cell((b + 1), 1);
 %obtained as the sign of the dot product between the corresponding 
 %difference vector and the normal vector of the corresponding nearest voxel
 %found.
-thresh = 9; %Root is level 1 in MATLAB, so thresh corresponds to level 8 when root is 0
+thresh = 9; %Root is level 1 in MATLAB
     
-%tic;
+start_ctrlpts_time = tic;
 %for lvl = 1:(b + 1)
 for lvl = 1:max_lvl
-    disp(['Computing Bezier control points for octree level ' num2str(lvl) ':']); 
-    tic;
+    if debug_flag == 1
+        disp(['Computing Bezier control points for octree level ' num2str(lvl) ':']); 
+        start_cp_time_lvl = tic;
+    end
     if lvl < thresh
         %For each unique corner coordinate, find the nearest occupied voxel 
         %in any of the occupied octree cells at the current level that 
@@ -206,13 +208,15 @@ for lvl = 1:max_lvl
         uniqueTotal = A*dot_prods;
         control_points{lvl} = uniqueTotal./uniqueCount; %Valid only when uniqueCount > 0, else NaN        
     end %End check if lvl < thresh
-    cp_time = toc;
-    disp(' ');
-    disp(['Time taken to compute control points at level ' num2str(lvl) ': ' num2str(cp_time) ' seconds']);
-    disp('------------------------------------------------------------');
+    if debug_flag == 1
+        cp_time_lvl = toc(start_cp_time_lvl);
+        disp(' ');
+        disp(['Time taken to compute control points at level ' num2str(lvl) ': ' num2str(cp_time_lvl) ' seconds']);
+        disp('------------------------------------------------------------');
+    end
 end %End lvl
-% ctrlpts_time = toc;
-% disp(' ');
-% disp('************************************************************');
-% disp(['Time taken to compute all control points: ' num2str(ctrlpts_time) ' seconds']);
-% disp('************************************************************');
+ctrlpts_time = toc(start_ctrlpts_time);
+disp(' ');
+disp('************************************************************');
+disp(['Time taken to compute all control points: ' num2str(ctrlpts_time) ' seconds']);
+disp('************************************************************');
