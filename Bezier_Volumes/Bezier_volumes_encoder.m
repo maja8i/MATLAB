@@ -500,7 +500,7 @@ disp(' ');
 disp('----------------- Wavelet Decomposition --------------------');
 disp(' ');
 
-[wavelet_coeffs, reconstructed_control_points] = wavelet_analysis(debug_flag, myOT, corner_coords, control_points, ctrl_pts_pointers, start_lvl, max_lvl, b, q_stepsize);
+[wavelet_coeffs, reconstructed_control_points] = wavelet_analysis(debug_flag, myOT, corner_coords, control_points, ctrl_pts_pointers, start_lvl, max_lvl, b, q_stepsize, zero_threshold);
 %[wavelet_coeffs, reconstructed_control_points] = wavelet_analysis_loop(myOT, corner_coords, control_points, ctrl_pts_pointers, start_lvl, max_lvl, b, q_stepsize, ptcloud_file);
 
 if debug_flag == 1
@@ -614,7 +614,8 @@ disp('------- Checking for All Zero Wavelet Coefficients  --------');
 disp(' ');
 
 %Cell array to store the indices of the occupied octree cells at each level
-%that have zero wavelet coefficients on all of their corners
+%that have zero wavelet coefficients (quantized symbols) on all of their 
+%corners
 all_zero_wav_cfs = cell(size(wavelet_coeffs));
 %Cell array to store the midpoints of the occupied octree cells at each
 %level that have zero wavelet coefficients on all of their corners (only
@@ -637,11 +638,12 @@ for lvl = (start_lvl + 1):max_lvl
     for occ_cell = 1:myOT.NodeCount(lvl)
         %Get the wavelet coefficient for each of the 8 corners of this cell
         current_wavelet_coeffs = wavelet_coeffs{lvl}(ctrl_pts_pointers{lvl}((occ_cell*8 - 7):(occ_cell*8)));
-        %If the wavelet coefficients at all the corners of this cell are 0
-        %if isempty(find((current_wavelet_coeffs ~= 0), 1))
-        %If the wavelet coefficients at all the corners of this cell are
-        %near 0 (i.e., fit within +/- zero_threshold of 0)
-        if isempty(find((abs(current_wavelet_coeffs) > zero_threshold), 1))
+        %If the quantized wavelet coefficients at all the corners of this 
+        %cell are 0 ...
+        if isempty(find((current_wavelet_coeffs ~= 0), 1))
+%         %If the wavelet coefficients at all the corners of this cell are
+%         %near 0 (i.e., fit within +/- zero_threshold of 0) ...
+%         if isempty(find((abs(current_wavelet_coeffs) > zero_threshold), 1))
             %disp(['All zero wavelet coefficients for occupied cell ' num2str(occ_cell)]);
             all_zero_wav_cfs{lvl}(zw_cntr) = occ_cell; 
             %Get the midpoints of the current cell (only needed for display

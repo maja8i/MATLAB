@@ -1,8 +1,8 @@
 %Colour reconstructed voxels by using the colour of the nearest voxel in
 %the original (input) point cloud.
-ptcloud_file_orig = '\\pandora\builds\test\Data\Compression\PLY\Point_Clouds\8i\voxelized10_WithNormalsAndCentroids\loot_1200_voxelized10.ply';
-ptcloud_file_recon_rootdir = '\\pandora\builds\test\Data\Compression\PLY\Codec_Results\loot_1200\voxelized10\BezierVolume_thresh1_q2\';
-ptcloud_recon_name = 'loot_1200_voxelized10_distorted01';
+ptcloud_file_orig = '\\pandora\builds\test\Data\Compression\PLY\Point_Clouds\8i\voxelized10_WithNormalsAndCentroids\longdress_1300_voxelized10.ply';
+ptcloud_file_recon_rootdir = '\\pandora\builds\test\Data\Compression\PLY\Codec_Results\longdress_1300\voxelized10\BezierVolume\';
+ptcloud_recon_name = 'longdress_1300_voxelized10_distorted01';
 ptcloud_file_recon = [ptcloud_file_recon_rootdir ptcloud_recon_name];
 b = 10;
 

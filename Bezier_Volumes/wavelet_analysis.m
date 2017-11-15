@@ -1,4 +1,4 @@
-function [wavelet_coeffs, reconstructed_control_points] = wavelet_analysis(debug_flag, myOT, corner_coords, control_points, ctrl_pts_pointers, start_lvl, max_lvl, b, q_stepsize)
+function [wavelet_coeffs, reconstructed_control_points] = wavelet_analysis(debug_flag, myOT, corner_coords, control_points, ctrl_pts_pointers, start_lvl, max_lvl, b, q_stepsize, zero_threshold)
 
 %Initialize a cell array to store the transform (wavelet) coefficients for
 %all the unique corner vertices (1 coefficient per vertex) across all 
@@ -153,6 +153,12 @@ for lvl = start_lvl:(max_lvl - 1)
         wavelet_coeffs{lvl + 1}(cnr_coords_inds, 1) = child_control_points - averages;
         %Quantize the wavelet coefficients computed above
         wavelet_coeffs{lvl + 1}(cnr_coords_inds, 1) = quantize_uniform_scalar(wavelet_coeffs{lvl + 1}(cnr_coords_inds, 1), q_stepsize);
+        %Check if any of the quantized wavelet coefficients are within +/-
+        %zero_threshold of 0: if so, set the values of these quantized
+        %coefficients to 0
+        thresholded_wav_cfs = wavelet_coeffs{lvl + 1}(cnr_coords_inds, 1);
+        thresholded_wav_cfs(abs(thresholded_wav_cfs) <= zero_threshold) = 0;
+        wavelet_coeffs{lvl + 1}(cnr_coords_inds, 1) = thresholded_wav_cfs;
         %Dequantize the quantized wavelet coefficients and add them to the
         %corresponding values in "averages", to obtain the reconstructed 
         %signal (control point) at each corresponding child corner. Note
