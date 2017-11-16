@@ -641,8 +641,8 @@ for lvl = (start_lvl + 1):max_lvl
         %If the quantized wavelet coefficients at all the corners of this 
         %cell are 0 ...
         if isempty(find((current_wavelet_coeffs ~= 0), 1))
-%         %If the wavelet coefficients at all the corners of this cell are
-%         %near 0 (i.e., fit within +/- zero_threshold of 0) ...
+        %If the wavelet coefficients at all the corners of this cell are
+        %near 0 (i.e., fit within +/- zero_threshold of 0) ...
 %         if isempty(find((abs(current_wavelet_coeffs) > zero_threshold), 1))
             %disp(['All zero wavelet coefficients for occupied cell ' num2str(occ_cell)]);
             all_zero_wav_cfs{lvl}(zw_cntr) = occ_cell; 

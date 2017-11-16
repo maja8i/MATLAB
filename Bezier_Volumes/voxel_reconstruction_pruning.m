@@ -73,18 +73,41 @@ for lvl = pp_first_nonempty:size(post_pruning_array, 1)
         disp(['No. of leaf cells with all 0 control points at level ' num2str(lvl) ': ' num2str(zero_cp_cntr)]);
         disp(' ');
     end
+    %For all the leaf cells that have all their control points with the 
+    %same sign, check if any of these control points are within +/- 
+    %q_stepsize/2 of 0: if so, change the value of these control points to 
+    %0.
+    if ~isempty(same_sign_leaves_ctrlpts{lvl})
+        same_sign_leaves_ctrlpts{lvl}(abs(same_sign_leaves_ctrlpts{lvl}) <= q_stepsize/2) = 0;
+        %Print out how many leaf cells (if any) now have all of their 
+        %control points with the same sign
+        if debug_flag == 1
+            same_sign_cntr = 0;
+            zero_cp_cntr = 0;
+            for occ_cell = same_sign_leaves{lvl}'
+                %Get all 8 control points for the corners of the current 
+                %leaf cell
+                ind = find((same_sign_leaves{lvl} == occ_cell), 1);
+                current_ctrlpts = same_sign_leaves_ctrlpts{lvl}((ind*8 - 7):(ind*8));
+                %Check if all control points of the current leaf cell have 
+                %the same sign, including the case where all the control 
+                %points may be 0
+                if (abs(sum(sign(current_ctrlpts))) == 8)||(~any(sign(current_ctrlpts)))
+                    same_sign_cntr = same_sign_cntr + 1;
+                    if ~any(sign(current_ctrlpts))
+                        zero_cp_cntr = zero_cp_cntr + 1;
+                    end
+                end
+            end %End occ_cell
+            disp(['After setting small same-sign-cell control points to 0, TOTAL number of leaf cells with all control points having the same sign, at level ' num2str(lvl) ': ' num2str(same_sign_cntr) '/' num2str(length(pp_leaves_only{lvl})) ' (' num2str((same_sign_cntr/(length(pp_leaves_only{lvl}))*100)) '%)']);
+            disp(['No. of leaf cells with all 0 control points at level ' num2str(lvl) ': ' num2str(zero_cp_cntr)]);
+            disp(' ');
+        end
+    end
 end %End lvl
 
 %Find the first octree level at which same_sign_leaves_ctrlpts is not empty
 ssl_first_nonempty = find(~cellfun(@isempty, same_sign_leaves_ctrlpts), 1);
-%For all the leaf cells that have all their control points with the same
-%sign, check if any of these control points are within +/- q_stepsize/2 of 
-%0: if so, change the value of these control points to 0.
-for lvl = ssl_first_nonempty:size(same_sign_leaves_ctrlpts, 1)
-    if ~isempty(same_sign_leaves_ctrlpts{lvl})
-        same_sign_leaves_ctrlpts{lvl}(abs(same_sign_leaves_ctrlpts{lvl}) <= q_stepsize/2) = 0;
-    end
-end
 
 %For each octree level at which there are leaf cells, except the voxel
 %level ...
@@ -115,6 +138,14 @@ for lvl = pp_first_nonempty:size(post_pruning_array, 1)
             ind = find((same_sign_leaves{lvl} == occ_cell), 1);
             current_ctrlpts = same_sign_leaves_ctrlpts{lvl}((ind*8 - 7):(ind*8));
         end
+        %Check if all control points of the current leaf cell have the same
+        %sign (EXCLUDING the case where all the control points may be 0)
+        if (abs(sum(sign(current_ctrlpts))) == 8)
+            if debug_flag == 1
+                disp('The current leaf cell (occ_cell) has all control points with the same sign; cannot process it any further.');
+            end
+            break;
+        end 
         %If current_ctrlpts are all 0, consider every voxel that belongs to
         %the current leaf cell as being occupied, and do not process the
         %current leaf cell any further
@@ -181,16 +212,17 @@ for lvl = pp_first_nonempty:size(post_pruning_array, 1)
                 mid_z = (min_z + max_z)/2;   
                 zc_coords = current_corner_coords;  %"zc" stands for zero crossing, as we will only subdivide occupied cells
             else
-                if debug_flag == 1
-                    disp(['--Processing sub-cells at lvl_d ' num2str(lvl_d) ': ' num2str(size(subcell_coords_occupied, 1)/8) ' occupied sub-cells at previous lvl_d, so ' num2str(size(subcell_coords_occupied, 1)) ' sub-cells to process at current lvl_d']);    
-                end
                 %If none of the sub-cells at the previous lvl_d were marked
                 %as candidates for further subdivision (i.e., none of them
                 %were considered occupied), then do not check any more sub-
                 %cells for the current leaf cell (occ_cell), but move on to
                 %checking the next leaf cell
                 if isempty(subcell_coords_occupied)
+                    disp('No sub-cells at the previous lvl_d were marked for subdivision; moving on to the next leaf cell (occ_cell) ...');
                     break;
+                end
+                if debug_flag == 1
+                    disp(['--Processing sub-cells at lvl_d ' num2str(lvl_d) ': ' num2str(size(subcell_coords_occupied, 1)/8) ' occupied sub-cells at previous lvl_d, so ' num2str(size(subcell_coords_occupied, 1)) ' sub-cells to process at current lvl_d']);    
                 end
                 %Find the minimum, maximum and midpoint x, y, z of the 
                 %corner coordinates of each of the cells at the previous 

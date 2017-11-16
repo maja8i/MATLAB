@@ -47,13 +47,13 @@ q_stepsizes = 1;
 prune_flag = 1;
 %Define threshold for pruning wavelet coefficients
 %zero_threshold_for_pruning = [0 1 2 3 4];
-zero_threshold_for_pruning = 1;
+zero_threshold_for_pruning = 0;
 %Choose whether to run in "debug" mode (debug_flag = 1), where a lot of 
 %information is written to the log file and certain figures are displayed,
 %which can be used to check that the program is working correctly. If
 %debug_flag = 0, only a few basic outputs are written to log file, which 
 %also speeds up execution of the code.
-debug_flag = 0;
+debug_flag = 1;
 
 %-------------------------------------------------------------------------%
 
