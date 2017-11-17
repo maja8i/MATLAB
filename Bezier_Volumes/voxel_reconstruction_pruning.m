@@ -144,7 +144,7 @@ for lvl = pp_first_nonempty:size(post_pruning_array, 1)
             if debug_flag == 1
                 disp('The current leaf cell (occ_cell) has all control points with the same sign; cannot process it any further.');
             end
-            break;
+            continue;   %Move on to the next occ_cell
         end 
         %If current_ctrlpts are all 0, consider every voxel that belongs to
         %the current leaf cell as being occupied, and do not process the

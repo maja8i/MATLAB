@@ -39,7 +39,7 @@ max_OT_lvl = b + 1;  %Write numbers in DEscending order, because file ..._distor
 %points at the chosen base level (start_lvl) and for all of the wavelet
 %coefficients that will be computed at the encoder
 %q_stepsizes = [0.25 0.5 1 2 3];
-q_stepsizes = 1;
+q_stepsizes = 0.5;
 %Decide whether or not to prune the octree cells at the encoder, which
 %contain zero wavelet coefficients on all of their corners, and therefore
 %whether to prune the corresponding wavelet coefficient tree: 
@@ -53,7 +53,7 @@ zero_threshold_for_pruning = 0;
 %which can be used to check that the program is working correctly. If
 %debug_flag = 0, only a few basic outputs are written to log file, which 
 %also speeds up execution of the code.
-debug_flag = 1;
+debug_flag = 0;
 
 %-------------------------------------------------------------------------%
 
