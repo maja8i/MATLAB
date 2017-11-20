@@ -576,36 +576,36 @@ end
 
 %----------------------------- Distributions -----------------------------%
 
-if debug_flag == 1
-    %Plot the distribution of reconstructed control points (low-pass
-    %coefficients) at different octree levels
-    for lvl = start_lvl:max_lvl
-        figure;
-        histogram(reconstructed_control_points{lvl});
-        title(['Histogram of (Encoder-Reconstructed) Control Points at Octree Level ' num2str(lvl)]);
-        %Save the above histogram as a MATLAB figure and as a PDF image in 
-        %our network directory (NB: The '-bestfit' option maximizes the 
-        %size of the figure to fill the page, but preserves the aspect 
-        %ratio of the figure. The figure might not fill the entire page. 
-        %This option leaves a minimum page margin of .25 inches).
-        savefig(['\\Pandora\builds\test\Data\Compression\PLY\Codec_Results\' ptcloud_name '\voxelized' num2str(b) '\BezierVolume\histogram_ctrlpts_lvl' num2str(lvl)]);
-        print('-bestfit', ['\\Pandora\builds\test\Data\Compression\PLY\Codec_Results\' ptcloud_name '\voxelized' num2str(b) '\BezierVolume\histogram_ctrlpts_lvl' num2str(lvl)], '-dpdf');
-    end
-    %Plot the distribution of quantized wavelet coefficients at different
-    %octree levels
-    for lvl = start_lvl:(max_lvl - 1)
-        figure;
-        histogram(wavelet_coeffs{lvl + 1});
-        title(['Histogram of Quantized Wavelet Coefficients between Octree Levels ' num2str(lvl) ' and ' num2str(lvl + 1)]);
-        %Save the above histogram as a MATLAB figure and as a PDF image in 
-        %our network directory (NB: The '-bestfit' option maximizes the 
-        %size of the figure to fill the page, but preserves the aspect 
-        %ratio of the figure. The figure might not fill the entire page. 
-        %This option leaves a minimum page margin of .25 inches).
-        savefig(['\\Pandora\builds\test\Data\Compression\PLY\Codec_Results\' ptcloud_name '\voxelized' num2str(b) '\BezierVolume\histogram_wavcfs_lvls' num2str(lvl) '-' num2str(lvl + 1)]);
-        print('-bestfit', ['\\Pandora\builds\test\Data\Compression\PLY\Codec_Results\' ptcloud_name '\voxelized' num2str(b) '\BezierVolume\histogram_wavcfs_lvls' num2str(lvl) '-' num2str(lvl + 1)], '-dpdf');
-    end
-end
+% if debug_flag == 1
+%     %Plot the distribution of reconstructed control points (low-pass
+%     %coefficients) at different octree levels
+%     for lvl = start_lvl:max_lvl
+%         figure;
+%         histogram(reconstructed_control_points{lvl});
+%         title(['Histogram of (Encoder-Reconstructed) Control Points at Octree Level ' num2str(lvl)]);
+%         %Save the above histogram as a MATLAB figure and as a PDF image in 
+%         %our network directory (NB: The '-bestfit' option maximizes the 
+%         %size of the figure to fill the page, but preserves the aspect 
+%         %ratio of the figure. The figure might not fill the entire page. 
+%         %This option leaves a minimum page margin of .25 inches).
+%         savefig(['\\Pandora\builds\test\Data\Compression\PLY\Codec_Results\' ptcloud_name '\voxelized' num2str(b) '\BezierVolume\histogram_ctrlpts_lvl' num2str(lvl)]);
+%         print('-bestfit', ['\\Pandora\builds\test\Data\Compression\PLY\Codec_Results\' ptcloud_name '\voxelized' num2str(b) '\BezierVolume\histogram_ctrlpts_lvl' num2str(lvl)], '-dpdf');
+%     end
+%     %Plot the distribution of quantized wavelet coefficients at different
+%     %octree levels
+%     for lvl = start_lvl:(max_lvl - 1)
+%         figure;
+%         histogram(wavelet_coeffs{lvl + 1});
+%         title(['Histogram of Quantized Wavelet Coefficients between Octree Levels ' num2str(lvl) ' and ' num2str(lvl + 1)]);
+%         %Save the above histogram as a MATLAB figure and as a PDF image in 
+%         %our network directory (NB: The '-bestfit' option maximizes the 
+%         %size of the figure to fill the page, but preserves the aspect 
+%         %ratio of the figure. The figure might not fill the entire page. 
+%         %This option leaves a minimum page margin of .25 inches).
+%         savefig(['\\Pandora\builds\test\Data\Compression\PLY\Codec_Results\' ptcloud_name '\voxelized' num2str(b) '\BezierVolume\histogram_wavcfs_lvls' num2str(lvl) '-' num2str(lvl + 1)]);
+%         print('-bestfit', ['\\Pandora\builds\test\Data\Compression\PLY\Codec_Results\' ptcloud_name '\voxelized' num2str(b) '\BezierVolume\histogram_wavcfs_lvls' num2str(lvl) '-' num2str(lvl + 1)], '-dpdf');
+%     end
+% end
 
 %---------------- Checking for Zero Wavelet Coefficients -----------------%
 
@@ -834,7 +834,11 @@ if debug_flag == 1
     %Plot a histogram of the occupancy codes inside occ_codes_array
     figure;
     histogram(occ_codes_array);
-    title(['Histogram of Octree Occupancy Codes from Level 1-' num2str(max_lvl - 1)]);
+    if prune_flag == 1
+        title(['Histogram of Pruned Octree Occupancy Codes from Level 1-' num2str(max_lvl - 1)]);
+    elseif prune_flag == 0
+        title(['Histogram of Octree Occupancy Codes from Level 1-' num2str(max_lvl - 1)]);
+    end
     %Save the above histogram as a MATLAB figure and as a PDF image in our
     %network directory (NB: The '-bestfit' option maximizes the size of the 
     %figure to fill the page, but preserves the aspect ratio of the figure. 
@@ -916,7 +920,7 @@ if prune_flag == 1
         %Plot a histogram of the bits inside pp_array
         figure;
         histogram(pp_array);
-        title({'Histogram of Bits Indicating Leaf/Non-Leaf Octree Cell', ['from Level 1-' num2str(max_lvl - 1)]});
+        title({'Histogram of Post-Pruning Array Bits', 'Indicating Leaf/Non-Leaf Octree Cells', ['from Level 1-' num2str(max_lvl - 1)]});
         %Save the above histogram as a MATLAB figure and as a PDF image in 
         %our network directory (NB: The '-bestfit' option maximizes the 
         %size of the figure to fill the page, but preserves the aspect 
@@ -949,7 +953,7 @@ if debug_flag == 1
     %rec_ctrlpts_forDec
     figure;
     histogram(rec_ctrlpts_forDec);
-    title(['Histogram of Quantized Control Points at Level ' num2str(start_lvl)]);
+    title(['Histogram of Quantized Control Points at Start Level (Level ' num2str(start_lvl) ')']);
     %Save the above histogram as a MATLAB figure and as a PDF image in our
     %network directory (NB: The '-bestfit' option maximizes the size of the 
     %figure to fill the page, but preserves the aspect ratio of the figure. 
@@ -990,7 +994,11 @@ if debug_flag == 1
     %wavelet_cfs_array
     figure;
     histogram(wavelet_cfs_array);
-    title(['Histogram of Quantized Wavelet Coefficients from Level ' num2str((start_lvl + 1)) '-' num2str(max_lvl)]);
+    if prune_flag == 1
+        title({'Histogram of Quantized Pruned Wavelet Coefficients', ['from Level ' num2str((start_lvl + 1)) '-' num2str(max_lvl)]});
+    elseif prune_flag == 0
+        title(['Histogram of Quantized Wavelet Coefficients from Level ' num2str((start_lvl + 1)) '-' num2str(max_lvl)]);
+    end
     %Save the above histogram as a MATLAB figure and as a PDF image in our
     %network directory (NB: The '-bestfit' option maximizes the size of the 
     %figure to fill the page, but preserves the aspect ratio of the figure. 
