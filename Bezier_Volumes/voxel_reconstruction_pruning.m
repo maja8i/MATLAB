@@ -35,79 +35,64 @@ end
 
 %For debugging purposes, print out how many (if any) of the leaf cells at 
 %each octree level in pp_leaves_only, end up having all 8 of their 
-%decoder-reconstructed control points with the same sign (+/-). Also, store
-%the indices and control points of these leaf cells, as we will process 
-%them further.
-same_sign_leaves = cell(size(pp_leaves_only));
-same_sign_leaves_ctrlpts = cell(size(pp_leaves_only));
-for lvl = pp_first_nonempty:size(post_pruning_array, 1)
-    same_sign_cntr = 0;
-    zero_cp_cntr = 0;
-    for occ_cell = pp_leaves_only{lvl}'
-        %Get all 8 control points for the corners of the current leaf cell
-        current_ctrlpts = reconstruction_decoder{lvl}(ctrl_pts_pointers{lvl}((occ_cell*8 - 7):(occ_cell*8)));
-        %Check if all control points of the current leaf cell have the same
-        %sign, including the case where all the control points may be 0
-        if (abs(sum(sign(current_ctrlpts))) == 8)||(~any(sign(current_ctrlpts)))
-            same_sign_cntr = same_sign_cntr + 1;
-            %Store the index of the current leaf cell
-            same_sign_leaves{lvl}((end + 1), 1) = occ_cell;
-            %Store the control points of the current leaf cell
-            same_sign_leaves_ctrlpts{lvl}(((end + 1):(end + 8)), 1) = current_ctrlpts;
-            if ~any(sign(current_ctrlpts))
-                zero_cp_cntr = zero_cp_cntr + 1;
+%decoder-reconstructed control points with the same sign (+/-)
+if debug_flag == 1
+    for lvl = pp_first_nonempty:size(post_pruning_array, 1)
+        same_sign_cntr = 0;
+        zero_cp_cntr = 0;
+        for occ_cell = pp_leaves_only{lvl}'
+            %Get all 8 control points for the corners of the current leaf 
+            %cell
+            current_ctrlpts = reconstruction_decoder{lvl}(ctrl_pts_pointers{lvl}((occ_cell*8 - 7):(occ_cell*8)));
+            %Check if all control points of the current leaf cell have the 
+            %same sign, including the case where all the control points may
+            %be 0
+            if (abs(sum(sign(current_ctrlpts))) == 8)||(~any(sign(current_ctrlpts)))
+                same_sign_cntr = same_sign_cntr + 1;
+                if ~any(sign(current_ctrlpts))
+                    zero_cp_cntr = zero_cp_cntr + 1;
+                end
             end
-            %disp(['Leaf cell ' num2str(occ_cell) ' has all control points with the same sign: ']);
-            %Display the control points for all corners of this leaf cell
-            %disp(num2str(current_ctrlpts));
-            %disp(' ');
-            %Get the corner coordinates for each corner of this leaf cell
-            %cell_corners = corner_coords_decoder{lvl}(((occ_cell*8 - 7):(occ_cell*8)), :);
-            %disp('Leaf cell corner coordinates:');
-            %isp(num2str(cell_corners));
-            %disp(' ');
-        end
-    end %End occ_cell
-    if debug_flag == 1
+        end %End occ_cell
         disp(['TOTAL number of leaf cells with all control points having the same sign, at level ' num2str(lvl) ': ' num2str(same_sign_cntr) '/' num2str(length(pp_leaves_only{lvl})) ' (' num2str((same_sign_cntr/(length(pp_leaves_only{lvl}))*100)) '%)']);
         disp(['No. of leaf cells with all 0 control points at level ' num2str(lvl) ': ' num2str(zero_cp_cntr)]);
         disp(' ');
+    end %End lvl
+end
+
+%For all leaf cells (except those at the voxel level), check if any of 
+%their control points are within +/- q_stepsize/2 of 0: if so, change the 
+%value of these control points to 0
+for lvl = pp_first_nonempty:size(post_pruning_array, 1)
+    if debug_flag == 1
+        same_sign_cntr = 0;
+        zero_cp_cntr = 0;
     end
-    %For all the leaf cells that have all their control points with the 
-    %same sign, check if any of these control points are within +/- 
-    %q_stepsize/2 of 0: if so, change the value of these control points to 
-    %0.
-    if ~isempty(same_sign_leaves_ctrlpts{lvl})
-        same_sign_leaves_ctrlpts{lvl}(abs(same_sign_leaves_ctrlpts{lvl}) <= q_stepsize/2) = 0;
-        %Print out how many leaf cells (if any) now have all of their 
-        %control points with the same sign
+    for occ_cell = pp_leaves_only{lvl}'
+        %Get all 8 control points for the corners of the current leaf cell
+        current_ctrlpts = reconstruction_decoder{lvl}(ctrl_pts_pointers{lvl}((occ_cell*8 - 7):(occ_cell*8)));
+        %Set any of these control points that are are within 
+        %+/- q_stepsize/2 of 0, to 0 
+        current_ctrlpts(abs(current_ctrlpts) <= q_stepsize/2) = 0;
+        reconstruction_decoder{lvl}(ctrl_pts_pointers{lvl}((occ_cell*8 - 7):(occ_cell*8))) = current_ctrlpts;
         if debug_flag == 1
-            same_sign_cntr = 0;
-            zero_cp_cntr = 0;
-            for occ_cell = same_sign_leaves{lvl}'
-                %Get all 8 control points for the corners of the current 
-                %leaf cell
-                ind = find((same_sign_leaves{lvl} == occ_cell), 1);
-                current_ctrlpts = same_sign_leaves_ctrlpts{lvl}((ind*8 - 7):(ind*8));
-                %Check if all control points of the current leaf cell have 
-                %the same sign, including the case where all the control 
-                %points may be 0
-                if (abs(sum(sign(current_ctrlpts))) == 8)||(~any(sign(current_ctrlpts)))
-                    same_sign_cntr = same_sign_cntr + 1;
-                    if ~any(sign(current_ctrlpts))
-                        zero_cp_cntr = zero_cp_cntr + 1;
-                    end
+            %Check how many (if any) of the leaf cells at the current level 
+            %now have all of their control points with the same sign, or 
+            %all 0 control points
+            if (abs(sum(sign(current_ctrlpts))) == 8)||(~any(sign(current_ctrlpts)))
+                same_sign_cntr = same_sign_cntr + 1;
+                if ~any(sign(current_ctrlpts))
+                    zero_cp_cntr = zero_cp_cntr + 1;
                 end
-            end %End occ_cell
-            disp(['After setting small same-sign-cell control points to 0, TOTAL number of leaf cells with all control points having the same sign, at level ' num2str(lvl) ': ' num2str(same_sign_cntr) '/' num2str(length(pp_leaves_only{lvl})) ' (' num2str((same_sign_cntr/(length(pp_leaves_only{lvl}))*100)) '%)']);
-            disp(['No. of leaf cells with all 0 control points at level ' num2str(lvl) ': ' num2str(zero_cp_cntr)]);
-            disp(' ');
+            end
         end
+    end %End occ_cell
+    if debug_flag == 1
+        disp(['After setting small control points to 0, TOTAL number of leaf cells with all control points having the same sign, at level ' num2str(lvl) ': ' num2str(same_sign_cntr) '/' num2str(length(pp_leaves_only{lvl})) ' (' num2str((same_sign_cntr/(length(pp_leaves_only{lvl}))*100)) '%)']);
+        disp(['No. of leaf cells with all 0 control points at level ' num2str(lvl) ': ' num2str(zero_cp_cntr)]);
+        disp(' ');
     end
 end %End lvl
-
-%Find the first octree level at which same_sign_leaves_ctrlpts is not empty
-ssl_first_nonempty = find(~cellfun(@isempty, same_sign_leaves_ctrlpts), 1);
 
 %For each octree level at which there are leaf cells, except the voxel
 %level ...
@@ -131,18 +116,16 @@ for lvl = pp_first_nonempty:size(post_pruning_array, 1)
 %         axis equal; axis off;
 %         hold on;
         %Get the control points for all 8 corners of the current leaf cell
-        if (lvl < ssl_first_nonempty) || ((lvl >= ssl_first_nonempty) && (isempty(find((same_sign_leaves{lvl} == occ_cell), 1))))
-            current_ctrlpts = reconstruction_decoder{lvl}(ctrl_pts_pointers{lvl}((occ_cell*8 - 7):(occ_cell*8)));
-        elseif (lvl >= ssl_first_nonempty) && (~isempty(find((same_sign_leaves{lvl} == occ_cell), 1)))
-            %Get the index of the current occ_cell inside same_sign_leaves
-            ind = find((same_sign_leaves{lvl} == occ_cell), 1);
-            current_ctrlpts = same_sign_leaves_ctrlpts{lvl}((ind*8 - 7):(ind*8));
-        end
+        current_ctrlpts = reconstruction_decoder{lvl}(ctrl_pts_pointers{lvl}((occ_cell*8 - 7):(occ_cell*8)));
         %Check if all control points of the current leaf cell have the same
         %sign (EXCLUDING the case where all the control points may be 0)
         if (abs(sum(sign(current_ctrlpts))) == 8)
             if debug_flag == 1
-                disp('The current leaf cell (occ_cell) has all control points with the same sign; cannot process it any further.');
+                if sum(sign(current_ctrlpts)) == -8
+                    disp('The current leaf cell (occ_cell) has all control points with the same sign (-ive); cannot process it any further.');
+                elseif sum(sign(current_ctrlpts)) == 8
+                    disp('The current leaf cell (occ_cell) has all control points with the same sign (+ive); cannot process it any further.');
+                end
             end
             continue;   %Move on to the next occ_cell
         end 

@@ -614,37 +614,39 @@ disp('------- Checking for All Zero Wavelet Coefficients  --------');
 disp(' ');
 
 %Cell array to store the indices of the occupied octree cells at each level
-%that have zero wavelet coefficients (quantized symbols) on all of their 
-%corners
+%that have quantized wavelet coefficient values (i.e., quantized symbols)
+%of 0 on all of their corners
 all_zero_wav_cfs = cell(size(wavelet_coeffs));
 %Cell array to store the midpoints of the occupied octree cells at each
-%level that have zero wavelet coefficients on all of their corners (only
-%needed for display purposes, later)
+%level that have zero-valued quantized wavelet coefficients on all of their 
+%corners (only needed for display purposes, later)
 %all_zero_cell_midpoints = cell(size(wavelet_coeffs));
 %Cell array to store the indices of ctrl_pts_pointers for the occupied
-%octree cells at each level that have zero wavelet coefficients on all of
-%their corners (only needed for display purposes, later)
+%octree cells at each level that have zero-valued quantized wavelet 
+%coefficients on all of their corners (only needed for display purposes, 
+%later)
 %all_zero_cell_ctrlpts_ptrs = cell(size(wavelet_coeffs));
 
-%At each octree level, check which occupied octree cells (if any) have zero
-%wavelet coefficients on all of their corners
+%At each octree level, check which occupied octree cells (if any) have 
+%zero-valued quantized wavelet coefficients on all of their corners
 for lvl = (start_lvl + 1):max_lvl
     if debug_flag == 1
         disp(['Processing octree level ' num2str(lvl) ' ...']);
     end
     %Counter for number of occupied cells at this level, which contain all
-    %zero wavelet coefficients
+    %zero-valued quantized wavelet coefficients
     zw_cntr = 1;
     for occ_cell = 1:myOT.NodeCount(lvl)
-        %Get the wavelet coefficient for each of the 8 corners of this cell
+        %Get the quantized wavelet coefficients for each of the 8 corners
+        %of this cell
         current_wavelet_coeffs = wavelet_coeffs{lvl}(ctrl_pts_pointers{lvl}((occ_cell*8 - 7):(occ_cell*8)));
         %If the quantized wavelet coefficients at all the corners of this 
         %cell are 0 ...
         if isempty(find((current_wavelet_coeffs ~= 0), 1))
-        %If the wavelet coefficients at all the corners of this cell are
-        %near 0 (i.e., fit within +/- zero_threshold of 0) ...
+        %If the quantized wavelet coefficients at all the corners of this 
+        %cell are near 0 (i.e., within +/- zero_threshold of 0) ...
 %         if isempty(find((abs(current_wavelet_coeffs) > zero_threshold), 1))
-            %disp(['All zero wavelet coefficients for occupied cell ' num2str(occ_cell)]);
+            %disp(['All zero-valued quantized wavelet coefficients for occupied cell ' num2str(occ_cell)]);
             all_zero_wav_cfs{lvl}(zw_cntr) = occ_cell; 
             %Get the midpoints of the current cell (only needed for display
             %purposes, later)
@@ -656,7 +658,7 @@ for lvl = (start_lvl + 1):max_lvl
         end
     end
     if debug_flag == 1
-        disp(['TOTAL no. of occupied octree cells with all zero wavelet coefficients at this level: ' num2str(length(all_zero_wav_cfs{lvl}))]);
+        disp(['TOTAL no. of occupied octree cells with all zero-valued quantized wavelet coefficients at this level: ' num2str(length(all_zero_wav_cfs{lvl}))]);
         disp('------------------------------------------------------------');
     end
 end
@@ -854,38 +856,6 @@ disp(['Total entropy bits for occupancy codes: ' num2str(bits_occ_codes) ' (' nu
 disp(['Occupancy codes bpv (bits per input voxel): ' num2str(bits_occ_codes/size(ptcloud, 1))]);
 disp(' ');
 
-if debug_flag == 1
-    %Do the below for comparison only, of the number of bits required for
-    %unpruned vs pruned occupancy codes
-    if prune_flag == 1
-        %Get the unpruned occupancy codes that would be transmitted to the 
-        %decoder
-        occupancy_codes_wout_pruning = cell(b, 1);
-        for i = 1:(max_lvl - 1)
-            occupancy_codes_wout_pruning{i} = myOT.OccupancyCode{i};
-        end
-        %Concatenate all of the occupancy codes (decimal values) at all
-        %octree levels from the root to (max_lvl - 1), into one long array
-        oc_cntr_wout_pruning = 1;
-        occ_codes_wout_pruning = [];
-        for l = 1:(max_lvl - 1)
-            occ_codes_wout_pruning(oc_cntr_wout_pruning:(oc_cntr_wout_pruning + numel(occupancy_codes_wout_pruning{l}) - 1)) = occupancy_codes_wout_pruning{l};
-            oc_cntr_wout_pruning = oc_cntr_wout_pruning + numel(occupancy_codes_wout_pruning{l});
-        end
-        %Compute the number of bits that would be required for the unpruned
-        %occupancy codes
-        disp('******** FOR COMPARISON ONLY ********');
-        disp(' ');
-        bits_unpruned_occ_codes_persymbol = entropy_calc(occ_codes_wout_pruning);    %Avg. minimum no. of bits per symbol
-        bits_unpruned_occ_codes = bits_unpruned_occ_codes_persymbol*length(occ_codes_wout_pruning);    %Total no. of bits for all symbols
-        disp(['Total entropy bits for UNpruned occupancy codes: ' num2str(bits_unpruned_occ_codes) ' (' num2str(bits_unpruned_occ_codes_persymbol) ' bits per symbol)']);
-        disp(['UNpruned occupancy codes bpv (bits per input voxel): ' num2str(bits_unpruned_occ_codes/size(ptcloud, 1))]);
-        disp(' ');
-        disp('*************************************');
-        disp(' ');
-    end
-end
-
 %---- Post-Pruning Array (only if pruning has been done) ----
 
 if prune_flag == 1    
@@ -973,8 +943,17 @@ disp(' ');
 
 %Get the quantized wavelet coefficients that will be transmitted to the
 %decoder
-wavelet_coeffs_forDec = cell(b, 1);
-for j = (start_lvl + 1):max_lvl
+wavelet_coeffs_forDec = cell((b + 1), 1);
+if max_lvl == (b + 1)
+    %Don't need wavelet coefficients at the voxel level, as the SDF will
+    %not be reconstructed at this level since it is not needed
+    max_wav_lvl = max_lvl - 1;
+elseif max_lvl < (b + 1)
+    %Do need wavelet coefficients at the max_lvl, since the SDF will need
+    %to be reconstructed at this level as it will be used for interpolation
+    max_wav_lvl = max_lvl;
+end
+for j = (start_lvl + 1):max_wav_lvl
     if prune_flag == 1
         wavelet_coeffs_forDec{j} = pruned_wavelet_coeffs{j}; 
     else
@@ -982,10 +961,10 @@ for j = (start_lvl + 1):max_lvl
     end
 end
 %Concatenate all of the wavelet coefficients at all octree levels from 
-%(start_lvl + 1) to max_lvl, into one long array
+%(start_lvl + 1) to max_wav_lvl, into one long array
 wcf_cntr = 1;
 wavelet_cfs_array = [];
-for l = (start_lvl + 1):max_lvl
+for l = (start_lvl + 1):max_wav_lvl
     wavelet_cfs_array(wcf_cntr:(wcf_cntr + numel(wavelet_coeffs_forDec{l}) - 1)) = wavelet_coeffs_forDec{l};
     wcf_cntr = wcf_cntr + numel(wavelet_coeffs_forDec{l});
 end
@@ -1013,38 +992,6 @@ bits_wavelet_cfs = bits_wavelet_cfs_persymbol*length(wavelet_cfs_array);    %Tot
 disp(['Total entropy bits for wavelet coefficients: ' num2str(bits_wavelet_cfs) ' (' num2str(bits_wavelet_cfs_persymbol) ' bits per symbol)']);
 disp(['Wavelet coefficients bpv (bits per input voxel): ' num2str(bits_wavelet_cfs/size(ptcloud, 1))]);
 disp(' ');
-
-if debug_flag == 1
-    %Do the below for comparison only, of the number of bits required for
-    %unpruned vs pruned wavelet coefficients
-    if prune_flag == 1
-        %Get the unpruned quantized wavelet coefficients that would be 
-        %transmitted to the decoder
-        wavelet_coeffs_wout_pruning = cell(b, 1);
-        for j = (start_lvl + 1):max_lvl
-            wavelet_coeffs_wout_pruning{j} = wavelet_coeffs{j};
-        end
-        %Concatenate all of the wavelet coefficients at all octree levels
-        %from (start_lvl + 1) to max_lvl, into one long array
-        wcf_cntr_wout_pruning = 1;
-        wcf_array_wout_pruning = [];
-        for l = (start_lvl + 1):max_lvl
-            wcf_array_wout_pruning(wcf_cntr_wout_pruning:(wcf_cntr_wout_pruning + numel(wavelet_coeffs_wout_pruning{l}) - 1)) = wavelet_coeffs_wout_pruning{l};
-            wcf_cntr_wout_pruning = wcf_cntr_wout_pruning + numel(wavelet_coeffs_wout_pruning{l});
-        end
-        %For comparison only, compute the number of bits that would be 
-        %required for the unpruned wavelet coefficients
-        disp('******** FOR COMPARISON ONLY ********');
-        disp(' ');
-        bits_unpruned_wcf_persymbol = entropy_calc(wcf_array_wout_pruning);    %Avg. minimum no. of bits per symbol
-        bits_unpruned_wcf = bits_unpruned_wcf_persymbol*length(wcf_array_wout_pruning);    %Total no. of bits for all symbols
-        disp(['Total entropy bits for UNpruned wavelet coefficients: ' num2str(bits_unpruned_wcf) ' (' num2str(bits_unpruned_wcf_persymbol) ' bits per symbol)']);
-        disp(['UNpruned wavelet coefficients bpv (bits per input voxel): ' num2str(bits_unpruned_wcf/size(ptcloud, 1))]);
-        disp(' ');
-        disp('*************************************');
-        disp(' ');
-    end
-end
 
 %---- TOTALS (Geometry) ----
 

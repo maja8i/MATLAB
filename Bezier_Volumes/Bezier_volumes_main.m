@@ -39,13 +39,15 @@ max_OT_lvl = b + 1;  %Write numbers in DEscending order, because file ..._distor
 %points at the chosen base level (start_lvl) and for all of the wavelet
 %coefficients that will be computed at the encoder
 %q_stepsizes = [0.25 0.5 1 2 3];
-q_stepsizes = 1;
+q_stepsizes = 0.5;
 %Decide whether or not to prune the octree cells at the encoder, which
 %contain zero wavelet coefficients on all of their corners, and therefore
 %whether to prune the corresponding wavelet coefficient tree: 
 %prune_flag = 1 => prune; prune_flag = 0 => do not prune
 prune_flag = 1;
-%Define threshold for pruning wavelet coefficients
+%Define threshold for pruning quantized wavelet coefficients
+%(zero_threshold can only have integer values, because the quantized
+%wavelet coefficients will all be integers)
 %zero_threshold_for_pruning = [0 1 2 3 4];
 zero_threshold_for_pruning = 0;
 %Choose whether to run in "debug" mode (debug_flag = 1), where a lot of 

@@ -26,12 +26,12 @@ codec_results_path = '\\Pandora\builds\test\Data\Compression\PLY\Codec_Results\'
 rd_path = '\\Pandora\builds\test\Data\Compression\PLY\R-D_Comparisons\';
 
 %Populate the cell array below with the names of codecs you wish to compare
-codec_names = {'BV', 'tri7', 'tri8', 'trivar'};
+codec_names = {'BezierVolume_thresh0', 'tri7', 'tri8', 'trivar'};
 
 %Populate the cell array below with the names of input point clouds that 
 %you wish to test. Don't include the _voxelizedN or .ply file extension in
 %the name.
-ptcloud_names = {'longdress_1300'}; %Must be in PLY format for now
+ptcloud_names = {'boxer'}; %Must be in PLY format for now
 
 %Enter the voxelization level that you wish to use for the input (and thus
 %output) point clouds. If no voxelization, put 0 here. Write the voxelizedN
@@ -44,7 +44,7 @@ voxelizedN = '10';
 %files in the corresponding codec_results_path\pt_cloud_name\voxelizedN\codec_name 
 %directory. Note that each number must be written as a string (i.e., inside 
 %quotation marks '').
-nbr_reconstructions = {'4', '1', '1', '14'};    %Each column represents a different codec, each row a different input point cloud
+nbr_reconstructions = {'5', '1', '1', '17'};    %Each column represents a different codec, each row a different input point cloud
 nbr_reconstructions = repmat(nbr_reconstructions, numel(ptcloud_names), 1);    %Since each column must represent a different codec, and each row a different input point cloud (assume that a given codec produces the same no. of reconstructions for any given input point cloud)
 
 %-------------------------------------------------------------------------%

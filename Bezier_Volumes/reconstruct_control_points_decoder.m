@@ -25,11 +25,12 @@ reconstruction_decoder = cell((b + 1), 1);
 %values will just be equal to the quantized values.
 reconstruction_decoder{start_lvl} = dequantize_uniform_scalar(rec_ctrlpts_start_lvl, q_stepsize);
 
-%Start from the start_lvl and work up to the leaves ...
-%for lvl = start_lvl:b
-%for lvl = start_lvl:(max_lvl - 1)
+%Start from the start_lvl and work up to the level before the voxel level
+%(don't need to reconstruct the SDF at the voxel level, since it will not
+%be used for anything there) ...
 if isempty(first_SI_empty)
-    end_lvl = max_lvl - 1;
+    %end_lvl = max_lvl - 1;
+    end_lvl = max_lvl - 2;
 else
     end_lvl = first_SI_empty - 2;
 end
@@ -195,7 +196,7 @@ for lvl = start_lvl:end_lvl
         same_sign_cntr = 0;
         zero_cp_cntr = 0;
         for occ_cell = 1:size(SpatialIndex{lvl + 1}, 1)
-            %Get all 8 control points for the corners of the current leaf cell
+            %Get all 8 control points for the corners of the current cell 
             current_ctrlpts = reconstruction_decoder{lvl + 1}(ctrl_pts_pointers{lvl + 1}((occ_cell*8 - 7):(occ_cell*8)));
             %Check if all control points of the current cell have the same
             %sign, including the case where all the control points may be 0
