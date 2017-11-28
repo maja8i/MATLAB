@@ -306,18 +306,18 @@ if debug_flag == 1
         disp(['TOTAL number of octree cells with all control points having the same sign, at level ' num2str(lvl) ', before quantization: ' num2str(same_sign_cntr) '/' num2str(length(all_ctrlpts{lvl})/8) ' (' num2str((same_sign_cntr/(length(all_ctrlpts{lvl})/8))*100) '%)']);
         disp(['No. of cells with all 0 control points at level ' num2str(lvl) ': ' num2str(zero_cp_cntr)]);
         disp(' ');
-        if (lvl == b + 1) && (same_sign_cntr > 0)
-            %Plot voxels that have the same control point signs
-            figure;
-            %Original, input voxels
-            scatter3(ptcloud(:, 1), ptcloud(:, 2), ptcloud(:, 3), 5, 'filled', 'MarkerFaceColor', 'b');
-            hold on;
-            %Voxels with same-sign control points
-            scatter3(same_sign_voxels(:, 1), same_sign_voxels(:, 2), same_sign_voxels(:, 3), 5, 'filled', 'MarkerFaceColor', 'm');
-            axis equal; axis off;
-            title({'Voxels with Same-Sign Control Points at Encoder', 'Before Quantization'});
-            legend('Original Voxels', 'Voxels with Same-Sign Control Points (BQ)', 'Location', 'best');
-        end
+%         if (lvl == b + 1) && (same_sign_cntr > 0)
+%             %Plot voxels that have the same control point signs
+%             figure;
+%             %Original, input voxels
+%             scatter3(ptcloud(:, 1), ptcloud(:, 2), ptcloud(:, 3), 5, 'filled', 'MarkerFaceColor', 'b');
+%             hold on;
+%             %Voxels with same-sign control points
+%             scatter3(same_sign_voxels(:, 1), same_sign_voxels(:, 2), same_sign_voxels(:, 3), 5, 'filled', 'MarkerFaceColor', 'm');
+%             axis equal; axis off;
+%             title({'Voxels with Same-Sign Control Points at Encoder', 'Before Quantization'});
+%             legend('Original Voxels', 'Voxels with Same-Sign Control Points (BQ)', 'Location', 'best');
+%         end
     end %End lvl
 end
 
@@ -559,18 +559,18 @@ if debug_flag == 1
         disp(['TOTAL number of octree cells with all control points having the same sign, at level ' num2str(lvl) ', after quantization and reconstruction: ' num2str(same_sign_cntr) '/' num2str(length(all_ctrlpts{lvl})/8) ' (' num2str((same_sign_cntr/(length(all_ctrlpts{lvl})/8))*100) '%)']);
         disp(['No. of cells with all 0 control points at level ' num2str(lvl) ': ' num2str(zero_cp_cntr)]);
         disp(' ');
-        if (lvl == b + 1) && (same_sign_cntr > 0)
-            %Plot voxels that have the same control point signs
-            figure;
-            %Original, input voxels
-            scatter3(ptcloud(:, 1), ptcloud(:, 2), ptcloud(:, 3), 5, 'filled', 'MarkerFaceColor', 'b');
-            hold on;
-            %Voxels with same-sign control points
-            scatter3(same_sign_voxels(:, 1), same_sign_voxels(:, 2), same_sign_voxels(:, 3), 5, 'filled', 'MarkerFaceColor', 'm');
-            axis equal; axis off;
-            title({'Voxels with Same-Sign Control Points at Encoder', 'After Quantization and Reconstruction'});
-            legend('Original Voxels', 'Voxels with Same-Sign Control Points (AQ)', 'Location', 'best');
-        end
+%         if (lvl == b + 1) && (same_sign_cntr > 0)
+%             %Plot voxels that have the same control point signs
+%             figure;
+%             %Original, input voxels
+%             scatter3(ptcloud(:, 1), ptcloud(:, 2), ptcloud(:, 3), 5, 'filled', 'MarkerFaceColor', 'b');
+%             hold on;
+%             %Voxels with same-sign control points
+%             scatter3(same_sign_voxels(:, 1), same_sign_voxels(:, 2), same_sign_voxels(:, 3), 5, 'filled', 'MarkerFaceColor', 'm');
+%             axis equal; axis off;
+%             title({'Voxels with Same-Sign Control Points at Encoder', 'After Quantization and Reconstruction'});
+%             legend('Original Voxels', 'Voxels with Same-Sign Control Points (AQ)', 'Location', 'best');
+%         end
     end %End lvl
 end
 

@@ -73,7 +73,11 @@ for lvl = pp_first_nonempty:size(post_pruning_array, 1)
         current_ctrlpts = reconstruction_decoder{lvl}(ctrl_pts_pointers{lvl}((occ_cell*8 - 7):(occ_cell*8)));
         %Set any of these control points that are are within 
         %+/- q_stepsize/2 of 0, to 0 
-        current_ctrlpts(abs(current_ctrlpts) <= q_stepsize/2) = 0;
+        %current_ctrlpts(abs(current_ctrlpts) <= q_stepsize/2) = 0;
+        %Set any of these control points that are are within 
+        %+/- q_stepsize/2 of 0, to 0 (excluding the case where a control
+        %point may be exactly q_stepsize/2)
+        current_ctrlpts(abs(current_ctrlpts) < q_stepsize/2) = 0;
         reconstruction_decoder{lvl}(ctrl_pts_pointers{lvl}((occ_cell*8 - 7):(occ_cell*8))) = current_ctrlpts;
         if debug_flag == 1
             %Check how many (if any) of the leaf cells at the current level 
@@ -408,10 +412,11 @@ for lvl = pp_first_nonempty:size(post_pruning_array, 1)
 %             %set them to be 0
 %             subcell_ctrlpts(abs(subcell_ctrlpts) <= q_stepsize/2) = 0;
             %Check if any of the current sub-cells have all 0 control
-            %points: in this case, consider every voxel that belongs to
-            %that sub-cell as being occupied, and do not process this
-            %sub-cell any further
+            %points
             all_zero_subcells = find(~any(subcell_ctrlpts, 2));
+            %In this case, consider every voxel that belongs to those 
+            %sub-cells as being occupied, and do not process these
+            %sub-cells any further
             if ~isempty(all_zero_subcells)
                 for az_sc = all_zero_subcells'
                     %For the current all-zero sub-cell, find its corner
@@ -470,7 +475,7 @@ for lvl = pp_first_nonempty:size(post_pruning_array, 1)
             %reconstructed_vox_pos_corners.
             occupied_subcell_inds = find((abs(ctrlpts_signs) ~= 8));
             %Exclude the indices of any sub-cells that have all zero
-            %control points, as these have already been processed above
+            %control points, as these will not be processed any further
             occupied_subcell_inds(ismember(occupied_subcell_inds, all_zero_subcells) == 1) = [];
             if ~isempty(occupied_subcell_inds)
                 first_inds = occupied_subcell_inds*8 - 7;
