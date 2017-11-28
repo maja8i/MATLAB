@@ -60,43 +60,43 @@ if debug_flag == 1
     end %End lvl
 end
 
-%For all leaf cells (except those at the voxel level), check if any of 
-%their control points are within +/- q_stepsize/2 of 0: if so, change the 
-%value of these control points to 0
-for lvl = pp_first_nonempty:size(post_pruning_array, 1)
-    if debug_flag == 1
-        same_sign_cntr = 0;
-        zero_cp_cntr = 0;
-    end
-    for occ_cell = pp_leaves_only{lvl}'
-        %Get all 8 control points for the corners of the current leaf cell
-        current_ctrlpts = reconstruction_decoder{lvl}(ctrl_pts_pointers{lvl}((occ_cell*8 - 7):(occ_cell*8)));
-        %Set any of these control points that are are within 
-        %+/- q_stepsize/2 of 0, to 0 
-        %current_ctrlpts(abs(current_ctrlpts) <= q_stepsize/2) = 0;
-        %Set any of these control points that are are within 
-        %+/- q_stepsize/2 of 0, to 0 (excluding the case where a control
-        %point may be exactly q_stepsize/2)
-        current_ctrlpts(abs(current_ctrlpts) < q_stepsize/2) = 0;
-        reconstruction_decoder{lvl}(ctrl_pts_pointers{lvl}((occ_cell*8 - 7):(occ_cell*8))) = current_ctrlpts;
-        if debug_flag == 1
-            %Check how many (if any) of the leaf cells at the current level 
-            %now have all of their control points with the same sign, or 
-            %all 0 control points
-            if (abs(sum(sign(current_ctrlpts))) == 8)||(~any(sign(current_ctrlpts)))
-                same_sign_cntr = same_sign_cntr + 1;
-                if ~any(sign(current_ctrlpts))
-                    zero_cp_cntr = zero_cp_cntr + 1;
-                end
-            end
-        end
-    end %End occ_cell
-    if debug_flag == 1
-        disp(['After setting small control points to 0, TOTAL number of leaf cells with all control points having the same sign, at level ' num2str(lvl) ': ' num2str(same_sign_cntr) '/' num2str(length(pp_leaves_only{lvl})) ' (' num2str((same_sign_cntr/(length(pp_leaves_only{lvl}))*100)) '%)']);
-        disp(['No. of leaf cells with all 0 control points at level ' num2str(lvl) ': ' num2str(zero_cp_cntr)]);
-        disp(' ');
-    end
-end %End lvl
+% %For all leaf cells (except those at the voxel level), check if any of 
+% %their control points are within +/- q_stepsize/2 of 0: if so, change the 
+% %value of these control points to 0
+% for lvl = pp_first_nonempty:size(post_pruning_array, 1)
+%     if debug_flag == 1
+%         same_sign_cntr = 0;
+%         zero_cp_cntr = 0;
+%     end
+%     for occ_cell = pp_leaves_only{lvl}'
+%         %Get all 8 control points for the corners of the current leaf cell
+%         current_ctrlpts = reconstruction_decoder{lvl}(ctrl_pts_pointers{lvl}((occ_cell*8 - 7):(occ_cell*8)));
+%         %Set any of these control points that are are within 
+%         %+/- q_stepsize/2 of 0, to 0 
+%         %current_ctrlpts(abs(current_ctrlpts) <= q_stepsize/2) = 0;
+%         %Set any of these control points that are are within 
+%         %+/- q_stepsize/2 of 0, to 0 (excluding the case where a control
+%         %point may be exactly q_stepsize/2)
+%         current_ctrlpts(abs(current_ctrlpts) < q_stepsize/2) = 0;
+%         reconstruction_decoder{lvl}(ctrl_pts_pointers{lvl}((occ_cell*8 - 7):(occ_cell*8))) = current_ctrlpts;
+%         if debug_flag == 1
+%             %Check how many (if any) of the leaf cells at the current level 
+%             %now have all of their control points with the same sign, or 
+%             %all 0 control points
+%             if (abs(sum(sign(current_ctrlpts))) == 8)||(~any(sign(current_ctrlpts)))
+%                 same_sign_cntr = same_sign_cntr + 1;
+%                 if ~any(sign(current_ctrlpts))
+%                     zero_cp_cntr = zero_cp_cntr + 1;
+%                 end
+%             end
+%         end
+%     end %End occ_cell
+%     if debug_flag == 1
+%         disp(['After setting small control points to 0, TOTAL number of leaf cells with all control points having the same sign, at level ' num2str(lvl) ': ' num2str(same_sign_cntr) '/' num2str(length(pp_leaves_only{lvl})) ' (' num2str((same_sign_cntr/(length(pp_leaves_only{lvl}))*100)) '%)']);
+%         disp(['No. of leaf cells with all 0 control points at level ' num2str(lvl) ': ' num2str(zero_cp_cntr)]);
+%         disp(' ');
+%     end
+% end %End lvl
 
 %For each octree level at which there are leaf cells, except the voxel
 %level ...
@@ -121,54 +121,59 @@ for lvl = pp_first_nonempty:size(post_pruning_array, 1)
 %         hold on;
         %Get the control points for all 8 corners of the current leaf cell
         current_ctrlpts = reconstruction_decoder{lvl}(ctrl_pts_pointers{lvl}((occ_cell*8 - 7):(occ_cell*8)));
+%         %Check if all control points of the current leaf cell have the same
+%         %sign (EXCLUDING the case where all the control points may be 0)
+%         if (abs(sum(sign(current_ctrlpts))) == 8)
         %Check if all control points of the current leaf cell have the same
-        %sign (EXCLUDING the case where all the control points may be 0)
-        if (abs(sum(sign(current_ctrlpts))) == 8)
+        %sign (including the case where all the control points may be 0)
+        if (abs(sum(sign(current_ctrlpts))) == 8)||(~any(sign(current_ctrlpts)))
             if debug_flag == 1
                 if sum(sign(current_ctrlpts)) == -8
                     disp('The current leaf cell (occ_cell) has all control points with the same sign (-ive); cannot process it any further.');
                 elseif sum(sign(current_ctrlpts)) == 8
                     disp('The current leaf cell (occ_cell) has all control points with the same sign (+ive); cannot process it any further.');
+                elseif ~any(sign(current_ctrlpts))
+                    disp('The current leaf cell (occ_cell) has all 0 control points; cannot process it any further.');
                 end
             end
             continue;   %Move on to the next occ_cell
         end 
-        %If current_ctrlpts are all 0, consider every voxel that belongs to
-        %the current leaf cell as being occupied, and do not process the
-        %current leaf cell any further
-        if ~any(current_ctrlpts)
-            %Subdivide the current occ_cell into 1 x 1 x 1 voxels
-            min_x = min(current_corner_coords(:, 1));  
-            min_y = min(current_corner_coords(:, 2));
-            min_z = min(current_corner_coords(:, 3));
-            max_x = max(current_corner_coords(:, 1));
-            max_y = max(current_corner_coords(:, 2));
-            max_z = max(current_corner_coords(:, 3));
-            %Offsets for all 8 corners of each voxel
-            offsets = [0 0 0;
-                1 0 0;
-                1 1 0;
-                0 1 0;
-                0 0 1;
-                1 0 1;
-                1 1 1;
-                0 1 1]; 
-            %For each shift by 1 on the x-axis
-            for x_ax = min_x:(max_x - 1)
-                %For each shift by 1 on the y-axis
-                for y_ax = min_y:(max_y - 1)
-                    %For each shift by 1 on the z-axis
-                    for z_ax = min_z:(max_z - 1)
-                        %Compute all 8 corners of the voxel whose first
-                        %corner is at (x_ax, y_ax, z_ax)
-                        reconstructed_vox_pos_corners(rec_vox_pos_cnrs_cntr:(rec_vox_pos_cnrs_cntr + 8 - 1), 1:3) = [x_ax y_ax z_ax] + offsets;      
-                        rec_vox_pos_cnrs_cntr = rec_vox_pos_cnrs_cntr + 8;
-                    end
-                end %End y_ax
-            end %End x_ax
-            %Do not process the current occ_cell any further
-            continue;
-        end 
+%         %If current_ctrlpts are all 0, consider every voxel that belongs to
+%         %the current leaf cell as being occupied, and do not process the
+%         %current leaf cell any further
+%         if ~any(current_ctrlpts)
+%             %Subdivide the current occ_cell into 1 x 1 x 1 voxels
+%             min_x = min(current_corner_coords(:, 1));  
+%             min_y = min(current_corner_coords(:, 2));
+%             min_z = min(current_corner_coords(:, 3));
+%             max_x = max(current_corner_coords(:, 1));
+%             max_y = max(current_corner_coords(:, 2));
+%             max_z = max(current_corner_coords(:, 3));
+%             %Offsets for all 8 corners of each voxel
+%             offsets = [0 0 0;
+%                 1 0 0;
+%                 1 1 0;
+%                 0 1 0;
+%                 0 0 1;
+%                 1 0 1;
+%                 1 1 1;
+%                 0 1 1]; 
+%             %For each shift by 1 on the x-axis
+%             for x_ax = min_x:(max_x - 1)
+%                 %For each shift by 1 on the y-axis
+%                 for y_ax = min_y:(max_y - 1)
+%                     %For each shift by 1 on the z-axis
+%                     for z_ax = min_z:(max_z - 1)
+%                         %Compute all 8 corners of the voxel whose first
+%                         %corner is at (x_ax, y_ax, z_ax)
+%                         reconstructed_vox_pos_corners(rec_vox_pos_cnrs_cntr:(rec_vox_pos_cnrs_cntr + 8 - 1), 1:3) = [x_ax y_ax z_ax] + offsets;      
+%                         rec_vox_pos_cnrs_cntr = rec_vox_pos_cnrs_cntr + 8;
+%                     end
+%                 end %End y_ax
+%             end %End x_ax
+%             %Do not process the current occ_cell any further
+%             continue;
+%         end 
         %Keep subdividing the current leaf cell until we reach cells of 
         %size 1 x 1 x 1 (i.e., voxels). For each sub-cell at each level,
         %interpolate between the leaf cell's (occ_cell's) control points.
@@ -414,54 +419,54 @@ for lvl = pp_first_nonempty:size(post_pruning_array, 1)
             %Check if any of the current sub-cells have all 0 control
             %points
             all_zero_subcells = find(~any(subcell_ctrlpts, 2));
-            %In this case, consider every voxel that belongs to those 
-            %sub-cells as being occupied, and do not process these
-            %sub-cells any further
-            if ~isempty(all_zero_subcells)
-                for az_sc = all_zero_subcells'
-                    %For the current all-zero sub-cell, find its corner
-                    %coordinates
-                    cnr_coords = subcell_coords_orig(((az_sc*8 - 7):(az_sc*8)), :);
-                    if lvl_d < b + 1
-                        %Subdivide the current sub-cell into 1 x 1 x 1 
-                        %voxels
-                        sc_min_x = min(cnr_coords(:, 1));  
-                        sc_min_y = min(cnr_coords(:, 2));
-                        sc_min_z = min(cnr_coords(:, 3));
-                        sc_max_x = max(cnr_coords(:, 1));
-                        sc_max_y = max(cnr_coords(:, 2));
-                        sc_max_z = max(cnr_coords(:, 3));
-                        %Offsets for all 8 corners of each voxel
-                        offsets = [0 0 0;
-                            1 0 0;
-                            1 1 0;
-                            0 1 0;
-                            0 0 1;
-                            1 0 1;
-                            1 1 1;
-                            0 1 1]; 
-                        %For each shift by 1 on the x-axis
-                        for x_ax = sc_min_x:(sc_max_x - 1)
-                            %For each shift by 1 on the y-axis
-                            for y_ax = sc_min_y:(sc_max_y - 1)
-                                %For each shift by 1 on the z-axis
-                                for z_ax = sc_min_z:(sc_max_z - 1)
-                                    %Compute all 8 corners of the voxel 
-                                    %whose first corner is at 
-                                    %(x_ax, y_ax, z_ax)
-                                    reconstructed_vox_pos_corners(rec_vox_pos_cnrs_cntr:(rec_vox_pos_cnrs_cntr + 8 - 1), 1:3) = [x_ax y_ax z_ax] + offsets;      
-                                    rec_vox_pos_cnrs_cntr = rec_vox_pos_cnrs_cntr + 8;
-                                end
-                            end %End y_ax
-                        end %End x_ax
-                    else
-                        %Record the corners of the current voxel, as this
-                        %voxel is considered to be occupied
-                        reconstructed_vox_pos_corners(rec_vox_pos_cnrs_cntr:(rec_vox_pos_cnrs_cntr + 8 - 1), 1:3) = cnr_coords;      
-                        rec_vox_pos_cnrs_cntr = rec_vox_pos_cnrs_cntr + 8;
-                    end   
-                end %End az_sc
-            end %End check if ~isempty(all_zero_subcells)
+%             %In this case, consider every voxel that belongs to those 
+%             %sub-cells as being occupied, and do not process these
+%             %sub-cells any further
+%             if ~isempty(all_zero_subcells)
+%                 for az_sc = all_zero_subcells'
+%                     %For the current all-zero sub-cell, find its corner
+%                     %coordinates
+%                     cnr_coords = subcell_coords_orig(((az_sc*8 - 7):(az_sc*8)), :);
+%                     if lvl_d < b + 1
+%                         %Subdivide the current sub-cell into 1 x 1 x 1 
+%                         %voxels
+%                         sc_min_x = min(cnr_coords(:, 1));  
+%                         sc_min_y = min(cnr_coords(:, 2));
+%                         sc_min_z = min(cnr_coords(:, 3));
+%                         sc_max_x = max(cnr_coords(:, 1));
+%                         sc_max_y = max(cnr_coords(:, 2));
+%                         sc_max_z = max(cnr_coords(:, 3));
+%                         %Offsets for all 8 corners of each voxel
+%                         offsets = [0 0 0;
+%                             1 0 0;
+%                             1 1 0;
+%                             0 1 0;
+%                             0 0 1;
+%                             1 0 1;
+%                             1 1 1;
+%                             0 1 1]; 
+%                         %For each shift by 1 on the x-axis
+%                         for x_ax = sc_min_x:(sc_max_x - 1)
+%                             %For each shift by 1 on the y-axis
+%                             for y_ax = sc_min_y:(sc_max_y - 1)
+%                                 %For each shift by 1 on the z-axis
+%                                 for z_ax = sc_min_z:(sc_max_z - 1)
+%                                     %Compute all 8 corners of the voxel 
+%                                     %whose first corner is at 
+%                                     %(x_ax, y_ax, z_ax)
+%                                     reconstructed_vox_pos_corners(rec_vox_pos_cnrs_cntr:(rec_vox_pos_cnrs_cntr + 8 - 1), 1:3) = [x_ax y_ax z_ax] + offsets;      
+%                                     rec_vox_pos_cnrs_cntr = rec_vox_pos_cnrs_cntr + 8;
+%                                 end
+%                             end %End y_ax
+%                         end %End x_ax
+%                     else
+%                         %Record the corners of the current voxel, as this
+%                         %voxel is considered to be occupied
+%                         reconstructed_vox_pos_corners(rec_vox_pos_cnrs_cntr:(rec_vox_pos_cnrs_cntr + 8 - 1), 1:3) = cnr_coords;      
+%                         rec_vox_pos_cnrs_cntr = rec_vox_pos_cnrs_cntr + 8;
+%                     end   
+%                 end %End az_sc
+%             end %End check if ~isempty(all_zero_subcells)
             %Check interpolated control point signs for each sub-cell (each
             %row of subcell_ctrlpts)
             ctrlpts_signs = sum(sign(subcell_ctrlpts), 2);

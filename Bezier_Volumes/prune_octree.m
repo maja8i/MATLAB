@@ -196,117 +196,117 @@ if debug_flag == 1
     disp('------------------------------------------------------------');
 end
 
-% %Check if all the marked leaf cells have different control point signs on
-% %their corners; if not, make these cells internal and look for the next
-% %available leaf cells further down in the octree. We do not want leaf cells
-% %to have the same sign control points on all their corners, because then 
-% %these cells would not be subdivided at the decoder and their descendant 
-% %voxels would not be reconstructed.
-% disp('Checking if marked leaf cells have different control point signs on their corners ...');
-% %Find the first non-empty level in post_pruning_array
-% pp_first_nonempty = find(~cellfun(@isempty, post_pruning_array), 1);
-% %Find the first level in post_pruning_array, which contains leaf cells
-% for ppa_lvl = pp_first_nonempty:size(post_pruning_array, 1)
-%     test = find((post_pruning_array{ppa_lvl} == 1), 1);
-%     if ~isempty(test)
-%         ppa_first_leaf_level = ppa_lvl;
-%         break;
-%     end
-% end
-% 
-% for lvl = ppa_first_leaf_level:(max_lvl - 1)   %Assuming max_lvl = b + 1
-%     %Extract indices of all leaf cells at the current octree level
-%     leaves = find(post_pruning_array{lvl} == 1);
-%     %For each leaf cell, check its control point signs
-%     for leaf = leaves'
-%         current_ctrlpts = reconstructed_control_points{lvl}(ctrl_pts_pointers{lvl}((leaf*8 - 7):(leaf*8)));
-%         if abs(sum(sign(current_ctrlpts))) ~= 8
-%             %If the control point signs are not all the same, the cell can
-%             %remain a leaf
-%             continue;
-%         elseif (abs(sum(sign(current_ctrlpts))) == 8)||(~any(sign(current_ctrlpts)))
-%             %Otherwise, the cell cannot be a leaf, so set it to 0 in
-%             %post_pruning_array
-%             post_pruning_array{lvl}(leaf) = 0;
-%             %Remove this cell from toprune, because its children can no
-%             %longer be pruned away since they need to be checked for
-%             %potential leaves
-%             toprune{lvl}(toprune{lvl} == leaf) = [];
-%             %Check this cell's children (unless the children are at the 
-%             %voxel level) to see if they can be leaves (if their control 
-%             %point signs are different)
-%             if lvl < b
-%                 current_children = (myOT.FirstChildPtr{lvl}(leaf)):(myOT.FirstChildPtr{lvl}(leaf) + uint32(myOT.ChildCount{lvl}(leaf)) - 1);
-%                 children_not_for_leaves = [];
-%                 for child = current_children
-%                     child_ctrlpts = reconstructed_control_points{lvl + 1}(ctrl_pts_pointers{lvl + 1}((child*8 - 7):(child*8)));
-%                     if (abs(sum(sign(child_ctrlpts))) == 8)||(~any(sign(child_ctrlpts)))
-%                         %If the control point signs are all the same, the 
-%                         %current child cannot be a leaf
-%                         children_not_for_leaves(end + 1) = child;
-%                         %Remove the child from toprune and toprune2, because
-%                         %its descendants will need to be checked for leaves and
-%                         %so its children can no longer be pruned away
-%                         toprune{lvl + 1}(toprune{lvl + 1} == child) = [];
-%                         toprune2{lvl + 1}(toprune2{lvl + 1} == child) = [];
-%                     elseif abs(sum(sign(child_ctrlpts))) ~= 8
-%                         %If the control point signs are different, the child
-%                         %can be a leaf, so set it to 1 in post_pruning_array
-%                         post_pruning_array{lvl + 1}(child) = 1;
-%                         %Remove the child from toprune2 as we do not want to
-%                         %prune away leaves
-%                         toprune2{lvl + 1}(toprune2{lvl + 1} == child) = [];   
-%                     end
-%                 end %End child
-%                 %If there are no children in children_not_for_leaves, no need
-%                 %to check any more descendants of the current "leaf".
-%                 %Otherwise, for all the children in children_not_for_leaves, 
-%                 %check their descendants to find the next available leaves 
-%                 %further down in the octree.
-%                 if ~isempty(children_not_for_leaves)
-%                     check_other_descendants = children_not_for_leaves;
-%                     %For each level further down in the octree, check the
-%                     %descedants of the cells in check_other_descendants
-%                     for lvl2 = (lvl + 1):(b - 1)
-%                         descendants_not_leaves = [];
-%                         for desc = check_other_descendants
-%                             %Get the children of the current desc
-%                             desc_children = (myOT.FirstChildPtr{lvl2}(desc)):(myOT.FirstChildPtr{lvl2}(desc) + uint32(myOT.ChildCount{lvl2}(desc)) - 1);
-%                             %Check control points of each of the desc_children,
-%                             %to see if any of them can be leaves
-%                             for dc = desc_children
-%                                 dc_ctrlpts = reconstructed_control_points{lvl2 + 1}(ctrl_pts_pointers{lvl2 + 1}((dc*8 - 7):(dc*8)));
-%                                 if (abs(sum(sign(dc_ctrlpts))) == 8)||(~any(sign(dc_ctrlpts)))
-%                                     %If the control point signs are all the same, the 
-%                                     %current child cannot be a leaf
-%                                     descendants_not_leaves(end + 1) = dc;
-%                                     %Remove the child from toprune and toprune2, because
-%                                     %its descendants will need to be checked for leaves and
-%                                     %so its children can no longer be pruned away
-%                                     toprune{lvl2 + 1}(toprune{lvl2 + 1} == dc) = [];
-%                                     toprune2{lvl2 + 1}(toprune2{lvl2 + 1} == dc) = [];
-%                                 elseif abs(sum(sign(dc_ctrlpts))) ~= 8
-%                                     %If the control point signs are different, the child
-%                                     %can be a leaf, so set it to 1 in post_pruning_array
-%                                     post_pruning_array{lvl2 + 1}(dc) = 1;
-%                                     %Remove the child from toprune2 as we do not want to
-%                                     %prune away leaves
-%                                     toprune2{lvl2 + 1}(toprune2{lvl2 + 1} == dc) = [];   
-%                                 end
-%                             end %End dc
-%                         end %End desc
-%                         if ~isempty(descendants_not_leaves)
-%                             check_other_descendants = descendants_not_leaves;
-%                         else
-%                             break;
-%                         end
-%                     end %End lvl2 
-%                 end %End check if ~isempty(children_not_for_leaves)
-%             end %End check if lvl < b
-%         end %End check if abs(sum(sign(current_ctrlpts))) ~= 8
-%     end %End leaf
-% end %End lvl
-% disp('------------------------------------------------------------');
+%Check if all the marked leaf cells have different control point signs on
+%their corners; if not, make these cells internal and look for the next
+%available leaf cells further down in the octree. We do not want leaf cells
+%to have the same sign control points on all their corners, because then 
+%these cells would not be subdivided at the decoder and their descendant 
+%voxels would not be reconstructed.
+disp('Checking if marked leaf cells have different control point signs on their corners ...');
+%Find the first non-empty level in post_pruning_array
+pp_first_nonempty = find(~cellfun(@isempty, post_pruning_array), 1);
+%Find the first level in post_pruning_array, which contains leaf cells
+for ppa_lvl = pp_first_nonempty:size(post_pruning_array, 1)
+    test = find((post_pruning_array{ppa_lvl} == 1), 1);
+    if ~isempty(test)
+        ppa_first_leaf_level = ppa_lvl;
+        break;
+    end
+end
+
+for lvl = ppa_first_leaf_level:(max_lvl - 1)   %Assuming max_lvl = b + 1
+    %Extract indices of all leaf cells at the current octree level
+    leaves = find(post_pruning_array{lvl} == 1);
+    %For each leaf cell, check its control point signs
+    for leaf = leaves'
+        current_ctrlpts = reconstructed_control_points{lvl}(ctrl_pts_pointers{lvl}((leaf*8 - 7):(leaf*8)));
+        if abs(sum(sign(current_ctrlpts))) ~= 8
+            %If the control point signs are not all the same, the cell can
+            %remain a leaf
+            continue;
+        elseif (abs(sum(sign(current_ctrlpts))) == 8)||(~any(sign(current_ctrlpts)))
+            %Otherwise, the cell cannot be a leaf, so set it to 0 in
+            %post_pruning_array
+            post_pruning_array{lvl}(leaf) = 0;
+            %Remove this cell from toprune, because its children can no
+            %longer be pruned away since they need to be checked for
+            %potential leaves
+            toprune{lvl}(toprune{lvl} == leaf) = [];
+            %Check this cell's children (unless the children are at the 
+            %voxel level) to see if they can be leaves (if their control 
+            %point signs are different)
+            if lvl < b
+                current_children = (myOT.FirstChildPtr{lvl}(leaf)):(myOT.FirstChildPtr{lvl}(leaf) + uint32(myOT.ChildCount{lvl}(leaf)) - 1);
+                children_not_for_leaves = [];
+                for child = current_children
+                    child_ctrlpts = reconstructed_control_points{lvl + 1}(ctrl_pts_pointers{lvl + 1}((child*8 - 7):(child*8)));
+                    if (abs(sum(sign(child_ctrlpts))) == 8)||(~any(sign(child_ctrlpts)))
+                        %If the control point signs are all the same, the 
+                        %current child cannot be a leaf
+                        children_not_for_leaves(end + 1) = child;
+                        %Remove the child from toprune and toprune2, because
+                        %its descendants will need to be checked for leaves and
+                        %so its children can no longer be pruned away
+                        toprune{lvl + 1}(toprune{lvl + 1} == child) = [];
+                        toprune2{lvl + 1}(toprune2{lvl + 1} == child) = [];
+                    elseif abs(sum(sign(child_ctrlpts))) ~= 8
+                        %If the control point signs are different, the child
+                        %can be a leaf, so set it to 1 in post_pruning_array
+                        post_pruning_array{lvl + 1}(child) = 1;
+                        %Remove the child from toprune2 as we do not want to
+                        %prune away leaves
+                        toprune2{lvl + 1}(toprune2{lvl + 1} == child) = [];   
+                    end
+                end %End child
+                %If there are no children in children_not_for_leaves, no need
+                %to check any more descendants of the current "leaf".
+                %Otherwise, for all the children in children_not_for_leaves, 
+                %check their descendants to find the next available leaves 
+                %further down in the octree.
+                if ~isempty(children_not_for_leaves)
+                    check_other_descendants = children_not_for_leaves;
+                    %For each level further down in the octree, check the
+                    %descedants of the cells in check_other_descendants
+                    for lvl2 = (lvl + 1):(b - 1)
+                        descendants_not_leaves = [];
+                        for desc = check_other_descendants
+                            %Get the children of the current desc
+                            desc_children = (myOT.FirstChildPtr{lvl2}(desc)):(myOT.FirstChildPtr{lvl2}(desc) + uint32(myOT.ChildCount{lvl2}(desc)) - 1);
+                            %Check control points of each of the desc_children,
+                            %to see if any of them can be leaves
+                            for dc = desc_children
+                                dc_ctrlpts = reconstructed_control_points{lvl2 + 1}(ctrl_pts_pointers{lvl2 + 1}((dc*8 - 7):(dc*8)));
+                                if (abs(sum(sign(dc_ctrlpts))) == 8)||(~any(sign(dc_ctrlpts)))
+                                    %If the control point signs are all the same, the 
+                                    %current child cannot be a leaf
+                                    descendants_not_leaves(end + 1) = dc;
+                                    %Remove the child from toprune and toprune2, because
+                                    %its descendants will need to be checked for leaves and
+                                    %so its children can no longer be pruned away
+                                    toprune{lvl2 + 1}(toprune{lvl2 + 1} == dc) = [];
+                                    toprune2{lvl2 + 1}(toprune2{lvl2 + 1} == dc) = [];
+                                elseif abs(sum(sign(dc_ctrlpts))) ~= 8
+                                    %If the control point signs are different, the child
+                                    %can be a leaf, so set it to 1 in post_pruning_array
+                                    post_pruning_array{lvl2 + 1}(dc) = 1;
+                                    %Remove the child from toprune2 as we do not want to
+                                    %prune away leaves
+                                    toprune2{lvl2 + 1}(toprune2{lvl2 + 1} == dc) = [];   
+                                end
+                            end %End dc
+                        end %End desc
+                        if ~isempty(descendants_not_leaves)
+                            check_other_descendants = descendants_not_leaves;
+                        else
+                            break;
+                        end
+                    end %End lvl2 
+                end %End check if ~isempty(children_not_for_leaves)
+            end %End check if lvl < b
+        end %End check if abs(sum(sign(current_ctrlpts))) ~= 8
+    end %End leaf
+end %End lvl
+disp('------------------------------------------------------------');
 
 %For each octree level covered in toprune ...
 for lvl = 1:size(toprune, 1)
