@@ -215,831 +215,861 @@ for p = 1:numel(ptcloud_names)
     %current input point cloud
     
     %R-D plots for symmetric geometric Hausdorff distance
-    figure;
-    subplot(1, 2, 1);  
-    codec_legend_list = {}; %List that will be used for the plot legend
-    cll_cntr = 1;   %Counter for legend list of codec names
-    for i = 1:numel(codec_names)
-        if ~isempty(geom_bitrates{p, i})
-            bitrate_data = geom_bitrates{p, i};
-            errors_data = errors{p, i};
-            plot(bitrate_data(:, 1), errors_data(:, 1), '-o');
-            hold on;
-            %Add the current codec name to the list that will be used for
-            %the plot legend
-            codec_legend_list{cll_cntr} = codec_names{i};
-            cll_cntr = cll_cntr + 1;
+    if ~isempty(geom_bitrates)
+        figure;
+        subplot(1, 2, 1);  
+        codec_legend_list = {}; %List that will be used for the plot legend
+        cll_cntr = 1;   %Counter for legend list of codec names
+        for i = 1:numel(codec_names)
+            if ~isempty(geom_bitrates{p, i})
+                bitrate_data = geom_bitrates{p, i};
+                errors_data = errors{p, i};
+                plot(bitrate_data(:, 1), errors_data(:, 1), '-o');
+                hold on;
+                %Add the current codec name to the list that will be used for
+                %the plot legend
+                codec_legend_list{cll_cntr} = codec_names{i};
+                cll_cntr = cll_cntr + 1;
+            end
         end
-    end
-    grid on;
-    legend(codec_legend_list, 'Interpreter', 'none', 'Location', 'best');
-    title({'Rate-Distortion Plots for', reconstruction_prefix}, 'Interpreter', 'none');
-    xlabel('Average Bits Per Point');   %Bits per total no. of points in reconstruction
-    ylabel('Average Symmetric Geometric Hausdorff Distance');
-    subplot(1, 2, 2);   
-    codec_legend_list = {}; %List that will be used for the plot legend
-    cll_cntr = 1;   %Counter for legend list of codec names
-    for i = 1:numel(codec_names)
-        if ~isempty(geom_bitrates{p, i})
-            bitrate_data = geom_bitrates{p, i};
-            errors_data = errors{p, i};
-            plot(bitrate_data(:, 2), errors_data(:, 1), '-o');
-            hold on;
-            %Add the current codec name to the list that will be used for
-            %the plot legend
-            codec_legend_list{cll_cntr} = codec_names{i};
-            cll_cntr = cll_cntr + 1;
+        grid on;
+        legend(codec_legend_list, 'Interpreter', 'none', 'Location', 'best');
+        title({'Rate-Distortion Plots for', reconstruction_prefix}, 'Interpreter', 'none');
+        xlabel('Average Bits Per Point');   %Bits per total no. of points in reconstruction
+        ylabel('Average Symmetric Geometric Hausdorff Distance');
+        subplot(1, 2, 2);   
+        codec_legend_list = {}; %List that will be used for the plot legend
+        cll_cntr = 1;   %Counter for legend list of codec names
+        for i = 1:numel(codec_names)
+            if ~isempty(geom_bitrates{p, i})
+                bitrate_data = geom_bitrates{p, i};
+                errors_data = errors{p, i};
+                plot(bitrate_data(:, 2), errors_data(:, 1), '-o');
+                hold on;
+                %Add the current codec name to the list that will be used for
+                %the plot legend
+                codec_legend_list{cll_cntr} = codec_names{i};
+                cll_cntr = cll_cntr + 1;
+            end
         end
+        grid on;
+        legend(codec_legend_list, 'Interpreter', 'none', 'Location', 'best');
+        title({'Rate-Distortion Plots for', reconstruction_prefix}, 'Interpreter', 'none');
+        xlabel('Average Total Bits');   %Total bits in frame
+        ylabel('Average Symmetric Geometric Hausdorff Distance');
+        %Save the plots as a MATLAB figure and as a PDF image in the current 
+        %MATLAB directory (NB: The '-bestfit' option maximizes the size of the 
+        %figure to fill the page, but preserves the aspect ratio of the figure. 
+        %The figure might not fill the entire page. This option leaves a 
+        %minimum page margin of .25 inches).
+        savefig([reconstruction_prefix '_geom_dH_plots_comparison']);
+        print('-bestfit', [reconstruction_prefix '_geom_dH_plots_comparison'], '-dpdf');
+        %Save in our network directory as well
+        savefig([rd_path ptcloud_names{p} '\' vox_novox_dir '\' rd_dir_name '\' reconstruction_prefix '_geom_dH_plots_comparison']);
+        print('-bestfit', [rd_path ptcloud_names{p} '\' vox_novox_dir '\' rd_dir_name '\' reconstruction_prefix '_geom_dH_plots_comparison'], '-dpdf');
     end
-    grid on;
-    legend(codec_legend_list, 'Interpreter', 'none', 'Location', 'best');
-    title({'Rate-Distortion Plots for', reconstruction_prefix}, 'Interpreter', 'none');
-    xlabel('Average Total Bits');   %Total bits in frame
-    ylabel('Average Symmetric Geometric Hausdorff Distance');
-    %Save the plots as a MATLAB figure and as a PDF image in the current 
-    %MATLAB directory (NB: The '-bestfit' option maximizes the size of the 
-    %figure to fill the page, but preserves the aspect ratio of the figure. 
-    %The figure might not fill the entire page. This option leaves a 
-    %minimum page margin of .25 inches).
-    savefig([reconstruction_prefix '_geom_dH_plots_comparison']);
-    print('-bestfit', [reconstruction_prefix '_geom_dH_plots_comparison'], '-dpdf');
-    %Save in our network directory as well
-    savefig([rd_path ptcloud_names{p} '\' vox_novox_dir '\' rd_dir_name '\' reconstruction_prefix '_geom_dH_plots_comparison']);
-    print('-bestfit', [rd_path ptcloud_names{p} '\' vox_novox_dir '\' rd_dir_name '\' reconstruction_prefix '_geom_dH_plots_comparison'], '-dpdf');
     
     %R-D plots for symmetric geometric RMSE
-    figure;
-    subplot(1, 2, 1);
-    codec_legend_list = {}; %List that will be used for the plot legend
-    cll_cntr = 1;   %Counter for legend list of codec names
-    for i = 1:numel(codec_names)
-        if ~isempty(geom_bitrates{p, i})
-            bitrate_data = geom_bitrates{p, i};
-            errors_data = errors{p, i};
-            plot(bitrate_data(:, 1), errors_data(:, 2), '-o');
-            hold on;
-            %Add the current codec name to the list that will be used for
-            %the plot legend
-            codec_legend_list{cll_cntr} = codec_names{i};
-            cll_cntr = cll_cntr + 1;
+    if ~isempty(geom_bitrates)
+        figure;
+        subplot(1, 2, 1);
+        codec_legend_list = {}; %List that will be used for the plot legend
+        cll_cntr = 1;   %Counter for legend list of codec names
+        for i = 1:numel(codec_names)
+            if ~isempty(geom_bitrates{p, i})
+                bitrate_data = geom_bitrates{p, i};
+                errors_data = errors{p, i};
+                plot(bitrate_data(:, 1), errors_data(:, 2), '-o');
+                hold on;
+                %Add the current codec name to the list that will be used for
+                %the plot legend
+                codec_legend_list{cll_cntr} = codec_names{i};
+                cll_cntr = cll_cntr + 1;
+            end
         end
-    end
-    grid on;
-    legend(codec_legend_list, 'Interpreter', 'none', 'Location', 'best');
-    title({'Rate-Distortion Plots for', reconstruction_prefix}, 'Interpreter', 'none');
-    xlabel('Average Bits Per Point');   %Bits per total no. of points in reconstruction
-    ylabel('Average Symmetric Geometric RMSE');
-    subplot(1, 2, 2);
-    codec_legend_list = {}; %List that will be used for the plot legend
-    cll_cntr = 1;   %Counter for legend list of codec names
-    for i = 1:numel(codec_names)
-        if ~isempty(geom_bitrates{p, i})
-            bitrate_data = geom_bitrates{p, i};
-            errors_data = errors{p, i};
-            plot(bitrate_data(:, 2), errors_data(:, 2), '-o');
-            hold on;
-            %Add the current codec name to the list that will be used for
-            %the plot legend
-            codec_legend_list{cll_cntr} = codec_names{i};
-            cll_cntr = cll_cntr + 1;
+        grid on;
+        legend(codec_legend_list, 'Interpreter', 'none', 'Location', 'best');
+        title({'Rate-Distortion Plots for', reconstruction_prefix}, 'Interpreter', 'none');
+        xlabel('Average Bits Per Point');   %Bits per total no. of points in reconstruction
+        ylabel('Average Symmetric Geometric RMSE');
+        subplot(1, 2, 2);
+        codec_legend_list = {}; %List that will be used for the plot legend
+        cll_cntr = 1;   %Counter for legend list of codec names
+        for i = 1:numel(codec_names)
+            if ~isempty(geom_bitrates{p, i})
+                bitrate_data = geom_bitrates{p, i};
+                errors_data = errors{p, i};
+                plot(bitrate_data(:, 2), errors_data(:, 2), '-o');
+                hold on;
+                %Add the current codec name to the list that will be used for
+                %the plot legend
+                codec_legend_list{cll_cntr} = codec_names{i};
+                cll_cntr = cll_cntr + 1;
+            end
         end
+        grid on;
+        legend(codec_legend_list, 'Interpreter', 'none', 'Location', 'best');
+        title({'Rate-Distortion Plots for', reconstruction_prefix}, 'Interpreter', 'none');
+        xlabel('Average Total Bits');   %Total bits in frame
+        ylabel('Average Symmetric Geometric RMSE');
+        %Save the plots as a MATLAB figure and as a PDF image in the current 
+        %MATLAB directory (NB: The '-bestfit' option maximizes the size of the 
+        %figure to fill the page, but preserves the aspect ratio of the figure. 
+        %The figure might not fill the entire page. This option leaves a 
+        %minimum page margin of .25 inches).
+        savefig([reconstruction_prefix '_geom_RMSE_plots_comparison']);
+        print('-bestfit', [reconstruction_prefix '_geom_RMSE_plots_comparison'], '-dpdf');
+        %Save in our network directory as well
+        savefig([rd_path ptcloud_names{p} '\' vox_novox_dir '\' rd_dir_name '\' reconstruction_prefix '_geom_RMSE_plots_comparison']);
+        print('-bestfit', [rd_path ptcloud_names{p} '\' vox_novox_dir '\' rd_dir_name '\' reconstruction_prefix '_geom_RMSE_plots_comparison'], '-dpdf');
     end
-    grid on;
-    legend(codec_legend_list, 'Interpreter', 'none', 'Location', 'best');
-    title({'Rate-Distortion Plots for', reconstruction_prefix}, 'Interpreter', 'none');
-    xlabel('Average Total Bits');   %Total bits in frame
-    ylabel('Average Symmetric Geometric RMSE');
-    %Save the plots as a MATLAB figure and as a PDF image in the current 
-    %MATLAB directory (NB: The '-bestfit' option maximizes the size of the 
-    %figure to fill the page, but preserves the aspect ratio of the figure. 
-    %The figure might not fill the entire page. This option leaves a 
-    %minimum page margin of .25 inches).
-    savefig([reconstruction_prefix '_geom_RMSE_plots_comparison']);
-    print('-bestfit', [reconstruction_prefix '_geom_RMSE_plots_comparison'], '-dpdf');
-    %Save in our network directory as well
-    savefig([rd_path ptcloud_names{p} '\' vox_novox_dir '\' rd_dir_name '\' reconstruction_prefix '_geom_RMSE_plots_comparison']);
-    print('-bestfit', [rd_path ptcloud_names{p} '\' vox_novox_dir '\' rd_dir_name '\' reconstruction_prefix '_geom_RMSE_plots_comparison'], '-dpdf');
-
+    
     %R-D plots for geometric PSNR
-    figure;
-    subplot(1, 2, 1);
-    codec_legend_list = {}; %List that will be used for the plot legend
-    cll_cntr = 1;   %Counter for legend list of codec names
-    for i = 1:numel(codec_names)
-        if ~isempty(geom_bitrates{p, i})
-            bitrate_data = geom_bitrates{p, i};
-            errors_data = errors{p, i};
-            plot(bitrate_data(:, 1), errors_data(:, 3), '-o');
-            hold on;
-            %Add the current codec name to the list that will be used for
-            %the plot legend
-            codec_legend_list{cll_cntr} = codec_names{i};
-            cll_cntr = cll_cntr + 1;
+    if ~isempty(geom_bitrates)
+        figure;
+        subplot(1, 2, 1);
+        codec_legend_list = {}; %List that will be used for the plot legend
+        cll_cntr = 1;   %Counter for legend list of codec names
+        for i = 1:numel(codec_names)
+            if ~isempty(geom_bitrates{p, i})
+                bitrate_data = geom_bitrates{p, i};
+                errors_data = errors{p, i};
+                plot(bitrate_data(:, 1), errors_data(:, 3), '-o');
+                hold on;
+                %Add the current codec name to the list that will be used for
+                %the plot legend
+                codec_legend_list{cll_cntr} = codec_names{i};
+                cll_cntr = cll_cntr + 1;
+            end
         end
-    end
-    grid on;
-    if (~isempty(geom_bitrates{p, i}))&&(str2double(voxN) > 0)
-        hold on;
-        %Plot a dashed red line at the maximum possible geometric PSNR for
-        %this input dataset
-        plot(bitrate_data(:, 1), repmat(max_geom_PSNR, 1, length(bitrate_data(:, 1))), 'r--');
-        legend([codec_legend_list, 'Max. possible geometric PSNR'], 'Interpreter', 'none', 'Location', 'best');
-    else
-        legend(codec_legend_list, 'Interpreter', 'none', 'Location', 'best');
-    end
-    title({'Rate-Distortion Plots for', reconstruction_prefix}, 'Interpreter', 'none');
-    xlabel('Average Bits Per Point');   %Bits per total no. of points in reconstruction
-    ylabel('Average Geometric PSNR (dB)'); 
-    subplot(1, 2, 2);
-    codec_legend_list = {}; %List that will be used for the plot legend
-    cll_cntr = 1;   %Counter for legend list of codec names
-    for i = 1:numel(codec_names)
-        if ~isempty(geom_bitrates{p, i})
-            bitrate_data = geom_bitrates{p, i};
-            errors_data = errors{p, i};
-            plot(bitrate_data(:, 2), errors_data(:, 3), '-o');
+        grid on;
+        if (~isempty(geom_bitrates{p, i}))&&(str2double(voxN) > 0)
             hold on;
-            %Add the current codec name to the list that will be used for
-            %the plot legend
-            codec_legend_list{cll_cntr} = codec_names{i};
-            cll_cntr = cll_cntr + 1;
+            %Plot a dashed red line at the maximum possible geometric PSNR for
+            %this input dataset
+            plot(bitrate_data(:, 1), repmat(max_geom_PSNR, 1, length(bitrate_data(:, 1))), 'r--');
+            legend([codec_legend_list, 'Max. possible geometric PSNR'], 'Interpreter', 'none', 'Location', 'best');
+        else
+            legend(codec_legend_list, 'Interpreter', 'none', 'Location', 'best');
         end
+        title({'Rate-Distortion Plots for', reconstruction_prefix}, 'Interpreter', 'none');
+        xlabel('Average Bits Per Point');   %Bits per total no. of points in reconstruction
+        ylabel('Average Geometric PSNR (dB)'); 
+        subplot(1, 2, 2);
+        codec_legend_list = {}; %List that will be used for the plot legend
+        cll_cntr = 1;   %Counter for legend list of codec names
+        for i = 1:numel(codec_names)
+            if ~isempty(geom_bitrates{p, i})
+                bitrate_data = geom_bitrates{p, i};
+                errors_data = errors{p, i};
+                plot(bitrate_data(:, 2), errors_data(:, 3), '-o');
+                hold on;
+                %Add the current codec name to the list that will be used for
+                %the plot legend
+                codec_legend_list{cll_cntr} = codec_names{i};
+                cll_cntr = cll_cntr + 1;
+            end
+        end
+        grid on;
+        if (~isempty(geom_bitrates{p, i}))&&(str2double(voxN) > 0)
+            hold on;
+            %Plot a dashed red line at the maximum possible geometric PSNR for
+            %this input dataset
+            plot(bitrate_data(:, 1), repmat(max_geom_PSNR, 1, length(bitrate_data(:, 1))), 'r--');
+            legend([codec_legend_list, 'Max. possible geometric PSNR'], 'Interpreter', 'none', 'Location', 'best');
+        else
+            legend(codec_legend_list, 'Interpreter', 'none', 'Location', 'best');
+        end
+        title({'Rate-Distortion Plots for', reconstruction_prefix}, 'Interpreter', 'none');
+        xlabel('Average Total Bits');   %Total bits in frame
+        ylabel('Average Geometric PSNR (dB)');
+        %Save the plots as a MATLAB figure and as a PDF image in the current 
+        %MATLAB directory (NB: The '-bestfit' option maximizes the size of the 
+        %figure to fill the page, but preserves the aspect ratio of the figure. 
+        %The figure might not fill the entire page. This option leaves a 
+        %minimum page margin of .25 inches).
+        savefig([reconstruction_prefix '_geom_PSNR_plots_comparison']);
+        print('-bestfit', [reconstruction_prefix '_geom_PSNR_plots_comparison'], '-dpdf');
+        %Save in our network directory as well
+        savefig([rd_path ptcloud_names{p} '\' vox_novox_dir '\' rd_dir_name '\' reconstruction_prefix '_geom_PSNR_plots_comparison']);
+        print('-bestfit', [rd_path ptcloud_names{p} '\' vox_novox_dir '\' rd_dir_name '\' reconstruction_prefix '_geom_PSNR_plots_comparison'], '-dpdf');
     end
-    grid on;
-    if (~isempty(geom_bitrates{p, i}))&&(str2double(voxN) > 0)
-        hold on;
-        %Plot a dashed red line at the maximum possible geometric PSNR for
-        %this input dataset
-        plot(bitrate_data(:, 1), repmat(max_geom_PSNR, 1, length(bitrate_data(:, 1))), 'r--');
-        legend([codec_legend_list, 'Max. possible geometric PSNR'], 'Interpreter', 'none', 'Location', 'best');
-    else
-        legend(codec_legend_list, 'Interpreter', 'none', 'Location', 'best');
-    end
-    title({'Rate-Distortion Plots for', reconstruction_prefix}, 'Interpreter', 'none');
-    xlabel('Average Total Bits');   %Total bits in frame
-    ylabel('Average Geometric PSNR (dB)');
-    %Save the plots as a MATLAB figure and as a PDF image in the current 
-    %MATLAB directory (NB: The '-bestfit' option maximizes the size of the 
-    %figure to fill the page, but preserves the aspect ratio of the figure. 
-    %The figure might not fill the entire page. This option leaves a 
-    %minimum page margin of .25 inches).
-    savefig([reconstruction_prefix '_geom_PSNR_plots_comparison']);
-    print('-bestfit', [reconstruction_prefix '_geom_PSNR_plots_comparison'], '-dpdf');
-    %Save in our network directory as well
-    savefig([rd_path ptcloud_names{p} '\' vox_novox_dir '\' rd_dir_name '\' reconstruction_prefix '_geom_PSNR_plots_comparison']);
-    print('-bestfit', [rd_path ptcloud_names{p} '\' vox_novox_dir '\' rd_dir_name '\' reconstruction_prefix '_geom_PSNR_plots_comparison'], '-dpdf');
     
     %R-D plots for PSNR of colour Y component
-    figure;
-    subplot(1, 2, 1);
-    codec_legend_list = {}; %List that will be used for the plot legend
-    cll_cntr = 1;   %Counter for legend list of codec names
-    for i = 1:numel(codec_names)
-        if ~isempty(Y_bitrates{p, i})
-            bitrate_data = Y_bitrates{p, i};
-            errors_data = errors{p, i};
-            plot(bitrate_data(:, 1), errors_data(:, 4), '-o');
-            hold on;
-            %Add the current codec name to the list that will be used for
-            %the plot legend
-            codec_legend_list{cll_cntr} = codec_names{i};
-            cll_cntr = cll_cntr + 1;
+    if ~isempty(Y_bitrates)
+        figure;
+        subplot(1, 2, 1);
+        codec_legend_list = {}; %List that will be used for the plot legend
+        cll_cntr = 1;   %Counter for legend list of codec names
+        for i = 1:numel(codec_names)
+            if ~isempty(Y_bitrates{p, i})
+                bitrate_data = Y_bitrates{p, i};
+                errors_data = errors{p, i};
+                plot(bitrate_data(:, 1), errors_data(:, 4), '-o');
+                hold on;
+                %Add the current codec name to the list that will be used for
+                %the plot legend
+                codec_legend_list{cll_cntr} = codec_names{i};
+                cll_cntr = cll_cntr + 1;
+            end
         end
-    end
-    grid on;
-    legend(codec_legend_list, 'Interpreter', 'none', 'Location', 'best');
-    title({'Rate-Distortion Plots for', reconstruction_prefix}, 'Interpreter', 'none');
-    xlabel('Average Bits Per Point (only Y bits)');   %Bits per total no. of points in reconstruction
-    ylabel('Average Colour PSNR Y (dB)');
-    subplot(1, 2, 2);
-    codec_legend_list = {}; %List that will be used for the plot legend
-    cll_cntr = 1;   %Counter for legend list of codec names
-    for i = 1:numel(codec_names)
-        if ~isempty(Y_bitrates{p, i})
-            bitrate_data = Y_bitrates{p, i};
-            errors_data = errors{p, i};
-            plot(bitrate_data(:, 2), errors_data(:, 4), '-o');
-            hold on;
-            %Add the current codec name to the list that will be used for
-            %the plot legend
-            codec_legend_list{cll_cntr} = codec_names{i};
-            cll_cntr = cll_cntr + 1;
+        grid on;
+        legend(codec_legend_list, 'Interpreter', 'none', 'Location', 'best');
+        title({'Rate-Distortion Plots for', reconstruction_prefix}, 'Interpreter', 'none');
+        xlabel('Average Bits Per Point (only Y bits)');   %Bits per total no. of points in reconstruction
+        ylabel('Average Colour PSNR Y (dB)');
+        subplot(1, 2, 2);
+        codec_legend_list = {}; %List that will be used for the plot legend
+        cll_cntr = 1;   %Counter for legend list of codec names
+        for i = 1:numel(codec_names)
+            if ~isempty(Y_bitrates{p, i})
+                bitrate_data = Y_bitrates{p, i};
+                errors_data = errors{p, i};
+                plot(bitrate_data(:, 2), errors_data(:, 4), '-o');
+                hold on;
+                %Add the current codec name to the list that will be used for
+                %the plot legend
+                codec_legend_list{cll_cntr} = codec_names{i};
+                cll_cntr = cll_cntr + 1;
+            end
         end
+        grid on;
+        legend(codec_legend_list, 'Interpreter', 'none', 'Location', 'best');
+        title({'Rate-Distortion Plots for', reconstruction_prefix}, 'Interpreter', 'none');
+        xlabel('Average Total Bits (only Y bits)');   %Total bits in frame
+        ylabel('Average Colour PSNR Y (dB)');
+        %Save the plots as a MATLAB figure and as a PDF image in the current 
+        %MATLAB directory (NB: The '-bestfit' option maximizes the size of the 
+        %figure to fill the page, but preserves the aspect ratio of the figure. 
+        %The figure might not fill the entire page. This option leaves a 
+        %minimum page margin of .25 inches).
+        savefig([reconstruction_prefix '_PSNR_Y_plots_comparison']);
+        print('-bestfit', [reconstruction_prefix '_PSNR_Y_plots_comparison'], '-dpdf');
+        %Save in our network directory as well
+        savefig([rd_path ptcloud_names{p} '\' vox_novox_dir '\' rd_dir_name '\' reconstruction_prefix '_PSNR_Y_plots_comparison']);
+        print('-bestfit', [rd_path ptcloud_names{p} '\' vox_novox_dir '\' rd_dir_name '\' reconstruction_prefix '_PSNR_Y_plots_comparison'], '-dpdf');  
     end
-    grid on;
-    legend(codec_legend_list, 'Interpreter', 'none', 'Location', 'best');
-    title({'Rate-Distortion Plots for', reconstruction_prefix}, 'Interpreter', 'none');
-    xlabel('Average Total Bits (only Y bits)');   %Total bits in frame
-    ylabel('Average Colour PSNR Y (dB)');
-    %Save the plots as a MATLAB figure and as a PDF image in the current 
-    %MATLAB directory (NB: The '-bestfit' option maximizes the size of the 
-    %figure to fill the page, but preserves the aspect ratio of the figure. 
-    %The figure might not fill the entire page. This option leaves a 
-    %minimum page margin of .25 inches).
-    savefig([reconstruction_prefix '_PSNR_Y_plots_comparison']);
-    print('-bestfit', [reconstruction_prefix '_PSNR_Y_plots_comparison'], '-dpdf');
-    %Save in our network directory as well
-    savefig([rd_path ptcloud_names{p} '\' vox_novox_dir '\' rd_dir_name '\' reconstruction_prefix '_PSNR_Y_plots_comparison']);
-    print('-bestfit', [rd_path ptcloud_names{p} '\' vox_novox_dir '\' rd_dir_name '\' reconstruction_prefix '_PSNR_Y_plots_comparison'], '-dpdf');  
     
     %R-D plots for PSNR of colour U component
-    figure;
-    subplot(1, 2, 1);
-    codec_legend_list = {}; %List that will be used for the plot legend
-    cll_cntr = 1;   %Counter for legend list of codec names
-    for i = 1:numel(codec_names)
-        if ~isempty(U_bitrates{p, i})
-            bitrate_data = U_bitrates{p, i};
-            errors_data = errors{p, i};
-            plot(bitrate_data(:, 1), errors_data(:, 5), '-o');
-            hold on;
-            %Add the current codec name to the list that will be used for
-            %the plot legend
-            codec_legend_list{cll_cntr} = codec_names{i};
-            cll_cntr = cll_cntr + 1;
+    if ~isempty(U_bitrates)
+        figure;
+        subplot(1, 2, 1);
+        codec_legend_list = {}; %List that will be used for the plot legend
+        cll_cntr = 1;   %Counter for legend list of codec names
+        for i = 1:numel(codec_names)
+            if ~isempty(U_bitrates{p, i})
+                bitrate_data = U_bitrates{p, i};
+                errors_data = errors{p, i};
+                plot(bitrate_data(:, 1), errors_data(:, 5), '-o');
+                hold on;
+                %Add the current codec name to the list that will be used for
+                %the plot legend
+                codec_legend_list{cll_cntr} = codec_names{i};
+                cll_cntr = cll_cntr + 1;
+            end
         end
-    end
-    grid on;
-    legend(codec_legend_list, 'Interpreter', 'none', 'Location', 'best');
-    title({'Rate-Distortion Plots for', reconstruction_prefix}, 'Interpreter', 'none');
-    xlabel('Average Bits Per Point (only U bits)');   %Bits per total no. of points in reconstruction
-    ylabel('Average Colour PSNR U (dB)');
-    subplot(1, 2, 2);
-    codec_legend_list = {}; %List that will be used for the plot legend
-    cll_cntr = 1;   %Counter for legend list of codec names
-    for i = 1:numel(codec_names)
-        if ~isempty(U_bitrates{p, i})
-            bitrate_data = U_bitrates{p, i};
-            errors_data = errors{p, i};
-            plot(bitrate_data(:, 2), errors_data(:, 5), '-o');
-            hold on;
-            %Add the current codec name to the list that will be used for
-            %the plot legend
-            codec_legend_list{cll_cntr} = codec_names{i};
-            cll_cntr = cll_cntr + 1;
+        grid on;
+        legend(codec_legend_list, 'Interpreter', 'none', 'Location', 'best');
+        title({'Rate-Distortion Plots for', reconstruction_prefix}, 'Interpreter', 'none');
+        xlabel('Average Bits Per Point (only U bits)');   %Bits per total no. of points in reconstruction
+        ylabel('Average Colour PSNR U (dB)');
+        subplot(1, 2, 2);
+        codec_legend_list = {}; %List that will be used for the plot legend
+        cll_cntr = 1;   %Counter for legend list of codec names
+        for i = 1:numel(codec_names)
+            if ~isempty(U_bitrates{p, i})
+                bitrate_data = U_bitrates{p, i};
+                errors_data = errors{p, i};
+                plot(bitrate_data(:, 2), errors_data(:, 5), '-o');
+                hold on;
+                %Add the current codec name to the list that will be used for
+                %the plot legend
+                codec_legend_list{cll_cntr} = codec_names{i};
+                cll_cntr = cll_cntr + 1;
+            end
         end
+        grid on;
+        legend(codec_legend_list, 'Interpreter', 'none', 'Location', 'best');
+        title({'Rate-Distortion Plots for', reconstruction_prefix}, 'Interpreter', 'none');
+        xlabel('Average Total Bits (only U bits)');   %Total bits in frame
+        ylabel('Average Colour PSNR U (dB)');
+        %Save the plots as a MATLAB figure and as a PDF image in the current 
+        %MATLAB directory (NB: The '-bestfit' option maximizes the size of the 
+        %figure to fill the page, but preserves the aspect ratio of the figure. 
+        %The figure might not fill the entire page. This option leaves a 
+        %minimum page margin of .25 inches).
+        savefig([reconstruction_prefix '_PSNR_U_plots_comparison']);
+        print('-bestfit', [reconstruction_prefix '_PSNR_U_plots_comparison'], '-dpdf');
+        %Save in our network directory as well
+        savefig([rd_path ptcloud_names{p} '\' vox_novox_dir '\' rd_dir_name '\' reconstruction_prefix '_PSNR_U_plots_comparison']);
+        print('-bestfit', [rd_path ptcloud_names{p} '\' vox_novox_dir '\' rd_dir_name '\' reconstruction_prefix '_PSNR_U_plots_comparison'], '-dpdf'); 
     end
-    grid on;
-    legend(codec_legend_list, 'Interpreter', 'none', 'Location', 'best');
-    title({'Rate-Distortion Plots for', reconstruction_prefix}, 'Interpreter', 'none');
-    xlabel('Average Total Bits (only U bits)');   %Total bits in frame
-    ylabel('Average Colour PSNR U (dB)');
-    %Save the plots as a MATLAB figure and as a PDF image in the current 
-    %MATLAB directory (NB: The '-bestfit' option maximizes the size of the 
-    %figure to fill the page, but preserves the aspect ratio of the figure. 
-    %The figure might not fill the entire page. This option leaves a 
-    %minimum page margin of .25 inches).
-    savefig([reconstruction_prefix '_PSNR_U_plots_comparison']);
-    print('-bestfit', [reconstruction_prefix '_PSNR_U_plots_comparison'], '-dpdf');
-    %Save in our network directory as well
-    savefig([rd_path ptcloud_names{p} '\' vox_novox_dir '\' rd_dir_name '\' reconstruction_prefix '_PSNR_U_plots_comparison']);
-    print('-bestfit', [rd_path ptcloud_names{p} '\' vox_novox_dir '\' rd_dir_name '\' reconstruction_prefix '_PSNR_U_plots_comparison'], '-dpdf');     
     
     %R-D plots for PSNR of colour V component
-    figure;
-    subplot(1, 2, 1);
-    codec_legend_list = {}; %List that will be used for the plot legend
-    cll_cntr = 1;   %Counter for legend list of codec names
-    for i = 1:numel(codec_names)
-        if ~isempty(V_bitrates{p, i})
-            bitrate_data = V_bitrates{p, i};
-            errors_data = errors{p, i};
-            plot(bitrate_data(:, 1), errors_data(:, 6), '-o');
-            hold on;
-            %Add the current codec name to the list that will be used for
-            %the plot legend
-            codec_legend_list{cll_cntr} = codec_names{i};
-            cll_cntr = cll_cntr + 1;
+    if ~isempty(V_bitrates)
+        figure;
+        subplot(1, 2, 1);
+        codec_legend_list = {}; %List that will be used for the plot legend
+        cll_cntr = 1;   %Counter for legend list of codec names
+        for i = 1:numel(codec_names)
+            if ~isempty(V_bitrates{p, i})
+                bitrate_data = V_bitrates{p, i};
+                errors_data = errors{p, i};
+                plot(bitrate_data(:, 1), errors_data(:, 6), '-o');
+                hold on;
+                %Add the current codec name to the list that will be used for
+                %the plot legend
+                codec_legend_list{cll_cntr} = codec_names{i};
+                cll_cntr = cll_cntr + 1;
+            end
         end
-    end
-    grid on;
-    legend(codec_legend_list, 'Interpreter', 'none', 'Location', 'best');
-    title({'Rate-Distortion Plots for', reconstruction_prefix}, 'Interpreter', 'none');
-    xlabel('Average Bits Per Point (only V bits)');   %Bits per total no. of points in reconstruction
-    ylabel('Average Colour PSNR V (dB)');
-    subplot(1, 2, 2);
-    codec_legend_list = {}; %List that will be used for the plot legend
-    cll_cntr = 1;   %Counter for legend list of codec names
-    for i = 1:numel(codec_names)
-        if ~isempty(V_bitrates{p, i})
-            bitrate_data = V_bitrates{p, i};
-            errors_data = errors{p, i};
-            plot(bitrate_data(:, 2), errors_data(:, 6), '-o');
-            hold on;
-            %Add the current codec name to the list that will be used for
-            %the plot legend
-            codec_legend_list{cll_cntr} = codec_names{i};
-            cll_cntr = cll_cntr + 1;
+        grid on;
+        legend(codec_legend_list, 'Interpreter', 'none', 'Location', 'best');
+        title({'Rate-Distortion Plots for', reconstruction_prefix}, 'Interpreter', 'none');
+        xlabel('Average Bits Per Point (only V bits)');   %Bits per total no. of points in reconstruction
+        ylabel('Average Colour PSNR V (dB)');
+        subplot(1, 2, 2);
+        codec_legend_list = {}; %List that will be used for the plot legend
+        cll_cntr = 1;   %Counter for legend list of codec names
+        for i = 1:numel(codec_names)
+            if ~isempty(V_bitrates{p, i})
+                bitrate_data = V_bitrates{p, i};
+                errors_data = errors{p, i};
+                plot(bitrate_data(:, 2), errors_data(:, 6), '-o');
+                hold on;
+                %Add the current codec name to the list that will be used for
+                %the plot legend
+                codec_legend_list{cll_cntr} = codec_names{i};
+                cll_cntr = cll_cntr + 1;
+            end
         end
+        grid on;
+        legend(codec_legend_list, 'Interpreter', 'none', 'Location', 'best');
+        title({'Rate-Distortion Plots for', reconstruction_prefix}, 'Interpreter', 'none');
+        xlabel('Average Total Bits (only V bits)');   %Total bits in frame
+        ylabel('Average Colour PSNR V (dB)');
+        %Save the plots as a MATLAB figure and as a PDF image in the current 
+        %MATLAB directory (NB: The '-bestfit' option maximizes the size of the 
+        %figure to fill the page, but preserves the aspect ratio of the figure. 
+        %The figure might not fill the entire page. This option leaves a 
+        %minimum page margin of .25 inches).
+        savefig([reconstruction_prefix '_PSNR_V_plots_comparison']);
+        print('-bestfit', [reconstruction_prefix '_PSNR_V_plots_comparison'], '-dpdf');
+        %Save in our network directory as well
+        savefig([rd_path ptcloud_names{p} '\' vox_novox_dir '\' rd_dir_name '\' reconstruction_prefix '_PSNR_V_plots_comparison']);
+        print('-bestfit', [rd_path ptcloud_names{p} '\' vox_novox_dir '\' rd_dir_name '\' reconstruction_prefix '_PSNR_V_plots_comparison'], '-dpdf');    
     end
-    grid on;
-    legend(codec_legend_list, 'Interpreter', 'none', 'Location', 'best');
-    title({'Rate-Distortion Plots for', reconstruction_prefix}, 'Interpreter', 'none');
-    xlabel('Average Total Bits (only V bits)');   %Total bits in frame
-    ylabel('Average Colour PSNR V (dB)');
-    %Save the plots as a MATLAB figure and as a PDF image in the current 
-    %MATLAB directory (NB: The '-bestfit' option maximizes the size of the 
-    %figure to fill the page, but preserves the aspect ratio of the figure. 
-    %The figure might not fill the entire page. This option leaves a 
-    %minimum page margin of .25 inches).
-    savefig([reconstruction_prefix '_PSNR_V_plots_comparison']);
-    print('-bestfit', [reconstruction_prefix '_PSNR_V_plots_comparison'], '-dpdf');
-    %Save in our network directory as well
-    savefig([rd_path ptcloud_names{p} '\' vox_novox_dir '\' rd_dir_name '\' reconstruction_prefix '_PSNR_V_plots_comparison']);
-    print('-bestfit', [rd_path ptcloud_names{p} '\' vox_novox_dir '\' rd_dir_name '\' reconstruction_prefix '_PSNR_V_plots_comparison'], '-dpdf');      
     
     %R-D plots for PSNR of colour Y component vs (Y + U + V) bits
-    figure;
-    subplot(1, 2, 1);
-    codec_legend_list = {}; %List that will be used for the plot legend
-    cll_cntr = 1;   %Counter for legend list of codec names
-    for i = 1:numel(codec_names)
-        if ~isempty(col_bitrates{p, i})
-            bitrate_data = col_bitrates{p, i};
-            errors_data = errors{p, i};
-            plot(bitrate_data(:, 1), errors_data(:, 4), '-o');
-            hold on;
-            %Add the current codec name to the list that will be used for
-            %the plot legend
-            codec_legend_list{cll_cntr} = codec_names{i};
-            cll_cntr = cll_cntr + 1;
+    if ~isempty(col_bitrates)
+        figure;
+        subplot(1, 2, 1);
+        codec_legend_list = {}; %List that will be used for the plot legend
+        cll_cntr = 1;   %Counter for legend list of codec names
+        for i = 1:numel(codec_names)
+            if ~isempty(col_bitrates{p, i})
+                bitrate_data = col_bitrates{p, i};
+                errors_data = errors{p, i};
+                plot(bitrate_data(:, 1), errors_data(:, 4), '-o');
+                hold on;
+                %Add the current codec name to the list that will be used for
+                %the plot legend
+                codec_legend_list{cll_cntr} = codec_names{i};
+                cll_cntr = cll_cntr + 1;
+            end
         end
-    end
-    grid on;
-    legend(codec_legend_list, 'Interpreter', 'none', 'Location', 'best');
-    title({'Rate-Distortion Plots for', reconstruction_prefix}, 'Interpreter', 'none');
-    xlabel('Average Bits Per Point (Y + U + V bits)');   %Bits per total no. of points in reconstruction
-    ylabel('Average Colour PSNR Y (dB)');
-    subplot(1, 2, 2);
-    codec_legend_list = {}; %List that will be used for the plot legend
-    cll_cntr = 1;   %Counter for legend list of codec names
-    for i = 1:numel(codec_names)
-        if ~isempty(col_bitrates{p, i})
-            bitrate_data = col_bitrates{p, i};
-            errors_data = errors{p, i};
-            plot(bitrate_data(:, 2), errors_data(:, 4), '-o');
-            hold on;
-            %Add the current codec name to the list that will be used for
-            %the plot legend
-            codec_legend_list{cll_cntr} = codec_names{i};
-            cll_cntr = cll_cntr + 1;
+        grid on;
+        legend(codec_legend_list, 'Interpreter', 'none', 'Location', 'best');
+        title({'Rate-Distortion Plots for', reconstruction_prefix}, 'Interpreter', 'none');
+        xlabel('Average Bits Per Point (Y + U + V bits)');   %Bits per total no. of points in reconstruction
+        ylabel('Average Colour PSNR Y (dB)');
+        subplot(1, 2, 2);
+        codec_legend_list = {}; %List that will be used for the plot legend
+        cll_cntr = 1;   %Counter for legend list of codec names
+        for i = 1:numel(codec_names)
+            if ~isempty(col_bitrates{p, i})
+                bitrate_data = col_bitrates{p, i};
+                errors_data = errors{p, i};
+                plot(bitrate_data(:, 2), errors_data(:, 4), '-o');
+                hold on;
+                %Add the current codec name to the list that will be used for
+                %the plot legend
+                codec_legend_list{cll_cntr} = codec_names{i};
+                cll_cntr = cll_cntr + 1;
+            end
         end
+        grid on;
+        legend(codec_legend_list, 'Interpreter', 'none', 'Location', 'best');
+        title({'Rate-Distortion Plots for', reconstruction_prefix}, 'Interpreter', 'none');
+        xlabel('Average Total Bits (Y + U + V bits)');   %Total bits in frame
+        ylabel('Average Colour PSNR Y (dB)');
+        %Save the plots as a MATLAB figure and as a PDF image in the current 
+        %MATLAB directory (NB: The '-bestfit' option maximizes the size of the 
+        %figure to fill the page, but preserves the aspect ratio of the figure. 
+        %The figure might not fill the entire page. This option leaves a 
+        %minimum page margin of .25 inches).
+        savefig([reconstruction_prefix '_PSNR_Y_vs_YUVbits_plots_comparison']);
+        print('-bestfit', [reconstruction_prefix '_PSNR_Y_vs_YUVbits_plots_comparison'], '-dpdf');
+        %Save in our network directory as well
+        savefig([rd_path ptcloud_names{p} '\' vox_novox_dir '\' rd_dir_name '\' reconstruction_prefix '_PSNR_Y_vs_YUVbits_plots_comparison']);
+        print('-bestfit', [rd_path ptcloud_names{p} '\' vox_novox_dir '\' rd_dir_name '\' reconstruction_prefix '_PSNR_Y_vs_YUVbits_plots_comparison'], '-dpdf'); 
     end
-    grid on;
-    legend(codec_legend_list, 'Interpreter', 'none', 'Location', 'best');
-    title({'Rate-Distortion Plots for', reconstruction_prefix}, 'Interpreter', 'none');
-    xlabel('Average Total Bits (Y + U + V bits)');   %Total bits in frame
-    ylabel('Average Colour PSNR Y (dB)');
-    %Save the plots as a MATLAB figure and as a PDF image in the current 
-    %MATLAB directory (NB: The '-bestfit' option maximizes the size of the 
-    %figure to fill the page, but preserves the aspect ratio of the figure. 
-    %The figure might not fill the entire page. This option leaves a 
-    %minimum page margin of .25 inches).
-    savefig([reconstruction_prefix '_PSNR_Y_vs_YUVbits_plots_comparison']);
-    print('-bestfit', [reconstruction_prefix '_PSNR_Y_vs_YUVbits_plots_comparison'], '-dpdf');
-    %Save in our network directory as well
-    savefig([rd_path ptcloud_names{p} '\' vox_novox_dir '\' rd_dir_name '\' reconstruction_prefix '_PSNR_Y_vs_YUVbits_plots_comparison']);
-    print('-bestfit', [rd_path ptcloud_names{p} '\' vox_novox_dir '\' rd_dir_name '\' reconstruction_prefix '_PSNR_Y_vs_YUVbits_plots_comparison'], '-dpdf');      
     
     %R-D plots for PSNR of colour U component vs (Y + U + V) bits
-    figure;
-    subplot(1, 2, 1);
-    codec_legend_list = {}; %List that will be used for the plot legend
-    cll_cntr = 1;   %Counter for legend list of codec names
-    for i = 1:numel(codec_names)
-        if ~isempty(col_bitrates{p, i})
-            bitrate_data = col_bitrates{p, i};
-            errors_data = errors{p, i};
-            plot(bitrate_data(:, 1), errors_data(:, 5), '-o');
-            hold on;
-            %Add the current codec name to the list that will be used for
-            %the plot legend
-            codec_legend_list{cll_cntr} = codec_names{i};
-            cll_cntr = cll_cntr + 1;
+    if ~isempty(col_bitrates)
+        figure;
+        subplot(1, 2, 1);
+        codec_legend_list = {}; %List that will be used for the plot legend
+        cll_cntr = 1;   %Counter for legend list of codec names
+        for i = 1:numel(codec_names)
+            if ~isempty(col_bitrates{p, i})
+                bitrate_data = col_bitrates{p, i};
+                errors_data = errors{p, i};
+                plot(bitrate_data(:, 1), errors_data(:, 5), '-o');
+                hold on;
+                %Add the current codec name to the list that will be used for
+                %the plot legend
+                codec_legend_list{cll_cntr} = codec_names{i};
+                cll_cntr = cll_cntr + 1;
+            end
         end
-    end
-    grid on;
-    legend(codec_legend_list, 'Interpreter', 'none', 'Location', 'best');
-    title({'Rate-Distortion Plots for', reconstruction_prefix}, 'Interpreter', 'none');
-    xlabel('Average Bits Per Point (Y + U + V bits)');   %Bits per total no. of points in reconstruction
-    ylabel('Average Colour PSNR U (dB)');
-    subplot(1, 2, 2);
-    codec_legend_list = {}; %List that will be used for the plot legend
-    cll_cntr = 1;   %Counter for legend list of codec names
-    for i = 1:numel(codec_names)
-        if ~isempty(col_bitrates{p, i})
-            bitrate_data = col_bitrates{p, i};
-            errors_data = errors{p, i};
-            plot(bitrate_data(:, 2), errors_data(:, 5), '-o');
-            hold on;
-            %Add the current codec name to the list that will be used for
-            %the plot legend
-            codec_legend_list{cll_cntr} = codec_names{i};
-            cll_cntr = cll_cntr + 1;
+        grid on;
+        legend(codec_legend_list, 'Interpreter', 'none', 'Location', 'best');
+        title({'Rate-Distortion Plots for', reconstruction_prefix}, 'Interpreter', 'none');
+        xlabel('Average Bits Per Point (Y + U + V bits)');   %Bits per total no. of points in reconstruction
+        ylabel('Average Colour PSNR U (dB)');
+        subplot(1, 2, 2);
+        codec_legend_list = {}; %List that will be used for the plot legend
+        cll_cntr = 1;   %Counter for legend list of codec names
+        for i = 1:numel(codec_names)
+            if ~isempty(col_bitrates{p, i})
+                bitrate_data = col_bitrates{p, i};
+                errors_data = errors{p, i};
+                plot(bitrate_data(:, 2), errors_data(:, 5), '-o');
+                hold on;
+                %Add the current codec name to the list that will be used for
+                %the plot legend
+                codec_legend_list{cll_cntr} = codec_names{i};
+                cll_cntr = cll_cntr + 1;
+            end
         end
+        grid on;
+        legend(codec_legend_list, 'Interpreter', 'none', 'Location', 'best');
+        title({'Rate-Distortion Plots for', reconstruction_prefix}, 'Interpreter', 'none');
+        xlabel('Average Total Bits (Y + U + V bits)');   %Total bits in frame
+        ylabel('Average Colour PSNR U (dB)');
+        %Save the plots as a MATLAB figure and as a PDF image in the current 
+        %MATLAB directory (NB: The '-bestfit' option maximizes the size of the 
+        %figure to fill the page, but preserves the aspect ratio of the figure. 
+        %The figure might not fill the entire page. This option leaves a 
+        %minimum page margin of .25 inches).
+        savefig([reconstruction_prefix '_PSNR_U_vs_YUVbits_plots_comparison']);
+        print('-bestfit', [reconstruction_prefix '_PSNR_U_vs_YUVbits_plots_comparison'], '-dpdf');
+        %Save in our network directory as well
+        savefig([rd_path ptcloud_names{p} '\' vox_novox_dir '\' rd_dir_name '\' reconstruction_prefix '_PSNR_U_vs_YUVbits_plots_comparison']);
+        print('-bestfit', [rd_path ptcloud_names{p} '\' vox_novox_dir '\' rd_dir_name '\' reconstruction_prefix '_PSNR_U_vs_YUVbits_plots_comparison'], '-dpdf');  
     end
-    grid on;
-    legend(codec_legend_list, 'Interpreter', 'none', 'Location', 'best');
-    title({'Rate-Distortion Plots for', reconstruction_prefix}, 'Interpreter', 'none');
-    xlabel('Average Total Bits (Y + U + V bits)');   %Total bits in frame
-    ylabel('Average Colour PSNR U (dB)');
-    %Save the plots as a MATLAB figure and as a PDF image in the current 
-    %MATLAB directory (NB: The '-bestfit' option maximizes the size of the 
-    %figure to fill the page, but preserves the aspect ratio of the figure. 
-    %The figure might not fill the entire page. This option leaves a 
-    %minimum page margin of .25 inches).
-    savefig([reconstruction_prefix '_PSNR_U_vs_YUVbits_plots_comparison']);
-    print('-bestfit', [reconstruction_prefix '_PSNR_U_vs_YUVbits_plots_comparison'], '-dpdf');
-    %Save in our network directory as well
-    savefig([rd_path ptcloud_names{p} '\' vox_novox_dir '\' rd_dir_name '\' reconstruction_prefix '_PSNR_U_vs_YUVbits_plots_comparison']);
-    print('-bestfit', [rd_path ptcloud_names{p} '\' vox_novox_dir '\' rd_dir_name '\' reconstruction_prefix '_PSNR_U_vs_YUVbits_plots_comparison'], '-dpdf');          
     
     %R-D plots for PSNR of colour V component vs (Y + U + V) bits
-    figure;
-    subplot(1, 2, 1);
-    codec_legend_list = {}; %List that will be used for the plot legend
-    cll_cntr = 1;   %Counter for legend list of codec names
-    for i = 1:numel(codec_names)
-        if ~isempty(col_bitrates{p, i})
-            bitrate_data = col_bitrates{p, i};
-            errors_data = errors{p, i};
-            plot(bitrate_data(:, 1), errors_data(:, 6), '-o');
-            hold on;
-            %Add the current codec name to the list that will be used for
-            %the plot legend
-            codec_legend_list{cll_cntr} = codec_names{i};
-            cll_cntr = cll_cntr + 1;
+    if ~isempty(col_bitrates)
+        figure;
+        subplot(1, 2, 1);
+        codec_legend_list = {}; %List that will be used for the plot legend
+        cll_cntr = 1;   %Counter for legend list of codec names
+        for i = 1:numel(codec_names)
+            if ~isempty(col_bitrates{p, i})
+                bitrate_data = col_bitrates{p, i};
+                errors_data = errors{p, i};
+                plot(bitrate_data(:, 1), errors_data(:, 6), '-o');
+                hold on;
+                %Add the current codec name to the list that will be used for
+                %the plot legend
+                codec_legend_list{cll_cntr} = codec_names{i};
+                cll_cntr = cll_cntr + 1;
+            end
         end
-    end
-    grid on;
-    legend(codec_legend_list, 'Interpreter', 'none', 'Location', 'best');
-    title({'Rate-Distortion Plots for', reconstruction_prefix}, 'Interpreter', 'none');
-    xlabel('Average Bits Per Point (Y + U + V bits)');   %Bits per total no. of points in reconstruction
-    ylabel('Average Colour PSNR V (dB)');
-    subplot(1, 2, 2);
-    codec_legend_list = {}; %List that will be used for the plot legend
-    cll_cntr = 1;   %Counter for legend list of codec names
-    for i = 1:numel(codec_names)
-        if ~isempty(col_bitrates{p, i})
-            bitrate_data = col_bitrates{p, i};
-            errors_data = errors{p, i};
-            plot(bitrate_data(:, 2), errors_data(:, 6), '-o');
-            hold on;
-            %Add the current codec name to the list that will be used for
-            %the plot legend
-            codec_legend_list{cll_cntr} = codec_names{i};
-            cll_cntr = cll_cntr + 1;
+        grid on;
+        legend(codec_legend_list, 'Interpreter', 'none', 'Location', 'best');
+        title({'Rate-Distortion Plots for', reconstruction_prefix}, 'Interpreter', 'none');
+        xlabel('Average Bits Per Point (Y + U + V bits)');   %Bits per total no. of points in reconstruction
+        ylabel('Average Colour PSNR V (dB)');
+        subplot(1, 2, 2);
+        codec_legend_list = {}; %List that will be used for the plot legend
+        cll_cntr = 1;   %Counter for legend list of codec names
+        for i = 1:numel(codec_names)
+            if ~isempty(col_bitrates{p, i})
+                bitrate_data = col_bitrates{p, i};
+                errors_data = errors{p, i};
+                plot(bitrate_data(:, 2), errors_data(:, 6), '-o');
+                hold on;
+                %Add the current codec name to the list that will be used for
+                %the plot legend
+                codec_legend_list{cll_cntr} = codec_names{i};
+                cll_cntr = cll_cntr + 1;
+            end
         end
+        grid on;
+        legend(codec_legend_list, 'Interpreter', 'none', 'Location', 'best');
+        title({'Rate-Distortion Plots for', reconstruction_prefix}, 'Interpreter', 'none');
+        xlabel('Average Total Bits (Y + U + V bits)');   %Total bits in frame
+        ylabel('Average Colour PSNR V (dB)');
+        %Save the plots as a MATLAB figure and as a PDF image in the current 
+        %MATLAB directory (NB: The '-bestfit' option maximizes the size of the 
+        %figure to fill the page, but preserves the aspect ratio of the figure. 
+        %The figure might not fill the entire page. This option leaves a 
+        %minimum page margin of .25 inches).
+        savefig([reconstruction_prefix '_PSNR_V_vs_YUVbits_plots_comparison']);
+        print('-bestfit', [reconstruction_prefix '_PSNR_V_vs_YUVbits_plots_comparison'], '-dpdf');
+        %Save in our network directory as well
+        savefig([rd_path ptcloud_names{p} '\' vox_novox_dir '\' rd_dir_name '\' reconstruction_prefix '_PSNR_V_vs_YUVbits_plots_comparison']);
+        print('-bestfit', [rd_path ptcloud_names{p} '\' vox_novox_dir '\' rd_dir_name '\' reconstruction_prefix '_PSNR_V_vs_YUVbits_plots_comparison'], '-dpdf'); 
     end
-    grid on;
-    legend(codec_legend_list, 'Interpreter', 'none', 'Location', 'best');
-    title({'Rate-Distortion Plots for', reconstruction_prefix}, 'Interpreter', 'none');
-    xlabel('Average Total Bits (Y + U + V bits)');   %Total bits in frame
-    ylabel('Average Colour PSNR V (dB)');
-    %Save the plots as a MATLAB figure and as a PDF image in the current 
-    %MATLAB directory (NB: The '-bestfit' option maximizes the size of the 
-    %figure to fill the page, but preserves the aspect ratio of the figure. 
-    %The figure might not fill the entire page. This option leaves a 
-    %minimum page margin of .25 inches).
-    savefig([reconstruction_prefix '_PSNR_V_vs_YUVbits_plots_comparison']);
-    print('-bestfit', [reconstruction_prefix '_PSNR_V_vs_YUVbits_plots_comparison'], '-dpdf');
-    %Save in our network directory as well
-    savefig([rd_path ptcloud_names{p} '\' vox_novox_dir '\' rd_dir_name '\' reconstruction_prefix '_PSNR_V_vs_YUVbits_plots_comparison']);
-    print('-bestfit', [rd_path ptcloud_names{p} '\' vox_novox_dir '\' rd_dir_name '\' reconstruction_prefix '_PSNR_V_vs_YUVbits_plots_comparison'], '-dpdf');          
     
     %R-D plots for symmetric geometric Hausdorff distance vs total bitrates
-    figure;
-    subplot(1, 2, 1);  
-    codec_legend_list = {}; %List that will be used for the plot legend
-    cll_cntr = 1;   %Counter for legend list of codec names
-    for i = 1:numel(codec_names)
-        if ~isempty(all_bitrates{p, i})
-            bitrate_data = all_bitrates{p, i};
-            errors_data = errors{p, i};
-            plot(bitrate_data(:, 1), errors_data(:, 1), '-o');
-            hold on;
-            %Add the current codec name to the list that will be used for
-            %the plot legend
-            codec_legend_list{cll_cntr} = codec_names{i};
-            cll_cntr = cll_cntr + 1;
+    if ~isempty(all_bitrates)
+        figure;
+        subplot(1, 2, 1);  
+        codec_legend_list = {}; %List that will be used for the plot legend
+        cll_cntr = 1;   %Counter for legend list of codec names
+        for i = 1:numel(codec_names)
+            if ~isempty(all_bitrates{p, i})
+                bitrate_data = all_bitrates{p, i};
+                errors_data = errors{p, i};
+                plot(bitrate_data(:, 1), errors_data(:, 1), '-o');
+                hold on;
+                %Add the current codec name to the list that will be used for
+                %the plot legend
+                codec_legend_list{cll_cntr} = codec_names{i};
+                cll_cntr = cll_cntr + 1;
+            end
         end
-    end
-    grid on;
-    legend(codec_legend_list, 'Interpreter', 'none', 'Location', 'best');
-    title({'Rate-Distortion Plots for', reconstruction_prefix}, 'Interpreter', 'none');
-    xlabel('Average Bits Per Point (Geometry + Colour)');   %Bits per total no. of points in reconstruction
-    ylabel('Average Symmetric Geometric Hausdorff Distance');
-    subplot(1, 2, 2);   
-    codec_legend_list = {}; %List that will be used for the plot legend
-    cll_cntr = 1;   %Counter for legend list of codec names
-    for i = 1:numel(codec_names)
-        if ~isempty(all_bitrates{p, i})
-            bitrate_data = all_bitrates{p, i};
-            errors_data = errors{p, i};
-            plot(bitrate_data(:, 2), errors_data(:, 1), '-o');
-            hold on;
-            %Add the current codec name to the list that will be used for
-            %the plot legend
-            codec_legend_list{cll_cntr} = codec_names{i};
-            cll_cntr = cll_cntr + 1;
+        grid on;
+        legend(codec_legend_list, 'Interpreter', 'none', 'Location', 'best');
+        title({'Rate-Distortion Plots for', reconstruction_prefix}, 'Interpreter', 'none');
+        xlabel('Average Bits Per Point (Geometry + Colour)');   %Bits per total no. of points in reconstruction
+        ylabel('Average Symmetric Geometric Hausdorff Distance');
+        subplot(1, 2, 2);   
+        codec_legend_list = {}; %List that will be used for the plot legend
+        cll_cntr = 1;   %Counter for legend list of codec names
+        for i = 1:numel(codec_names)
+            if ~isempty(all_bitrates{p, i})
+                bitrate_data = all_bitrates{p, i};
+                errors_data = errors{p, i};
+                plot(bitrate_data(:, 2), errors_data(:, 1), '-o');
+                hold on;
+                %Add the current codec name to the list that will be used for
+                %the plot legend
+                codec_legend_list{cll_cntr} = codec_names{i};
+                cll_cntr = cll_cntr + 1;
+            end
         end
+        grid on;
+        legend(codec_legend_list, 'Interpreter', 'none', 'Location', 'best');
+        title({'Rate-Distortion Plots for', reconstruction_prefix}, 'Interpreter', 'none');
+        xlabel('Average Total Bits (Geometry + Colour)');   %Total bits in frame
+        ylabel('Average Symmetric Geometric Hausdorff Distance');
+        %Save the plots as a MATLAB figure and as a PDF image in the current 
+        %MATLAB directory (NB: The '-bestfit' option maximizes the size of the 
+        %figure to fill the page, but preserves the aspect ratio of the figure. 
+        %The figure might not fill the entire page. This option leaves a 
+        %minimum page margin of .25 inches).
+        savefig([reconstruction_prefix '_geom_dH_vs_totalbits_plots_comparison']);
+        print('-bestfit', [reconstruction_prefix '_geom_dH_vs_totalbits_plots_comparison'], '-dpdf');
+        %Save in our network directory as well
+        savefig([rd_path ptcloud_names{p} '\' vox_novox_dir '\' rd_dir_name '\' reconstruction_prefix '_geom_dH_vs_totalbits_plots_comparison']);
+        print('-bestfit', [rd_path ptcloud_names{p} '\' vox_novox_dir '\' rd_dir_name '\' reconstruction_prefix '_geom_dH_vs_totalbits_plots_comparison'], '-dpdf');
     end
-    grid on;
-    legend(codec_legend_list, 'Interpreter', 'none', 'Location', 'best');
-    title({'Rate-Distortion Plots for', reconstruction_prefix}, 'Interpreter', 'none');
-    xlabel('Average Total Bits (Geometry + Colour)');   %Total bits in frame
-    ylabel('Average Symmetric Geometric Hausdorff Distance');
-    %Save the plots as a MATLAB figure and as a PDF image in the current 
-    %MATLAB directory (NB: The '-bestfit' option maximizes the size of the 
-    %figure to fill the page, but preserves the aspect ratio of the figure. 
-    %The figure might not fill the entire page. This option leaves a 
-    %minimum page margin of .25 inches).
-    savefig([reconstruction_prefix '_geom_dH_vs_totalbits_plots_comparison']);
-    print('-bestfit', [reconstruction_prefix '_geom_dH_vs_totalbits_plots_comparison'], '-dpdf');
-    %Save in our network directory as well
-    savefig([rd_path ptcloud_names{p} '\' vox_novox_dir '\' rd_dir_name '\' reconstruction_prefix '_geom_dH_vs_totalbits_plots_comparison']);
-    print('-bestfit', [rd_path ptcloud_names{p} '\' vox_novox_dir '\' rd_dir_name '\' reconstruction_prefix '_geom_dH_vs_totalbits_plots_comparison'], '-dpdf');
     
     %R-D plots for symmetric geometric RMSE vs total bitrates
-    figure;
-    subplot(1, 2, 1);  
-    codec_legend_list = {}; %List that will be used for the plot legend
-    cll_cntr = 1;   %Counter for legend list of codec names
-    for i = 1:numel(codec_names)
-        if ~isempty(all_bitrates{p, i})
-            bitrate_data = all_bitrates{p, i};
-            errors_data = errors{p, i};
-            plot(bitrate_data(:, 1), errors_data(:, 2), '-o');
-            hold on;
-            %Add the current codec name to the list that will be used for
-            %the plot legend
-            codec_legend_list{cll_cntr} = codec_names{i};
-            cll_cntr = cll_cntr + 1;
+    if ~isempty(all_bitrates)
+        figure;
+        subplot(1, 2, 1);  
+        codec_legend_list = {}; %List that will be used for the plot legend
+        cll_cntr = 1;   %Counter for legend list of codec names
+        for i = 1:numel(codec_names)
+            if ~isempty(all_bitrates{p, i})
+                bitrate_data = all_bitrates{p, i};
+                errors_data = errors{p, i};
+                plot(bitrate_data(:, 1), errors_data(:, 2), '-o');
+                hold on;
+                %Add the current codec name to the list that will be used for
+                %the plot legend
+                codec_legend_list{cll_cntr} = codec_names{i};
+                cll_cntr = cll_cntr + 1;
+            end
         end
-    end
-    grid on;
-    legend(codec_legend_list, 'Interpreter', 'none', 'Location', 'best');
-    title({'Rate-Distortion Plots for', reconstruction_prefix}, 'Interpreter', 'none');
-    xlabel('Average Bits Per Point (Geometry + Colour)');   %Bits per total no. of points in reconstruction
-    ylabel('Average Symmetric Geometric RMSE');
-    subplot(1, 2, 2);   
-    codec_legend_list = {}; %List that will be used for the plot legend
-    cll_cntr = 1;   %Counter for legend list of codec names
-    for i = 1:numel(codec_names)
-        if ~isempty(all_bitrates{p, i})
-            bitrate_data = all_bitrates{p, i};
-            errors_data = errors{p, i};
-            plot(bitrate_data(:, 2), errors_data(:, 2), '-o');
-            hold on;
-            %Add the current codec name to the list that will be used for
-            %the plot legend
-            codec_legend_list{cll_cntr} = codec_names{i};
-            cll_cntr = cll_cntr + 1;
+        grid on;
+        legend(codec_legend_list, 'Interpreter', 'none', 'Location', 'best');
+        title({'Rate-Distortion Plots for', reconstruction_prefix}, 'Interpreter', 'none');
+        xlabel('Average Bits Per Point (Geometry + Colour)');   %Bits per total no. of points in reconstruction
+        ylabel('Average Symmetric Geometric RMSE');
+        subplot(1, 2, 2);   
+        codec_legend_list = {}; %List that will be used for the plot legend
+        cll_cntr = 1;   %Counter for legend list of codec names
+        for i = 1:numel(codec_names)
+            if ~isempty(all_bitrates{p, i})
+                bitrate_data = all_bitrates{p, i};
+                errors_data = errors{p, i};
+                plot(bitrate_data(:, 2), errors_data(:, 2), '-o');
+                hold on;
+                %Add the current codec name to the list that will be used for
+                %the plot legend
+                codec_legend_list{cll_cntr} = codec_names{i};
+                cll_cntr = cll_cntr + 1;
+            end
         end
+        grid on;
+        legend(codec_legend_list, 'Interpreter', 'none', 'Location', 'best');
+        title({'Rate-Distortion Plots for', reconstruction_prefix}, 'Interpreter', 'none');
+        xlabel('Average Total Bits (Geometry + Colour)');   %Total bits in frame
+        ylabel('Average Symmetric Geometric RMSE');
+        %Save the plots as a MATLAB figure and as a PDF image in the current 
+        %MATLAB directory (NB: The '-bestfit' option maximizes the size of the 
+        %figure to fill the page, but preserves the aspect ratio of the figure. 
+        %The figure might not fill the entire page. This option leaves a 
+        %minimum page margin of .25 inches).
+        savefig([reconstruction_prefix '_geom_RMSE_vs_totalbits_plots_comparison']);
+        print('-bestfit', [reconstruction_prefix '_geom_RMSE_vs_totalbits_plots_comparison'], '-dpdf');
+        %Save in our network directory as well
+        savefig([rd_path ptcloud_names{p} '\' vox_novox_dir '\' rd_dir_name '\' reconstruction_prefix '_geom_RMSE_vs_totalbits_plots_comparison']);
+        print('-bestfit', [rd_path ptcloud_names{p} '\' vox_novox_dir '\' rd_dir_name '\' reconstruction_prefix '_geom_RMSE_vs_totalbits_plots_comparison'], '-dpdf');
     end
-    grid on;
-    legend(codec_legend_list, 'Interpreter', 'none', 'Location', 'best');
-    title({'Rate-Distortion Plots for', reconstruction_prefix}, 'Interpreter', 'none');
-    xlabel('Average Total Bits (Geometry + Colour)');   %Total bits in frame
-    ylabel('Average Symmetric Geometric RMSE');
-    %Save the plots as a MATLAB figure and as a PDF image in the current 
-    %MATLAB directory (NB: The '-bestfit' option maximizes the size of the 
-    %figure to fill the page, but preserves the aspect ratio of the figure. 
-    %The figure might not fill the entire page. This option leaves a 
-    %minimum page margin of .25 inches).
-    savefig([reconstruction_prefix '_geom_RMSE_vs_totalbits_plots_comparison']);
-    print('-bestfit', [reconstruction_prefix '_geom_RMSE_vs_totalbits_plots_comparison'], '-dpdf');
-    %Save in our network directory as well
-    savefig([rd_path ptcloud_names{p} '\' vox_novox_dir '\' rd_dir_name '\' reconstruction_prefix '_geom_RMSE_vs_totalbits_plots_comparison']);
-    print('-bestfit', [rd_path ptcloud_names{p} '\' vox_novox_dir '\' rd_dir_name '\' reconstruction_prefix '_geom_RMSE_vs_totalbits_plots_comparison'], '-dpdf');
     
     %R-D plots for geometric PSNR vs total bitrates
-    figure;
-    subplot(1, 2, 1);
-    codec_legend_list = {}; %List that will be used for the plot legend
-    cll_cntr = 1;   %Counter for legend list of codec names
-    for i = 1:numel(codec_names)
-        if ~isempty(all_bitrates{p, i})
-            bitrate_data = all_bitrates{p, i};
-            errors_data = errors{p, i};
-            plot(bitrate_data(:, 1), errors_data(:, 3), '-o');
-            hold on;
-            %Add the current codec name to the list that will be used for
-            %the plot legend
-            codec_legend_list{cll_cntr} = codec_names{i};
-            cll_cntr = cll_cntr + 1;
+    if ~isempty(all_bitrates)
+        figure;
+        subplot(1, 2, 1);
+        codec_legend_list = {}; %List that will be used for the plot legend
+        cll_cntr = 1;   %Counter for legend list of codec names
+        for i = 1:numel(codec_names)
+            if ~isempty(all_bitrates{p, i})
+                bitrate_data = all_bitrates{p, i};
+                errors_data = errors{p, i};
+                plot(bitrate_data(:, 1), errors_data(:, 3), '-o');
+                hold on;
+                %Add the current codec name to the list that will be used for
+                %the plot legend
+                codec_legend_list{cll_cntr} = codec_names{i};
+                cll_cntr = cll_cntr + 1;
+            end
         end
-    end
-    grid on;
-    if (~isempty(geom_bitrates{p, i}))&&(str2double(voxN) > 0)
-        hold on;
-        %Plot a dashed red line at the maximum possible geometric PSNR for
-        %this input dataset
-        plot(bitrate_data(:, 1), repmat(max_geom_PSNR, 1, length(bitrate_data(:, 1))), 'r--');
-        legend([codec_legend_list, 'Max. possible geometric PSNR'], 'Interpreter', 'none', 'Location', 'best');
-    else
-        legend(codec_legend_list, 'Interpreter', 'none', 'Location', 'best');
-    end
-    title({'Rate-Distortion Plots for', reconstruction_prefix}, 'Interpreter', 'none');
-    xlabel('Average Bits Per Point (Geometry + Colour)');   %Bits per total no. of points in reconstruction
-    ylabel('Average Geometric PSNR (dB)'); 
-    subplot(1, 2, 2);
-    codec_legend_list = {}; %List that will be used for the plot legend
-    cll_cntr = 1;   %Counter for legend list of codec names
-    for i = 1:numel(codec_names)
-        if ~isempty(all_bitrates{p, i})
-            bitrate_data = all_bitrates{p, i};
-            errors_data = errors{p, i};
-            plot(bitrate_data(:, 2), errors_data(:, 3), '-o');
+        grid on;
+        if (~isempty(geom_bitrates{p, i}))&&(str2double(voxN) > 0)
             hold on;
-            %Add the current codec name to the list that will be used for
-            %the plot legend
-            codec_legend_list{cll_cntr} = codec_names{i};
-            cll_cntr = cll_cntr + 1;
+            %Plot a dashed red line at the maximum possible geometric PSNR for
+            %this input dataset
+            plot(bitrate_data(:, 1), repmat(max_geom_PSNR, 1, length(bitrate_data(:, 1))), 'r--');
+            legend([codec_legend_list, 'Max. possible geometric PSNR'], 'Interpreter', 'none', 'Location', 'best');
+        else
+            legend(codec_legend_list, 'Interpreter', 'none', 'Location', 'best');
         end
+        title({'Rate-Distortion Plots for', reconstruction_prefix}, 'Interpreter', 'none');
+        xlabel('Average Bits Per Point (Geometry + Colour)');   %Bits per total no. of points in reconstruction
+        ylabel('Average Geometric PSNR (dB)'); 
+        subplot(1, 2, 2);
+        codec_legend_list = {}; %List that will be used for the plot legend
+        cll_cntr = 1;   %Counter for legend list of codec names
+        for i = 1:numel(codec_names)
+            if ~isempty(all_bitrates{p, i})
+                bitrate_data = all_bitrates{p, i};
+                errors_data = errors{p, i};
+                plot(bitrate_data(:, 2), errors_data(:, 3), '-o');
+                hold on;
+                %Add the current codec name to the list that will be used for
+                %the plot legend
+                codec_legend_list{cll_cntr} = codec_names{i};
+                cll_cntr = cll_cntr + 1;
+            end
+        end
+        grid on;
+        if (~isempty(geom_bitrates{p, i}))&&(str2double(voxN) > 0)
+            hold on;
+            %Plot a dashed red line at the maximum possible geometric PSNR for
+            %this input dataset
+            plot(bitrate_data(:, 1), repmat(max_geom_PSNR, 1, length(bitrate_data(:, 1))), 'r--');
+            legend([codec_legend_list, 'Max. possible geometric PSNR'], 'Interpreter', 'none', 'Location', 'best');
+        else
+            legend(codec_legend_list, 'Interpreter', 'none', 'Location', 'best');
+        end
+        title({'Rate-Distortion Plots for', reconstruction_prefix}, 'Interpreter', 'none');
+        xlabel('Average Total Bits (Geometry + Colour)');   %Total bits in frame
+        ylabel('Average Geometric PSNR (dB)');
+        %Save the plots as a MATLAB figure and as a PDF image in the current 
+        %MATLAB directory (NB: The '-bestfit' option maximizes the size of the 
+        %figure to fill the page, but preserves the aspect ratio of the figure. 
+        %The figure might not fill the entire page. This option leaves a 
+        %minimum page margin of .25 inches).
+        savefig([reconstruction_prefix '_geom_PSNR_vs_totalbits_plots_comparison']);
+        print('-bestfit', [reconstruction_prefix '_geom_PSNR_vs_totalbits_plots_comparison'], '-dpdf');
+        %Save in our network directory as well
+        savefig([rd_path ptcloud_names{p} '\' vox_novox_dir '\' rd_dir_name '\' reconstruction_prefix '_geom_PSNR_vs_totalbits_plots_comparison']);
+        print('-bestfit', [rd_path ptcloud_names{p} '\' vox_novox_dir '\' rd_dir_name '\' reconstruction_prefix '_geom_PSNR_vs_totalbits_plots_comparison'], '-dpdf');
     end
-    grid on;
-    if (~isempty(geom_bitrates{p, i}))&&(str2double(voxN) > 0)
-        hold on;
-        %Plot a dashed red line at the maximum possible geometric PSNR for
-        %this input dataset
-        plot(bitrate_data(:, 1), repmat(max_geom_PSNR, 1, length(bitrate_data(:, 1))), 'r--');
-        legend([codec_legend_list, 'Max. possible geometric PSNR'], 'Interpreter', 'none', 'Location', 'best');
-    else
-        legend(codec_legend_list, 'Interpreter', 'none', 'Location', 'best');
-    end
-    title({'Rate-Distortion Plots for', reconstruction_prefix}, 'Interpreter', 'none');
-    xlabel('Average Total Bits (Geometry + Colour)');   %Total bits in frame
-    ylabel('Average Geometric PSNR (dB)');
-    %Save the plots as a MATLAB figure and as a PDF image in the current 
-    %MATLAB directory (NB: The '-bestfit' option maximizes the size of the 
-    %figure to fill the page, but preserves the aspect ratio of the figure. 
-    %The figure might not fill the entire page. This option leaves a 
-    %minimum page margin of .25 inches).
-    savefig([reconstruction_prefix '_geom_PSNR_vs_totalbits_plots_comparison']);
-    print('-bestfit', [reconstruction_prefix '_geom_PSNR_vs_totalbits_plots_comparison'], '-dpdf');
-    %Save in our network directory as well
-    savefig([rd_path ptcloud_names{p} '\' vox_novox_dir '\' rd_dir_name '\' reconstruction_prefix '_geom_PSNR_vs_totalbits_plots_comparison']);
-    print('-bestfit', [rd_path ptcloud_names{p} '\' vox_novox_dir '\' rd_dir_name '\' reconstruction_prefix '_geom_PSNR_vs_totalbits_plots_comparison'], '-dpdf');
     
     %R-D plots for PSNR of colour Y component vs total bitrates
-    figure;
-    subplot(1, 2, 1);
-    codec_legend_list = {}; %List that will be used for the plot legend
-    cll_cntr = 1;   %Counter for legend list of codec names
-    for i = 1:numel(codec_names)
-        if ~isempty(all_bitrates{p, i})
-            bitrate_data = all_bitrates{p, i};
-            errors_data = errors{p, i};
-            plot(bitrate_data(:, 1), errors_data(:, 4), '-o');
-            hold on;
-            %Add the current codec name to the list that will be used for
-            %the plot legend
-            codec_legend_list{cll_cntr} = codec_names{i};
-            cll_cntr = cll_cntr + 1;
+    if ~isempty(all_bitrates)
+        figure;
+        subplot(1, 2, 1);
+        codec_legend_list = {}; %List that will be used for the plot legend
+        cll_cntr = 1;   %Counter for legend list of codec names
+        for i = 1:numel(codec_names)
+            if ~isempty(all_bitrates{p, i})
+                bitrate_data = all_bitrates{p, i};
+                errors_data = errors{p, i};
+                plot(bitrate_data(:, 1), errors_data(:, 4), '-o');
+                hold on;
+                %Add the current codec name to the list that will be used for
+                %the plot legend
+                codec_legend_list{cll_cntr} = codec_names{i};
+                cll_cntr = cll_cntr + 1;
+            end
         end
-    end
-    grid on;
-    legend(codec_legend_list, 'Interpreter', 'none', 'Location', 'best');
-    title({'Rate-Distortion Plots for', reconstruction_prefix}, 'Interpreter', 'none');
-    xlabel('Average Bits Per Point (Geometry + Colour)');   %Bits per total no. of points in reconstruction
-    ylabel('Average Colour PSNR Y (dB)');
-    subplot(1, 2, 2);
-    codec_legend_list = {}; %List that will be used for the plot legend
-    cll_cntr = 1;   %Counter for legend list of codec names
-    for i = 1:numel(codec_names)
-        if ~isempty(all_bitrates{p, i})
-            bitrate_data = all_bitrates{p, i};
-            errors_data = errors{p, i};
-            plot(bitrate_data(:, 2), errors_data(:, 4), '-o');
-            hold on;
-            %Add the current codec name to the list that will be used for
-            %the plot legend
-            codec_legend_list{cll_cntr} = codec_names{i};
-            cll_cntr = cll_cntr + 1;
+        grid on;
+        legend(codec_legend_list, 'Interpreter', 'none', 'Location', 'best');
+        title({'Rate-Distortion Plots for', reconstruction_prefix}, 'Interpreter', 'none');
+        xlabel('Average Bits Per Point (Geometry + Colour)');   %Bits per total no. of points in reconstruction
+        ylabel('Average Colour PSNR Y (dB)');
+        subplot(1, 2, 2);
+        codec_legend_list = {}; %List that will be used for the plot legend
+        cll_cntr = 1;   %Counter for legend list of codec names
+        for i = 1:numel(codec_names)
+            if ~isempty(all_bitrates{p, i})
+                bitrate_data = all_bitrates{p, i};
+                errors_data = errors{p, i};
+                plot(bitrate_data(:, 2), errors_data(:, 4), '-o');
+                hold on;
+                %Add the current codec name to the list that will be used for
+                %the plot legend
+                codec_legend_list{cll_cntr} = codec_names{i};
+                cll_cntr = cll_cntr + 1;
+            end
         end
+        grid on;
+        legend(codec_legend_list, 'Interpreter', 'none', 'Location', 'best');
+        title({'Rate-Distortion Plots for', reconstruction_prefix}, 'Interpreter', 'none');
+        xlabel('Average Total Bits (Geometry + Colour)');   %Total bits in frame
+        ylabel('Average Colour PSNR Y (dB)');
+        %Save the plots as a MATLAB figure and as a PDF image in the current 
+        %MATLAB directory (NB: The '-bestfit' option maximizes the size of the 
+        %figure to fill the page, but preserves the aspect ratio of the figure. 
+        %The figure might not fill the entire page. This option leaves a 
+        %minimum page margin of .25 inches).
+        savefig([reconstruction_prefix '_PSNR_Y_vs_totalbits_plots_comparison']);
+        print('-bestfit', [reconstruction_prefix '_PSNR_Y_vs_totalbits_plots_comparison'], '-dpdf');
+        %Save in our network directory as well
+        savefig([rd_path ptcloud_names{p} '\' vox_novox_dir '\' rd_dir_name '\' reconstruction_prefix '_PSNR_Y_vs_totalbits_plots_comparison']);
+        print('-bestfit', [rd_path ptcloud_names{p} '\' vox_novox_dir '\' rd_dir_name '\' reconstruction_prefix '_PSNR_Y_vs_totalbits_plots_comparison'], '-dpdf'); 
     end
-    grid on;
-    legend(codec_legend_list, 'Interpreter', 'none', 'Location', 'best');
-    title({'Rate-Distortion Plots for', reconstruction_prefix}, 'Interpreter', 'none');
-    xlabel('Average Total Bits (Geometry + Colour)');   %Total bits in frame
-    ylabel('Average Colour PSNR Y (dB)');
-    %Save the plots as a MATLAB figure and as a PDF image in the current 
-    %MATLAB directory (NB: The '-bestfit' option maximizes the size of the 
-    %figure to fill the page, but preserves the aspect ratio of the figure. 
-    %The figure might not fill the entire page. This option leaves a 
-    %minimum page margin of .25 inches).
-    savefig([reconstruction_prefix '_PSNR_Y_vs_totalbits_plots_comparison']);
-    print('-bestfit', [reconstruction_prefix '_PSNR_Y_vs_totalbits_plots_comparison'], '-dpdf');
-    %Save in our network directory as well
-    savefig([rd_path ptcloud_names{p} '\' vox_novox_dir '\' rd_dir_name '\' reconstruction_prefix '_PSNR_Y_vs_totalbits_plots_comparison']);
-    print('-bestfit', [rd_path ptcloud_names{p} '\' vox_novox_dir '\' rd_dir_name '\' reconstruction_prefix '_PSNR_Y_vs_totalbits_plots_comparison'], '-dpdf');  
     
     %R-D plots for PSNR of colour U component vs total bitrates
-    figure;
-    subplot(1, 2, 1);
-    codec_legend_list = {}; %List that will be used for the plot legend
-    cll_cntr = 1;   %Counter for legend list of codec names
-    for i = 1:numel(codec_names)
-        if ~isempty(all_bitrates{p, i})
-            bitrate_data = all_bitrates{p, i};
-            errors_data = errors{p, i};
-            plot(bitrate_data(:, 1), errors_data(:, 5), '-o');
-            hold on;
-            %Add the current codec name to the list that will be used for
-            %the plot legend
-            codec_legend_list{cll_cntr} = codec_names{i};
-            cll_cntr = cll_cntr + 1;
+    if ~isempty(all_bitrates)
+        figure;
+        subplot(1, 2, 1);
+        codec_legend_list = {}; %List that will be used for the plot legend
+        cll_cntr = 1;   %Counter for legend list of codec names
+        for i = 1:numel(codec_names)
+            if ~isempty(all_bitrates{p, i})
+                bitrate_data = all_bitrates{p, i};
+                errors_data = errors{p, i};
+                plot(bitrate_data(:, 1), errors_data(:, 5), '-o');
+                hold on;
+                %Add the current codec name to the list that will be used for
+                %the plot legend
+                codec_legend_list{cll_cntr} = codec_names{i};
+                cll_cntr = cll_cntr + 1;
+            end
         end
-    end
-    grid on;
-    legend(codec_legend_list, 'Interpreter', 'none', 'Location', 'best');
-    title({'Rate-Distortion Plots for', reconstruction_prefix}, 'Interpreter', 'none');
-    xlabel('Average Bits Per Point (Geometry + Colour)');   %Bits per total no. of points in reconstruction
-    ylabel('Average Colour PSNR U (dB)');
-    subplot(1, 2, 2);
-    codec_legend_list = {}; %List that will be used for the plot legend
-    cll_cntr = 1;   %Counter for legend list of codec names
-    for i = 1:numel(codec_names)
-        if ~isempty(all_bitrates{p, i})
-            bitrate_data = all_bitrates{p, i};
-            errors_data = errors{p, i};
-            plot(bitrate_data(:, 2), errors_data(:, 5), '-o');
-            hold on;
-            %Add the current codec name to the list that will be used for
-            %the plot legend
-            codec_legend_list{cll_cntr} = codec_names{i};
-            cll_cntr = cll_cntr + 1;
+        grid on;
+        legend(codec_legend_list, 'Interpreter', 'none', 'Location', 'best');
+        title({'Rate-Distortion Plots for', reconstruction_prefix}, 'Interpreter', 'none');
+        xlabel('Average Bits Per Point (Geometry + Colour)');   %Bits per total no. of points in reconstruction
+        ylabel('Average Colour PSNR U (dB)');
+        subplot(1, 2, 2);
+        codec_legend_list = {}; %List that will be used for the plot legend
+        cll_cntr = 1;   %Counter for legend list of codec names
+        for i = 1:numel(codec_names)
+            if ~isempty(all_bitrates{p, i})
+                bitrate_data = all_bitrates{p, i};
+                errors_data = errors{p, i};
+                plot(bitrate_data(:, 2), errors_data(:, 5), '-o');
+                hold on;
+                %Add the current codec name to the list that will be used for
+                %the plot legend
+                codec_legend_list{cll_cntr} = codec_names{i};
+                cll_cntr = cll_cntr + 1;
+            end
         end
+        grid on;
+        legend(codec_legend_list, 'Interpreter', 'none', 'Location', 'best');
+        title({'Rate-Distortion Plots for', reconstruction_prefix}, 'Interpreter', 'none');
+        xlabel('Average Total Bits (Geometry + Colour)');   %Total bits in frame
+        ylabel('Average Colour PSNR U (dB)');
+        %Save the plots as a MATLAB figure and as a PDF image in the current 
+        %MATLAB directory (NB: The '-bestfit' option maximizes the size of the 
+        %figure to fill the page, but preserves the aspect ratio of the figure. 
+        %The figure might not fill the entire page. This option leaves a 
+        %minimum page margin of .25 inches).
+        savefig([reconstruction_prefix '_PSNR_U_vs_totalbits_plots_comparison']);
+        print('-bestfit', [reconstruction_prefix '_PSNR_U_vs_totalbits_plots_comparison'], '-dpdf');
+        %Save in our network directory as well
+        savefig([rd_path ptcloud_names{p} '\' vox_novox_dir '\' rd_dir_name '\' reconstruction_prefix '_PSNR_U_vs_totalbits_plots_comparison']);
+        print('-bestfit', [rd_path ptcloud_names{p} '\' vox_novox_dir '\' rd_dir_name '\' reconstruction_prefix '_PSNR_U_vs_totalbits_plots_comparison'], '-dpdf'); 
     end
-    grid on;
-    legend(codec_legend_list, 'Interpreter', 'none', 'Location', 'best');
-    title({'Rate-Distortion Plots for', reconstruction_prefix}, 'Interpreter', 'none');
-    xlabel('Average Total Bits (Geometry + Colour)');   %Total bits in frame
-    ylabel('Average Colour PSNR U (dB)');
-    %Save the plots as a MATLAB figure and as a PDF image in the current 
-    %MATLAB directory (NB: The '-bestfit' option maximizes the size of the 
-    %figure to fill the page, but preserves the aspect ratio of the figure. 
-    %The figure might not fill the entire page. This option leaves a 
-    %minimum page margin of .25 inches).
-    savefig([reconstruction_prefix '_PSNR_U_vs_totalbits_plots_comparison']);
-    print('-bestfit', [reconstruction_prefix '_PSNR_U_vs_totalbits_plots_comparison'], '-dpdf');
-    %Save in our network directory as well
-    savefig([rd_path ptcloud_names{p} '\' vox_novox_dir '\' rd_dir_name '\' reconstruction_prefix '_PSNR_U_vs_totalbits_plots_comparison']);
-    print('-bestfit', [rd_path ptcloud_names{p} '\' vox_novox_dir '\' rd_dir_name '\' reconstruction_prefix '_PSNR_U_vs_totalbits_plots_comparison'], '-dpdf');     
     
     %R-D plots for PSNR of colour V component vs total bitrates
-    figure;
-    subplot(1, 2, 1);
-    codec_legend_list = {}; %List that will be used for the plot legend
-    cll_cntr = 1;   %Counter for legend list of codec names
-    for i = 1:numel(codec_names)
-        if ~isempty(all_bitrates{p, i})
-            bitrate_data = all_bitrates{p, i};
-            errors_data = errors{p, i};
-            plot(bitrate_data(:, 1), errors_data(:, 6), '-o');
-            hold on;
-            %Add the current codec name to the list that will be used for
-            %the plot legend
-            codec_legend_list{cll_cntr} = codec_names{i};
-            cll_cntr = cll_cntr + 1;
+    if ~isempty(all_bitrates)
+        figure;
+        subplot(1, 2, 1);
+        codec_legend_list = {}; %List that will be used for the plot legend
+        cll_cntr = 1;   %Counter for legend list of codec names
+        for i = 1:numel(codec_names)
+            if ~isempty(all_bitrates{p, i})
+                bitrate_data = all_bitrates{p, i};
+                errors_data = errors{p, i};
+                plot(bitrate_data(:, 1), errors_data(:, 6), '-o');
+                hold on;
+                %Add the current codec name to the list that will be used for
+                %the plot legend
+                codec_legend_list{cll_cntr} = codec_names{i};
+                cll_cntr = cll_cntr + 1;
+            end
         end
-    end
-    grid on;
-    legend(codec_legend_list, 'Interpreter', 'none', 'Location', 'best');
-    title({'Rate-Distortion Plots for', reconstruction_prefix}, 'Interpreter', 'none');
-    xlabel('Average Bits Per Point (Geometry + Colour)');   %Bits per total no. of points in reconstruction
-    ylabel('Average Colour PSNR V (dB)');
-    subplot(1, 2, 2);
-    codec_legend_list = {}; %List that will be used for the plot legend
-    cll_cntr = 1;   %Counter for legend list of codec names
-    for i = 1:numel(codec_names)
-        if ~isempty(all_bitrates{p, i})
-            bitrate_data = all_bitrates{p, i};
-            errors_data = errors{p, i};
-            plot(bitrate_data(:, 2), errors_data(:, 6), '-o');
-            hold on;
-            %Add the current codec name to the list that will be used for
-            %the plot legend
-            codec_legend_list{cll_cntr} = codec_names{i};
-            cll_cntr = cll_cntr + 1;
+        grid on;
+        legend(codec_legend_list, 'Interpreter', 'none', 'Location', 'best');
+        title({'Rate-Distortion Plots for', reconstruction_prefix}, 'Interpreter', 'none');
+        xlabel('Average Bits Per Point (Geometry + Colour)');   %Bits per total no. of points in reconstruction
+        ylabel('Average Colour PSNR V (dB)');
+        subplot(1, 2, 2);
+        codec_legend_list = {}; %List that will be used for the plot legend
+        cll_cntr = 1;   %Counter for legend list of codec names
+        for i = 1:numel(codec_names)
+            if ~isempty(all_bitrates{p, i})
+                bitrate_data = all_bitrates{p, i};
+                errors_data = errors{p, i};
+                plot(bitrate_data(:, 2), errors_data(:, 6), '-o');
+                hold on;
+                %Add the current codec name to the list that will be used for
+                %the plot legend
+                codec_legend_list{cll_cntr} = codec_names{i};
+                cll_cntr = cll_cntr + 1;
+            end
         end
+        grid on;
+        legend(codec_legend_list, 'Interpreter', 'none', 'Location', 'best');
+        title({'Rate-Distortion Plots for', reconstruction_prefix}, 'Interpreter', 'none');
+        xlabel('Average Total Bits (Geometry + Colour)');   %Total bits in frame
+        ylabel('Average Colour PSNR V (dB)');
+        %Save the plots as a MATLAB figure and as a PDF image in the current 
+        %MATLAB directory (NB: The '-bestfit' option maximizes the size of the 
+        %figure to fill the page, but preserves the aspect ratio of the figure. 
+        %The figure might not fill the entire page. This option leaves a 
+        %minimum page margin of .25 inches).
+        savefig([reconstruction_prefix '_PSNR_V_vs_totalbits_plots_comparison']);
+        print('-bestfit', [reconstruction_prefix '_PSNR_V_vs_totalbits_plots_comparison'], '-dpdf');
+        %Save in our network directory as well
+        savefig([rd_path ptcloud_names{p} '\' vox_novox_dir '\' rd_dir_name '\' reconstruction_prefix '_PSNR_V_vs_totalbits_plots_comparison']);
+        print('-bestfit', [rd_path ptcloud_names{p} '\' vox_novox_dir '\' rd_dir_name '\' reconstruction_prefix '_PSNR_V_vs_totalbits_plots_comparison'], '-dpdf'); 
     end
-    grid on;
-    legend(codec_legend_list, 'Interpreter', 'none', 'Location', 'best');
-    title({'Rate-Distortion Plots for', reconstruction_prefix}, 'Interpreter', 'none');
-    xlabel('Average Total Bits (Geometry + Colour)');   %Total bits in frame
-    ylabel('Average Colour PSNR V (dB)');
-    %Save the plots as a MATLAB figure and as a PDF image in the current 
-    %MATLAB directory (NB: The '-bestfit' option maximizes the size of the 
-    %figure to fill the page, but preserves the aspect ratio of the figure. 
-    %The figure might not fill the entire page. This option leaves a 
-    %minimum page margin of .25 inches).
-    savefig([reconstruction_prefix '_PSNR_V_vs_totalbits_plots_comparison']);
-    print('-bestfit', [reconstruction_prefix '_PSNR_V_vs_totalbits_plots_comparison'], '-dpdf');
-    %Save in our network directory as well
-    savefig([rd_path ptcloud_names{p} '\' vox_novox_dir '\' rd_dir_name '\' reconstruction_prefix '_PSNR_V_vs_totalbits_plots_comparison']);
-    print('-bestfit', [rd_path ptcloud_names{p} '\' vox_novox_dir '\' rd_dir_name '\' reconstruction_prefix '_PSNR_V_vs_totalbits_plots_comparison'], '-dpdf');    
     
     %Close all open figures before starting R-D computation for the next
     %point cloud

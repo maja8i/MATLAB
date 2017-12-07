@@ -113,27 +113,21 @@ for lvl = pp_first_nonempty:size(post_pruning_array, 1)
         end
         %Get the 8 corner coordinates of the current leaf cell
         current_corner_coords = corner_coords_decoder{lvl}(((occ_cell*8 - 7):(occ_cell*8)), :);
-%         if (lvl == 10) && (occ_cell == 26121)
-%             pause(1);
-%         end
-%         scatter3(current_corner_coords(:, 1), current_corner_coords(:, 2), current_corner_coords(:, 3), 5, 'filled', 'r');
-%         axis equal; axis off;
-%         hold on;
         %Get the control points for all 8 corners of the current leaf cell
         current_ctrlpts = reconstruction_decoder{lvl}(ctrl_pts_pointers{lvl}((occ_cell*8 - 7):(occ_cell*8)));
-%         %Check if all control points of the current leaf cell have the same
-%         %sign (EXCLUDING the case where all the control points may be 0)
-%         if (abs(sum(sign(current_ctrlpts))) == 8)
         %Check if all control points of the current leaf cell have the same
-        %sign (including the case where all the control points may be 0)
-        if (abs(sum(sign(current_ctrlpts))) == 8)||(~any(sign(current_ctrlpts)))
+        %sign (EXCLUDING the case where all the control points may be 0)
+        if (abs(sum(sign(current_ctrlpts))) == 8)
+%         %Check if all control points of the current leaf cell have the same
+%         %sign (including the case where all the control points may be 0)
+%         if (abs(sum(sign(current_ctrlpts))) == 8)||(~any(sign(current_ctrlpts)))
             if debug_flag == 1
                 if sum(sign(current_ctrlpts)) == -8
                     disp('The current leaf cell (occ_cell) has all control points with the same sign (-ive); cannot process it any further.');
                 elseif sum(sign(current_ctrlpts)) == 8
                     disp('The current leaf cell (occ_cell) has all control points with the same sign (+ive); cannot process it any further.');
-                elseif ~any(sign(current_ctrlpts))
-                    disp('The current leaf cell (occ_cell) has all 0 control points; cannot process it any further.');
+%                 elseif ~any(sign(current_ctrlpts))
+%                     disp('The current leaf cell (occ_cell) has all 0 control points; cannot process it any further.');
                 end
             end
             continue;   %Move on to the next occ_cell
@@ -413,9 +407,6 @@ for lvl = pp_first_nonempty:size(post_pruning_array, 1)
             %represents one of the 8 corners and each row represents one 
             %sub-cell.
             subcell_ctrlpts = reshape(subcell_ctrlpts_temp, (size(subcell_coords, 1)/8), 8); 
-%             %If any subcell_ctrlpts are small (within +/- q_stepsize/2),
-%             %set them to be 0
-%             subcell_ctrlpts(abs(subcell_ctrlpts) <= q_stepsize/2) = 0;
             %Check if any of the current sub-cells have all 0 control
             %points
             all_zero_subcells = find(~any(subcell_ctrlpts, 2));
@@ -501,25 +492,6 @@ for lvl = pp_first_nonempty:size(post_pruning_array, 1)
             %consider that sub-cell UNoccupied: it will not be subdivided 
             %further, nor recorded as an occupied voxel if lvl_d = b + 1.     
         end %End lvl_d   
-%         if occ_cell >= 102
-%             %test = reconstructed_vox_pos_corners((1:(rec_vox_pos_cnrs_cntr - 1)), :);
-%             test = subcell_coords_orig(all_inds, :);
-%             test_means = zeros((size(test, 1)/8), 3);
-%             vox_cntr = 1;
-%             for vc = 1:8:(size(test, 1) - 7)
-%                 %Get the current set of 8 voxel corner coordinates
-%                 vc_coords = test((vc:(vc + 7)), :);
-%                 %Find the mean of each of the 8 corner coordinates (x, y, and z
-%                 %separately): these mean values represent the centre (x, y, z) location
-%                 %of the current voxel
-%                 test_means(vox_cntr, :) = mean(vc_coords, 1);
-%                 vox_cntr = vox_cntr + 1;
-%             end
-%             scatter3(test_means(:, 1), test_means(:, 2), test_means(:, 3), 5, 'filled', 'b');
-%             hold on;
-%             scatter3(current_corner_coords(:, 1), current_corner_coords(:, 2), current_corner_coords(:, 3), 5, 'filled', 'm');
-%             axis equal; axis off;
-%         end
     end %End occ_cell
     %profile viewer
 end %End lvl
