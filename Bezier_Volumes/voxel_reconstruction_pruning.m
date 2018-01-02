@@ -113,6 +113,19 @@ for lvl = pp_first_nonempty:size(post_pruning_array, 1)
         end
         %Get the 8 corner coordinates of the current leaf cell
         current_corner_coords = corner_coords_decoder{lvl}(((occ_cell*8 - 7):(occ_cell*8)), :);
+%         %Shift the original corner coordinates so as to enlarge
+%         %the occupied octree cells, in order to make them
+%         %overlap with their neighbouring cells a little
+%         shift_delta = (2^(b + 1 - lvl))/4;
+%         coords_shift = [-shift_delta -shift_delta -shift_delta;
+%             shift_delta -shift_delta -shift_delta;
+%             shift_delta shift_delta -shift_delta;
+%             -shift_delta shift_delta -shift_delta;
+%             -shift_delta -shift_delta shift_delta;
+%             shift_delta -shift_delta shift_delta;
+%             shift_delta shift_delta shift_delta;
+%             -shift_delta shift_delta shift_delta];
+%         current_corner_coords = current_corner_coords + coords_shift;
         %Get the control points for all 8 corners of the current leaf cell
         current_ctrlpts = reconstruction_decoder{lvl}(ctrl_pts_pointers{lvl}((occ_cell*8 - 7):(occ_cell*8)));
         %Check if all control points of the current leaf cell have the same

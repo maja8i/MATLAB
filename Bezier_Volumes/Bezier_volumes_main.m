@@ -118,6 +118,45 @@ else
 end
 disp('------------------------------------------------------------');
 
+%Open a text file inside output_dir, to write the colour bitrates into.
+%If this text file already exists, delete it and create a new one.
+fid_col_bits = fopen([output_dir ptcloud_name '_voxelized' num2str(b) '_col_bitrates.txt']);
+if fid_col_bits ~= -1
+    %Close the open file (must close before deleting)
+    fclose(fid_col_bits);
+    %Delete the existing file
+    disp(['The file ' output_dir ptcloud_name '_voxelized' num2str(b) '_col_bitrates.txt already exists. Deleting ...']);
+    delete([output_dir ptcloud_name '_voxelized' num2str(b) '_col_bitrates.txt']);  
+end
+%Open a new text file in append mode
+fid_col_bits = fopen([output_dir ptcloud_name '_voxelized' num2str(b) '_col_bitrates.txt'], 'a');
+if fid_col_bits == -1
+    error(['ERROR: Could not open text file ' output_dir ptcloud_name '_voxelized' num2str(b) '_col_bitrates.txt']);
+else
+    disp(['Created and opened text file for writing: ' output_dir ptcloud_name '_voxelized' num2str(b) '_col_bitrates.txt']);
+end
+disp('------------------------------------------------------------');
+
+%Open a text file inside output_dir, to write the total (geometry + colour)
+%bitrates into. If this text file already exists, delete it and create a 
+%new one.
+fid_all_bits = fopen([output_dir ptcloud_name '_voxelized' num2str(b) '_all_bitrates.txt']);
+if fid_all_bits ~= -1
+    %Close the open file (must close before deleting)
+    fclose(fid_all_bits);
+    %Delete the existing file
+    disp(['The file ' output_dir ptcloud_name '_voxelized' num2str(b) '_all_bitrates.txt already exists. Deleting ...']);
+    delete([output_dir ptcloud_name '_voxelized' num2str(b) '_all_bitrates.txt']);  
+end
+%Open a new text file in append mode
+fid_all_bits = fopen([output_dir ptcloud_name '_voxelized' num2str(b) '_all_bitrates.txt'], 'a');
+if fid_all_bits == -1
+    error(['ERROR: Could not open text file ' output_dir ptcloud_name '_voxelized' num2str(b) '_all_bitrates.txt']);
+else
+    disp(['Created and opened text file for writing: ' output_dir ptcloud_name '_voxelized' num2str(b) '_all_bitrates.txt']);
+end
+disp('------------------------------------------------------------');
+
 %Read in the input point cloud, so that we can extract properties of
 %the PLY file
 [plyStruct, A, format] = plyRead(ptcloud_file);
@@ -147,27 +186,36 @@ if (prune_flag == 1) && (~isempty(zero_threshold_for_pruning))
             %Run decoder
             [reconstruction_decoder, reconstructed_vox_pos] = Bezier_volumes_decoder(debug_flag, occupancy_codes_forDec, rec_ctrlpts_forDec, wavelet_coeffs_forDec, start_lvl, max_lvl, q_stepsize, b, ptcloud_name, ptcloud_file, reconstructed_control_points, prune_flag, post_pruning_array_forDec);
             
-            %Create a new cell array for the plyStruct2 property arrays, which contains
-            %only the reconstructed voxel x, y, z coordinates, and not the normals or
-            %colour data
+            %Create a new cell array for the plyStruct2 property arrays, 
+            %which contains the reconstructed voxel x, y, z coordinates and
+            %their corresponding colours (R, G, B) 
             plyStruct2.propArrayListList = cell(1, 1);
             plyStruct2.propArrayListList{1}{1} = reconstructed_vox_pos(:, 1);   %Reconstructed voxel X coordinates
             plyStruct2.propArrayListList{1}{2} = reconstructed_vox_pos(:, 2);   %Reconstructed voxel Y coordinates
             plyStruct2.propArrayListList{1}{3} = reconstructed_vox_pos(:, 3);   %Reconstructed voxel Z coordinates
-            %Create a new cell array for the plyStruct2 property types, which contains 
-            %only the data types of the reconstructed voxel x, y, z coordinates, and 
-            %not the data types of the normals or colour data 
+            plyStruct2.propArrayListList{1}{4} = reconstructed_vox_pos(:, 4);   %R colour value
+            plyStruct2.propArrayListList{1}{5} = reconstructed_vox_pos(:, 5);   %G colour value
+            plyStruct2.propArrayListList{1}{6} = reconstructed_vox_pos(:, 6);   %B colour value
+            %Create a new cell array for the plyStruct2 property types, 
+            %which contains the data types of the reconstructed voxel x, y,
+            %z coordinates and the data types of the colour data 
             plyStruct2.propTypeListList = cell(1, 1);
             plyStruct2.propTypeListList{1}(1) = "float";
             plyStruct2.propTypeListList{1}(2) = "float";
             plyStruct2.propTypeListList{1}(3) = "float";
-            %Create a new cell array for the plyStruct2 property names, which contains 
-            %only the names for the reconstructed voxel x, y, z coordinates, and 
-            %not for the normals or colour data 
+            plyStruct2.propTypeListList{1}(4) = "uchar";
+            plyStruct2.propTypeListList{1}(5) = "uchar";
+            plyStruct2.propTypeListList{1}(6) = "uchar";            
+            %Create a new cell array for the plyStruct2 property names, 
+            %which contains the names for the reconstructed voxel x, y, z 
+            %coordinates and the colour data 
             plyStruct2.propNameListList = cell(1, 1);
             plyStruct2.propNameListList{1}(1) = "x";
             plyStruct2.propNameListList{1}(2) = "y";
             plyStruct2.propNameListList{1}(3) = "z";
+            plyStruct2.propNameListList{1}(4) = "red";
+            plyStruct2.propNameListList{1}(5) = "green";
+            plyStruct2.propNameListList{1}(6) = "blue";            
 
             if q_stepsize_cntr <= 9
                 plyWrite(plyStruct2, [output_dir ptcloud_name '_voxelized' num2str(b) '_distorted0' num2str(q_stepsize_cntr) '.ply'], format);
@@ -178,13 +226,27 @@ if (prune_flag == 1) && (~isempty(zero_threshold_for_pruning))
             end
             disp(' ');
 
-            %Write the geometry bitrates to the text file (the highest bitrate
+            %Write the geometry bitrates to text file (the highest bitrate 
             %should come first, corresponding to the best reconstruction in
             %..._distorted01.ply)
             fprintf(fid_geom_bits, '%f %f\r\n', [total_geom_bpv total_geom_bits]);
             disp(['Finished writing to geometry bitrates text file: ' output_dir ptcloud_name '_voxelized' num2str(b) '_geom_bitrates.txt']);
             disp('------------------------------------------------------------');
 
+            %Write the colour bitrates to text file (the highest bitrate
+            %should come first, corresponding to the best reconstruction in
+            %..._distorted01.ply)
+            fprintf(fid_col_bits, '%f %f\r\n', [total_col_bpv total_col_bits]);
+            disp(['Finished writing to colour bitrates text file: ' output_dir ptcloud_name '_voxelized' num2str(b) '_col_bitrates.txt']);
+            disp('------------------------------------------------------------');            
+            
+            %Write the total (geometry + colour) bitrates to text file (the 
+            %highest bitrate should come first, corresponding to the best
+            %reconstruction in ..._distorted01.ply)
+            fprintf(fid_all_bits, '%f %f\r\n', [total_bpv total_bits]);
+            disp(['Finished writing to total bitrates text file: ' output_dir ptcloud_name '_voxelized' num2str(b) '_all_bitrates.txt']);
+            disp('------------------------------------------------------------');  
+            
             %Close all open figures
             close all;
             
@@ -289,8 +351,10 @@ end %End check if (prune_flag == 1) && (~isempty(zero_threshold))
 %     %start_lvl_cntr = start_lvl_cntr + 1;
 % end
 
-%Close the geometry bitrates text file
+%Close all the bitrates text files
 fclose(fid_geom_bits);
+fclose(fid_col_bits);
+fclose(fid_all_bits);
 
 %Close any other files that might still be open (for good measure)
 fclose all;

@@ -804,7 +804,23 @@ end
 %     end
 % end
 % save('pruned_reconstructed_control_points', 'pruned_reconstructed_control_points');
- 
+
+%----------------- Voxel Reconstruction and Recolouring ------------------%
+
+if prune_flag == 1
+    %Find the first non-empty location in post_pruning_array: this 
+    %indicates the first octree level at which leaf cells are found.
+    %NOTE: Currently assuming that there are no octree levels AFTER
+    %pp_fist_nonempty that do not contain any leaf cells.
+    pp_first_nonempty = find(~cellfun(@isempty, post_pruning_array), 1);
+    [reconstructed_vox_pos_encoder, ~] = voxel_reconstruction_pruning(debug_flag, pp_first_nonempty, corner_coords, post_pruning_array, reconstructed_control_points, ctrl_pts_pointers, b, q_stepsize);
+end
+ptcloud_recon = recolour(ptcloud, reconstructed_vox_pos_encoder, b, myOT_orig);
+
+%---------------------------- Colour Coding ------------------------------%
+
+%Apply RAHT on ptcloud_recon 
+
 %------------------------------- Encoding --------------------------------%
 
 disp(' ');
@@ -1002,14 +1018,37 @@ else
     total_geom_bits = bits_occ_codes + bits_ctrlpts + bits_wavelet_cfs;
 end
 total_geom_bpv = total_geom_bits/size(ptcloud, 1);
-disp(['TOTAL bits: ' num2str(total_geom_bits)]);
-disp(['TOTAL bpv: ' num2str(total_geom_bpv)]);
+disp(['TOTAL geometry bits: ' num2str(total_geom_bits)]);
+disp(['TOTAL geometry bpv: ' num2str(total_geom_bpv)]);
+disp(' ');
+
+%---- Colour ----
+
+
+%---- TOTALS (Colour) ----
+
+
+total_col_bpv = total_col_bits/size(ptcloud, 1);
+disp(['TOTAL colour bits: ' num2str(total_col_bits)]);
+disp(['TOTAL colour bpv: ' num2str(total_col_bpv)]);
+disp(' ');
+
+%---- TOTALS (Geometry + Colour) ----
+
+total_bits = total_geom_bits + total_col_bits;
+total_bpv = total_geom_bpv + total_col_bpv;
+disp(['TOTAL bits (geometry + colour): ' num2str(total_bits)]);
+disp(['TOTAL bpv (geometry + colour): ' num2str(total_bpv)]);
 
 compute_bitrates_time = toc(start_compute_bitrates_time);
 disp(' ');
 disp('************************************************************');
 disp(['Time taken to compute all bitrates for transmission: ' num2str(compute_bitrates_time) ' seconds']);
 disp('************************************************************');
+
+%------------------------- Writing to Bitstream --------------------------%
+
+
 
 total_encoder_time = toc(start_enc_time);
 

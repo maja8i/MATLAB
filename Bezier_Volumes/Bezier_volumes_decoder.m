@@ -375,6 +375,11 @@ if prune_flag == 1
     [reconstructed_vox_pos, ~] = voxel_reconstruction_pruning(debug_flag, pp_first_nonempty, corner_coords_decoder, post_pruning_array, reconstruction_decoder, ctrl_pts_pointers, b, q_stepsize);
 end
 
+%Reconstruct the colours (R, G, B values) for all of the reconstructed
+%voxels (reconstructed_vox_pos)
+
+
+
 total_decoder_time = toc(start_dec_time);
 
 disp(' ');
