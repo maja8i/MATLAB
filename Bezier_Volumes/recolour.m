@@ -1,6 +1,6 @@
 %Colour reconstructed voxels by using the colour of the nearest voxel in
 %the original (input) point cloud.
-function ptcloud_recon = recolour(ptcloud_orig, ptcloud_recon, b, myOT_orig)
+function [ptcloud_recon, mortonCodes_recon_sorted] = recolour(ptcloud_orig, ptcloud_recon, b, myOT_orig)
 
 %Get the (Morton-sorted) input x, y, z locations and their corresponding R,
 %G, B values

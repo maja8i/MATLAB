@@ -1,5 +1,11 @@
 function [I, W, F] = RAHTPrologue(M1,depth)
 %RAHTPROLOGUE Prologue for RAHT and IRAHT
+%
+% Copyright 8i Labs, Inc., 2017
+% This code is to be used solely for the purpose of developing the MPEG PCC standard.
+%
+% Prologue to RAHT and IRAHT
+%
 %   Input:
 %   M1 = list of Morton codes, sorted
 %   depth = number of bits for each of x, y, and z

@@ -11,7 +11,7 @@
 % vis_levels_ot = 5; %No. of octree levels for which we want to visualize the octree cell subdivision
 % vis_levels_ctrlpts = 2; %No. of octree levels for which we want to visualize the control point computation
 
-function [occupancy_codes_forDec, rec_ctrlpts_forDec, wavelet_coeffs_forDec, total_geom_bits, total_geom_bpv, reconstructed_control_points, varargout] = Bezier_volumes_encoder(debug_flag, ptcloud_file, b, start_lvl, max_lvl, q_stepsize, ptcloud_name, prune_flag, varargin)
+function [occupancy_codes_forDec, rec_ctrlpts_forDec, wavelet_coeffs_forDec, total_geom_bits, total_geom_bpv, reconstructed_control_points, varargout] = Bezier_volumes_encoder(debug_flag, ptcloud_file, b, start_lvl, max_lvl, q_stepsize, ptcloud_name, prune_flag, colour_compression, varargin)
 
 disp(' ');
 disp('============================================================');
@@ -805,21 +805,25 @@ end
 % end
 % save('pruned_reconstructed_control_points', 'pruned_reconstructed_control_points');
 
-%----------------- Voxel Reconstruction and Recolouring ------------------%
+if colour_compression == 1
+    %--------------- Voxel Reconstruction and Recolouring ----------------%
 
-if prune_flag == 1
-    %Find the first non-empty location in post_pruning_array: this 
-    %indicates the first octree level at which leaf cells are found.
-    %NOTE: Currently assuming that there are no octree levels AFTER
-    %pp_fist_nonempty that do not contain any leaf cells.
-    pp_first_nonempty = find(~cellfun(@isempty, post_pruning_array), 1);
-    [reconstructed_vox_pos_encoder, ~] = voxel_reconstruction_pruning(debug_flag, pp_first_nonempty, corner_coords, post_pruning_array, reconstructed_control_points, ctrl_pts_pointers, b, q_stepsize);
+    if prune_flag == 1
+        %Find the first non-empty location in post_pruning_array: this 
+        %indicates the first octree level at which leaf cells are found.
+        %NOTE: Currently assuming that there are no octree levels AFTER
+        %pp_fist_nonempty that do not contain any leaf cells.
+        pp_first_nonempty = find(~cellfun(@isempty, post_pruning_array), 1);
+        [reconstructed_vox_pos_encoder, ~] = voxel_reconstruction_pruning(debug_flag, pp_first_nonempty, corner_coords, post_pruning_array, reconstructed_control_points, ctrl_pts_pointers, b, q_stepsize);
+    end
+    [ptcloud_recon, mortonCodes_recon_sorted] = recolour(ptcloud, reconstructed_vox_pos_encoder, b, myOT_orig);
+
+    %-------------------------- Colour Coding ----------------------------%
+
+    %Apply RAHT on ptcloud_recon 
+    [I, W, F] = RAHTPrologue(mortonCodes_recon_sorted, b);
+    [transformedAttributes, weights] = RAHT(I, W, F, ptcloud_recon(:, 4:6), b, fracStepsize, bHaarThresh);
 end
-ptcloud_recon = recolour(ptcloud, reconstructed_vox_pos_encoder, b, myOT_orig);
-
-%---------------------------- Colour Coding ------------------------------%
-
-%Apply RAHT on ptcloud_recon 
 
 %------------------------------- Encoding --------------------------------%
 
@@ -1022,23 +1026,25 @@ disp(['TOTAL geometry bits: ' num2str(total_geom_bits)]);
 disp(['TOTAL geometry bpv: ' num2str(total_geom_bpv)]);
 disp(' ');
 
-%---- Colour ----
+if colour_compression == 1
+    %---- Colour ----
 
 
-%---- TOTALS (Colour) ----
+    %---- TOTALS (Colour) ----
 
 
-total_col_bpv = total_col_bits/size(ptcloud, 1);
-disp(['TOTAL colour bits: ' num2str(total_col_bits)]);
-disp(['TOTAL colour bpv: ' num2str(total_col_bpv)]);
-disp(' ');
+    total_col_bpv = total_col_bits/size(ptcloud, 1);
+    disp(['TOTAL colour bits: ' num2str(total_col_bits)]);
+    disp(['TOTAL colour bpv: ' num2str(total_col_bpv)]);
+    disp(' ');
 
-%---- TOTALS (Geometry + Colour) ----
+    %---- TOTALS (Geometry + Colour) ----
 
-total_bits = total_geom_bits + total_col_bits;
-total_bpv = total_geom_bpv + total_col_bpv;
-disp(['TOTAL bits (geometry + colour): ' num2str(total_bits)]);
-disp(['TOTAL bpv (geometry + colour): ' num2str(total_bpv)]);
+    total_bits = total_geom_bits + total_col_bits;
+    total_bpv = total_geom_bpv + total_col_bpv;
+    disp(['TOTAL bits (geometry + colour): ' num2str(total_bits)]);
+    disp(['TOTAL bpv (geometry + colour): ' num2str(total_bpv)]);
+end
 
 compute_bitrates_time = toc(start_compute_bitrates_time);
 disp(' ');
