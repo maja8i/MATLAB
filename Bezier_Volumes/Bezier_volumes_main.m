@@ -195,7 +195,7 @@ if (prune_flag == 1) && (~isempty(zero_threshold_for_pruning))
             [occupancy_codes_forDec, rec_ctrlpts_forDec, wavelet_coeffs_forDec, total_geom_bits, total_geom_bpv, reconstructed_control_points, post_pruning_array_forDec] = Bezier_volumes_encoder(debug_flag, ptcloud_file, b, start_lvl, max_lvl, q_stepsize, ptcloud_name, prune_flag, colour_compression, zero_threshold);
             
             %Run decoder
-            [reconstruction_decoder, reconstructed_vox_pos] = Bezier_volumes_decoder(debug_flag, occupancy_codes_forDec, rec_ctrlpts_forDec, wavelet_coeffs_forDec, start_lvl, max_lvl, q_stepsize, b, ptcloud_name, ptcloud_file, reconstructed_control_points, prune_flag, post_pruning_array_forDec);
+            [reconstruction_decoder, reconstructed_vox_pos] = Bezier_volumes_decoder(debug_flag, occupancy_codes_forDec, rec_ctrlpts_forDec, wavelet_coeffs_forDec, start_lvl, max_lvl, q_stepsize, b, ptcloud_name, ptcloud_file, reconstructed_control_points, prune_flag, colour_compression, post_pruning_array_forDec);
             
             %Create a new cell array for the plyStruct2 property arrays, 
             %which contains the reconstructed voxel x, y, z coordinates

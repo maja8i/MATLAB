@@ -8,7 +8,7 @@
 %OccupancyCode = myOT.OccupancyCode; %Should be from start_lvl only
 %vis_levels_ot = 4; %No. of octree levels for which we want to visualize the octree cell subdivision
 
-function [reconstruction_decoder, reconstructed_vox_pos] = Bezier_volumes_decoder(debug_flag, occupancy_codes_forDec, rec_ctrlpts_forDec, wavelet_coeffs_forDec, start_lvl, max_lvl, q_stepsize, b, ptcloud_name, ptcloud_file, reconstructed_control_points, prune_flag, varargin)
+function [reconstruction_decoder, reconstructed_vox_pos] = Bezier_volumes_decoder(debug_flag, occupancy_codes_forDec, rec_ctrlpts_forDec, wavelet_coeffs_forDec, start_lvl, max_lvl, q_stepsize, b, ptcloud_name, ptcloud_file, reconstructed_control_points, prune_flag, colour_compression, varargin)
 
 disp(' ');
 disp('============================================================');
