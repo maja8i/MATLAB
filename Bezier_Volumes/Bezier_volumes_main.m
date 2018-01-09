@@ -58,7 +58,7 @@ zero_threshold_for_pruning = 0;
 debug_flag = 0;
 %Choose whether to apply colour compression on top of the BV-compressed
 %geometry (colour_compression = 1), or not (colour_compression = 0)
-colour_compression = 1;
+colour_compression = 0;
 %Name of the colour codec that will be used (if colour_compression = 1)
 col_codec = 'RAHT';
 
