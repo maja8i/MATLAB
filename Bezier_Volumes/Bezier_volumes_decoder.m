@@ -372,7 +372,8 @@ if prune_flag == 1
     disp(' ');
     
     %[reconstructed_vox_pos, reconstructed_vox_pos_corners, subcell_coords_all] = voxel_reconstruction_pruning(pp_first_nonempty, SpatialIndex, corner_coords_decoder, post_pruning_array, reconstruction_decoder, ctrl_pts_pointers, b, ptcloud_file, ptcloud_name);
-    [reconstructed_vox_pos_temp, ~] = voxel_reconstruction_pruning(debug_flag, pp_first_nonempty, corner_coords_decoder, post_pruning_array, reconstruction_decoder, ctrl_pts_pointers, b, q_stepsize);
+    %[reconstructed_vox_pos_temp, ~] = voxel_reconstruction_pruning(debug_flag, pp_first_nonempty, corner_coords_decoder, post_pruning_array, reconstruction_decoder, ctrl_pts_pointers, b, q_stepsize);
+    reconstructed_vox_pos_temp = voxel_reconstruction_pruning_raycasting(debug_flag, pp_first_nonempty, corner_coords_decoder, post_pruning_array, reconstruction_decoder, ctrl_pts_pointers, b, q_stepsize);
 end
 
 if colour_compression == 1
@@ -384,6 +385,8 @@ if colour_compression == 1
     reconstructed_vox_pos = zeros(size(reconstructed_vox_pos_temp, 1), 6);
     reconstructed_vox_pos(:, 1:3) = reconstructed_vox_pos_temp;
     reconstructed_vox_pos(:, 4:6) = reconstructed_colours;
+else
+    reconstructed_vox_pos = reconstructed_vox_pos_temp;
 end
 
 total_decoder_time = toc(start_dec_time);

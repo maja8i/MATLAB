@@ -205,9 +205,11 @@ if (prune_flag == 1) && (~isempty(zero_threshold_for_pruning))
             plyStruct2.propArrayListList{1}{1} = reconstructed_vox_pos(:, 1);   %Reconstructed voxel X coordinates
             plyStruct2.propArrayListList{1}{2} = reconstructed_vox_pos(:, 2);   %Reconstructed voxel Y coordinates
             plyStruct2.propArrayListList{1}{3} = reconstructed_vox_pos(:, 3);   %Reconstructed voxel Z coordinates
-            plyStruct2.propArrayListList{1}{4} = reconstructed_vox_pos(:, 4);   %R colour value
-            plyStruct2.propArrayListList{1}{5} = reconstructed_vox_pos(:, 5);   %G colour value
-            plyStruct2.propArrayListList{1}{6} = reconstructed_vox_pos(:, 6);   %B colour value
+            if colour_compression == 1
+                plyStruct2.propArrayListList{1}{4} = reconstructed_vox_pos(:, 4);   %R colour value
+                plyStruct2.propArrayListList{1}{5} = reconstructed_vox_pos(:, 5);   %G colour value
+                plyStruct2.propArrayListList{1}{6} = reconstructed_vox_pos(:, 6);   %B colour value
+            end
             %Create a new cell array for the plyStruct2 property types, 
             %which contains the data types of the reconstructed voxel x, y,
             %z coordinates and, if colour compression was used, the data
@@ -216,9 +218,11 @@ if (prune_flag == 1) && (~isempty(zero_threshold_for_pruning))
             plyStruct2.propTypeListList{1}(1) = "float";
             plyStruct2.propTypeListList{1}(2) = "float";
             plyStruct2.propTypeListList{1}(3) = "float";
-            plyStruct2.propTypeListList{1}(4) = "uchar";
-            plyStruct2.propTypeListList{1}(5) = "uchar";
-            plyStruct2.propTypeListList{1}(6) = "uchar";            
+            if colour_compression == 1
+                plyStruct2.propTypeListList{1}(4) = "uchar";
+                plyStruct2.propTypeListList{1}(5) = "uchar";
+                plyStruct2.propTypeListList{1}(6) = "uchar";        
+            end
             %Create a new cell array for the plyStruct2 property names, 
             %which contains the names for the reconstructed voxel x, y, z 
             %coordinates and, if colour compression was used, the colour
@@ -227,9 +231,11 @@ if (prune_flag == 1) && (~isempty(zero_threshold_for_pruning))
             plyStruct2.propNameListList{1}(1) = "x";
             plyStruct2.propNameListList{1}(2) = "y";
             plyStruct2.propNameListList{1}(3) = "z";
-            plyStruct2.propNameListList{1}(4) = "red";
-            plyStruct2.propNameListList{1}(5) = "green";
-            plyStruct2.propNameListList{1}(6) = "blue";            
+            if colour_compression == 1
+                plyStruct2.propNameListList{1}(4) = "red";
+                plyStruct2.propNameListList{1}(5) = "green";
+                plyStruct2.propNameListList{1}(6) = "blue";         
+            end
 
             if q_stepsize_cntr <= 9
                 plyWrite(plyStruct2, [output_dir ptcloud_name '_voxelized' num2str(b) '_distorted0' num2str(q_stepsize_cntr) '.ply'], format);
@@ -369,8 +375,10 @@ end %End check if (prune_flag == 1) && (~isempty(zero_threshold))
 
 %Close all the bitrates text files
 fclose(fid_geom_bits);
-fclose(fid_col_bits);
-fclose(fid_all_bits);
+if colour_compression == 1
+    fclose(fid_col_bits);
+    fclose(fid_all_bits);
+end
 
 %Close any other files that might still be open (for good measure)
 fclose all;
