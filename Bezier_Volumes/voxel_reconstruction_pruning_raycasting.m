@@ -74,11 +74,11 @@ for lvl = pp_first_nonempty:size(post_pruning_array, 1)
                 min_y = min(current_corner_coords(:, 2));
                 max_y = max(current_corner_coords(:, 2));
                 y_coords_norm = ((min_y:max_y) - min_y)/BV_side_length;  %Coordinates have to be in [0, 1] for trilinear interpolation formula
-                y_coords = y_coords_norm(1:(end - 1)) + 0.5;
+                y_coords = y_coords_norm(1:(end - 1)) + 1/(2*BV_side_length);
                 min_z = min(current_corner_coords(:, 3));
                 max_z = max(current_corner_coords(:, 3));
                 z_coords_norm = ((min_z:max_z) - min_z)/BV_side_length;  %Coordinates have to be in [0, 1] for trilinear interpolation formula
-                z_coords = z_coords_norm(1:(end - 1)) + 0.5;
+                z_coords = z_coords_norm(1:(end - 1)) + 1/(2*BV_side_length);
                 %Solve for x coordinates, to find any occupied voxels in
                 %the current BV ...
                 x_coords = zeros(length(y_coords), 1);  
@@ -120,8 +120,8 @@ for lvl = pp_first_nonempty:size(post_pruning_array, 1)
                 occ_vox_z_coords = z_coords(inds_c);
                 %Transform occupied voxels' x, y, z coordinates back from
                 %[0, 1] to their original ranges
-                occ_vox_y_coords = ((occ_vox_y_coords.*BV_side_length) + min_y + 0.5)';
-                occ_vox_z_coords = ((occ_vox_z_coords.*BV_side_length) + min_z + 0.5)';
+                occ_vox_y_coords = ((occ_vox_y_coords - (1/(2*BV_side_length))).*BV_side_length + min_y + 0.5)';
+                occ_vox_z_coords = ((occ_vox_z_coords - (1/(2*BV_side_length))).*BV_side_length + min_z + 0.5)';
                 min_x_midpoint = min(current_corner_coords(:, 1)) + 0.5;
                 occ_vox_x_coords = (occ_vox_x_coords.*BV_side_length) + min_x_midpoint;
                 %Round the x coordinates of the occupied voxels to the
@@ -139,11 +139,11 @@ for lvl = pp_first_nonempty:size(post_pruning_array, 1)
                 min_x = min(current_corner_coords(:, 1));
                 max_x = max(current_corner_coords(:, 1));
                 x_coords_norm = ((min_x:max_x) - min_x)/BV_side_length;  %Coordinates have to be in [0, 1] for trilinear interpolation formula
-                x_coords = x_coords_norm(1:(end - 1)) + 0.5;
+                x_coords = x_coords_norm(1:(end - 1)) + 1/(2*BV_side_length);
                 min_z = min(current_corner_coords(:, 3));
                 max_z = max(current_corner_coords(:, 3));
                 z_coords_norm = ((min_z:max_z) - min_z)/BV_side_length;  %Coordinates have to be in [0, 1] for trilinear interpolation formula
-                z_coords = z_coords_norm(1:(end - 1)) + 0.5;
+                z_coords = z_coords_norm(1:(end - 1)) + 1/(2*BV_side_length);
                 %Solve for y coordinates, to find any occupied voxels in
                 %the current BV ...
                 y_coords = zeros(length(x_coords), 1);
@@ -185,8 +185,8 @@ for lvl = pp_first_nonempty:size(post_pruning_array, 1)
                 occ_vox_z_coords = z_coords(inds_c);
                 %Transform occupied voxels' x, y, z coordinates back from
                 %[0, 1] to their original ranges
-                occ_vox_x_coords = ((occ_vox_x_coords.*BV_side_length) + min_x + 0.5)';
-                occ_vox_z_coords = ((occ_vox_z_coords.*BV_side_length) + min_z + 0.5)';
+                occ_vox_x_coords = ((occ_vox_x_coords - (1/(2*BV_side_length))).*BV_side_length + min_x + 0.5)';
+                occ_vox_z_coords = ((occ_vox_z_coords - (1/(2*BV_side_length))).*BV_side_length + min_z + 0.5)';
                 min_y_midpoint = min(current_corner_coords(:, 2)) + 0.5;
                 occ_vox_y_coords = (occ_vox_y_coords.*BV_side_length) + min_y_midpoint;
                 %Round the y coordinates of the occupied voxels to the
@@ -204,11 +204,11 @@ for lvl = pp_first_nonempty:size(post_pruning_array, 1)
                 min_x = min(current_corner_coords(:, 1));
                 max_x = max(current_corner_coords(:, 1));
                 x_coords_norm = ((min_x:max_x) - min_x)/BV_side_length;  %Coordinates have to be in [0, 1] for trilinear interpolation formula
-                x_coords = x_coords_norm(1:(end - 1)) + 0.5;
+                x_coords = x_coords_norm(1:(end - 1)) + 1/(2*BV_side_length);
                 min_y = min(current_corner_coords(:, 2));
                 max_y = max(current_corner_coords(:, 2));
                 y_coords_norm = ((min_y:max_y) - min_y)/BV_side_length;  %Coordinates have to be in [0, 1] for trilinear interpolation formula 
-                y_coords = y_coords_norm(1:(end - 1)) + 0.5;
+                y_coords = y_coords_norm(1:(end - 1)) + 1/(2*BV_side_length);
                 %Solve for z coordinates, to find any occupied voxels in
                 %the current BV ...
                 z_coords = zeros(length(x_coords), 1);
@@ -250,8 +250,8 @@ for lvl = pp_first_nonempty:size(post_pruning_array, 1)
                 occ_vox_y_coords = y_coords(inds_c);
                 %Transform occupied voxels' x, y, z coordinates back from
                 %[0, 1] to their original ranges
-                occ_vox_x_coords = ((occ_vox_x_coords.*BV_side_length) + min_x + 0.5)';
-                occ_vox_y_coords = ((occ_vox_y_coords.*BV_side_length) + min_y + 0.5)';
+                occ_vox_x_coords = ((occ_vox_x_coords - (1/(2*BV_side_length))).*BV_side_length + min_x + 0.5)';
+                occ_vox_y_coords = ((occ_vox_y_coords - (1/(2*BV_side_length))).*BV_side_length + min_y + 0.5)';
                 min_z_midpoint = min(current_corner_coords(:, 3)) + 0.5;
                 occ_vox_z_coords = (occ_vox_z_coords.*BV_side_length) + min_z_midpoint;
                 %Round the z coordinates of the occupied voxels to the
