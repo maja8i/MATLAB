@@ -389,6 +389,9 @@ else
     reconstructed_vox_pos = reconstructed_vox_pos_temp;
 end
 
+%Extract only the unique voxels from reconstructed_vox_pos
+reconstructed_vox_pos = unique(reconstructed_vox_pos, 'rows', 'stable');
+
 total_decoder_time = toc(start_dec_time);
 
 disp(' ');
