@@ -24,9 +24,12 @@ disp(' ');
 
 start_enc_time = tic;
 
-if ~isempty(varargin)
+if (~isempty(varargin)) && (prune_flag == 1)
     %Threshold for pruning wavelet coefficients
     zero_threshold = varargin{1};
+end
+if (~isempty(varargin)) && (prune_flag == 0)
+    prune_level = varargin{1};
 end
 
 %-------------------------- Octree Construction --------------------------%
@@ -609,57 +612,59 @@ end
 
 %---------------- Checking for Zero Wavelet Coefficients -----------------%
 
-disp(' ');
-disp('------- Checking for All Zero Wavelet Coefficients  --------');
-disp(' ');
+if prune_flag == 1    
+    disp(' ');
+    disp('------- Checking for All Zero Wavelet Coefficients  --------');
+    disp(' ');
 
-%Cell array to store the indices of the occupied octree cells at each level
-%that have quantized wavelet coefficient values (i.e., quantized symbols)
-%of 0 on all of their corners
-all_zero_wav_cfs = cell(size(wavelet_coeffs));
-%Cell array to store the midpoints of the occupied octree cells at each
-%level that have zero-valued quantized wavelet coefficients on all of their 
-%corners (only needed for display purposes, later)
-%all_zero_cell_midpoints = cell(size(wavelet_coeffs));
-%Cell array to store the indices of ctrl_pts_pointers for the occupied
-%octree cells at each level that have zero-valued quantized wavelet 
-%coefficients on all of their corners (only needed for display purposes, 
-%later)
-%all_zero_cell_ctrlpts_ptrs = cell(size(wavelet_coeffs));
+    %Cell array to store the indices of the occupied octree cells at each level
+    %that have quantized wavelet coefficient values (i.e., quantized symbols)
+    %of 0 on all of their corners
+    all_zero_wav_cfs = cell(size(wavelet_coeffs));
+    %Cell array to store the midpoints of the occupied octree cells at each
+    %level that have zero-valued quantized wavelet coefficients on all of their 
+    %corners (only needed for display purposes, later)
+    %all_zero_cell_midpoints = cell(size(wavelet_coeffs));
+    %Cell array to store the indices of ctrl_pts_pointers for the occupied
+    %octree cells at each level that have zero-valued quantized wavelet 
+    %coefficients on all of their corners (only needed for display purposes, 
+    %later)
+    %all_zero_cell_ctrlpts_ptrs = cell(size(wavelet_coeffs));
 
-%At each octree level, check which occupied octree cells (if any) have 
-%zero-valued quantized wavelet coefficients on all of their corners
-for lvl = (start_lvl + 1):max_lvl
-    if debug_flag == 1
-        disp(['Processing octree level ' num2str(lvl) ' ...']);
-    end
-    %Counter for number of occupied cells at this level, which contain all
-    %zero-valued quantized wavelet coefficients
-    zw_cntr = 1;
-    for occ_cell = 1:myOT.NodeCount(lvl)
-        %Get the quantized wavelet coefficients for each of the 8 corners
-        %of this cell
-        current_wavelet_coeffs = wavelet_coeffs{lvl}(ctrl_pts_pointers{lvl}((occ_cell*8 - 7):(occ_cell*8)));
-        %If the quantized wavelet coefficients at all the corners of this 
-        %cell are 0 ...
-        if isempty(find((current_wavelet_coeffs ~= 0), 1))
-        %If the quantized wavelet coefficients at all the corners of this 
-        %cell are near 0 (i.e., within +/- zero_threshold of 0) ...
-%         if isempty(find((abs(current_wavelet_coeffs) > zero_threshold), 1))
-            %disp(['All zero-valued quantized wavelet coefficients for occupied cell ' num2str(occ_cell)]);
-            all_zero_wav_cfs{lvl}(zw_cntr) = occ_cell; 
-            %Get the midpoints of the current cell (only needed for display
-            %purposes, later)
-            %all_zero_cell_midpoints{lvl}(zw_cntr, 1:3) = mean(corner_coords{lvl}(((occ_cell*8 - 7):(occ_cell*8)), :), 1);
-            %Store the control points pointers for each corner of this cell
-            %(only needed for display purposes, later)
-            %all_zero_cell_ctrlpts_ptrs{lvl}(zw_cntr, 1:8) = ctrl_pts_pointers{lvl}((occ_cell*8 - 7):(occ_cell*8));
-            zw_cntr = zw_cntr + 1;
+    %At each octree level, check which occupied octree cells (if any) have 
+    %zero-valued quantized wavelet coefficients on all of their corners
+    for lvl = (start_lvl + 1):max_lvl
+        if debug_flag == 1
+            disp(['Processing octree level ' num2str(lvl) ' ...']);
         end
-    end
-    if debug_flag == 1
-        disp(['TOTAL no. of occupied octree cells with all zero-valued quantized wavelet coefficients at this level: ' num2str(length(all_zero_wav_cfs{lvl}))]);
-        disp('------------------------------------------------------------');
+        %Counter for number of occupied cells at this level, which contain all
+        %zero-valued quantized wavelet coefficients
+        zw_cntr = 1;
+        for occ_cell = 1:myOT.NodeCount(lvl)
+            %Get the quantized wavelet coefficients for each of the 8 corners
+            %of this cell
+            current_wavelet_coeffs = wavelet_coeffs{lvl}(ctrl_pts_pointers{lvl}((occ_cell*8 - 7):(occ_cell*8)));
+            %If the quantized wavelet coefficients at all the corners of this 
+            %cell are 0 ...
+            if isempty(find((current_wavelet_coeffs ~= 0), 1))
+            %If the quantized wavelet coefficients at all the corners of this 
+            %cell are near 0 (i.e., within +/- zero_threshold of 0) ...
+    %         if isempty(find((abs(current_wavelet_coeffs) > zero_threshold), 1))
+                %disp(['All zero-valued quantized wavelet coefficients for occupied cell ' num2str(occ_cell)]);
+                all_zero_wav_cfs{lvl}(zw_cntr) = occ_cell; 
+                %Get the midpoints of the current cell (only needed for display
+                %purposes, later)
+                %all_zero_cell_midpoints{lvl}(zw_cntr, 1:3) = mean(corner_coords{lvl}(((occ_cell*8 - 7):(occ_cell*8)), :), 1);
+                %Store the control points pointers for each corner of this cell
+                %(only needed for display purposes, later)
+                %all_zero_cell_ctrlpts_ptrs{lvl}(zw_cntr, 1:8) = ctrl_pts_pointers{lvl}((occ_cell*8 - 7):(occ_cell*8));
+                zw_cntr = zw_cntr + 1;
+            end
+        end
+        if debug_flag == 1
+            disp(['TOTAL no. of occupied octree cells with all zero-valued quantized wavelet coefficients at this level: ' num2str(length(all_zero_wav_cfs{lvl}))]);
+            disp('------------------------------------------------------------');
+        end
     end
 end
 
@@ -759,19 +764,39 @@ end
 
 %------------------------------- Pruning  --------------------------------%
 
-%Prune octree and wavelet coefficient tree, if pruning is required
 if prune_flag == 1
+    %Prune octree and wavelet coefficient tree to variable octree levels
     disp(' ');
-    disp('-------------------- Pruning Octree ------------------------');
+    disp('--------------- Pruning Octree (Variable) ------------------');
     disp(' ');
 
     [pruned_occupancy_codes, post_pruning_array, toprune, toprune2] = prune_octree(debug_flag, myOT, all_zero_wav_cfs, start_lvl, max_lvl, b, reconstructed_control_points, ctrl_pts_pointers);
 
     disp(' ');
-    disp('------------ Pruning Wavelet Coefficient Tree --------------');
+    disp('------- Pruning Wavelet Coefficient Tree (Variable) --------');
     disp(' ');
 
     pruned_wavelet_coeffs = prune_wavelet_coeff_tree(debug_flag, wavelet_coeffs, toprune, toprune2, ctrl_pts_pointers, myOT, start_lvl, max_lvl, b);
+
+elseif prune_flag == 0
+    %Prune octree and wavelet coefficient tree to a constant octree level
+    disp(' ');
+    disp('--------------- Pruning Octree (Constant) ------------------');
+    disp(' ');    
+    
+    pruned_occupancy_codes = myOT.OccupancyCode;
+    for i = prune_level:(max_lvl - 1)
+        pruned_occupancy_codes{i} = []; %Assume max_lvl = b + 1
+    end
+    
+    disp(' ');
+    disp('------- Pruning Wavelet Coefficient Tree (Constant) --------');
+    disp(' ');
+    
+    pruned_wavelet_coeffs = wavelet_coeffs;
+    for i = (prune_level + 1):(max_lvl - 1)
+        pruned_wavelet_coeffs{i} = []; %Assume max_lvl = b + 1    
+    end
 end
 
 % %The below is for debugging only: prune the reconstructed control points to
@@ -837,7 +862,13 @@ start_compute_bitrates_time = tic;
 
 %Get the octree occupancy codes that will be transmitted to the decoder
 occupancy_codes_forDec = cell(b, 1);
-for i = 1:(max_lvl - 1)
+if prune_flag == 1
+    end_occ_codes_lvl = max_lvl - 1;
+else
+    end_occ_codes_lvl = prune_level - 1;
+end
+%for i = 1:(max_lvl - 1)
+for i = 1:end_occ_codes_lvl
     if prune_flag == 1
         occupancy_codes_forDec{i} = pruned_occupancy_codes{i};
     else
@@ -848,7 +879,8 @@ end
 %levels from the root to (max_lvl - 1), into one long array
 oc_cntr = 1;
 occ_codes_array = [];
-for l = 1:(max_lvl - 1)
+%for l = 1:(max_lvl - 1)
+for l = 1:end_occ_codes_lvl
     occ_codes_array(oc_cntr:(oc_cntr + numel(occupancy_codes_forDec{l}) - 1)) = occupancy_codes_forDec{l};
     oc_cntr = oc_cntr + numel(occupancy_codes_forDec{l});
 end
@@ -964,14 +996,18 @@ disp(' ');
 %Get the quantized wavelet coefficients that will be transmitted to the
 %decoder
 wavelet_coeffs_forDec = cell((b + 1), 1);
-if max_lvl == (b + 1)
-    %Don't need wavelet coefficients at the voxel level, as the SDF will
-    %not be reconstructed at this level since it is not needed
-    max_wav_lvl = max_lvl - 1;
-elseif max_lvl < (b + 1)
-    %Do need wavelet coefficients at the max_lvl, since the SDF will need
-    %to be reconstructed at this level as it will be used for interpolation
-    max_wav_lvl = max_lvl;
+if prune_flag == 1
+    if max_lvl == (b + 1)
+        %Don't need wavelet coefficients at the voxel level, as the SDF will
+        %not be reconstructed at this level since it is not needed
+        max_wav_lvl = max_lvl - 1;
+    elseif max_lvl < (b + 1)
+        %Do need wavelet coefficients at the max_lvl, since the SDF will need
+        %to be reconstructed at this level as it will be used for interpolation
+        max_wav_lvl = max_lvl;
+    end
+elseif prune_flag == 0
+    max_wav_lvl = prune_level;
 end
 for j = (start_lvl + 1):max_wav_lvl
     if prune_flag == 1

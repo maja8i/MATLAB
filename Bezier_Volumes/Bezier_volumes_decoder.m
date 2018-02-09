@@ -8,7 +8,7 @@
 %OccupancyCode = myOT.OccupancyCode; %Should be from start_lvl only
 %vis_levels_ot = 4; %No. of octree levels for which we want to visualize the octree cell subdivision
 
-function [reconstruction_decoder, reconstructed_vox_pos] = Bezier_volumes_decoder(debug_flag, occupancy_codes_forDec, rec_ctrlpts_forDec, wavelet_coeffs_forDec, start_lvl, max_lvl, q_stepsize, b, ptcloud_name, ptcloud_file, reconstructed_control_points, prune_flag, colour_compression, varargin)
+function [reconstruction_decoder, reconstructed_vox_pos] = Bezier_volumes_decoder(debug_flag, occupancy_codes_forDec, rec_ctrlpts_forDec, wavelet_coeffs_forDec, start_lvl, max_lvl, q_stepsize, b, ptcloud_name, ptcloud_file, prune_flag, colour_compression, varargin)
 
 disp(' ');
 disp('============================================================');
@@ -23,8 +23,11 @@ OccupancyCode = occupancy_codes_forDec;
 
 %Check if octree and wavelet coefficient tree pruning was used at the
 %encoder
-if numel(varargin) >= 1
+if (~isempty(varargin)) && (prune_flag == 1)
     post_pruning_array = varargin{1};
+end
+if (~isempty(varargin)) && (prune_flag == 0)
+    prune_level = varargin{1};
 end
 
 %------------------------- Octree Reconstruction -------------------------%
@@ -69,9 +72,16 @@ if prune_flag == 1
     pp_first_nonempty = find(~cellfun(@isempty, post_pruning_array), 1);
 end
 
+if prune_flag == 1
+    end_lvl = max_lvl - 1;
+elseif prune_flag == 0
+    end_lvl = prune_level - 1;
+end
+
 %For each octree level ...
 %for lvl = 1:b
-for lvl = 1:(max_lvl - 1)
+%for lvl = 1:(max_lvl - 1)
+for lvl = 1:end_lvl
     if debug_flag == 1
         disp(['Processing octree level ' num2str(lvl) ':']);
     end
@@ -295,9 +305,9 @@ disp('-------------- Control Point Reconstruction ----------------');
 disp(' ');
 
 if prune_flag == 0
-    reconstruction_decoder = reconstruct_control_points_decoder(debug_flag, rec_ctrlpts_forDec, wavelet_coeffs_forDec, SpatialIndex, FirstChildPtr, ChildCount, corner_coords_decoder, ctrl_pts_pointers, start_lvl, max_lvl, b, q_stepsize, prune_flag, reconstructed_control_points);
+    reconstruction_decoder = reconstruct_control_points_decoder(debug_flag, rec_ctrlpts_forDec, wavelet_coeffs_forDec, SpatialIndex, FirstChildPtr, ChildCount, corner_coords_decoder, ctrl_pts_pointers, start_lvl, max_lvl, b, q_stepsize, prune_flag, prune_level);
 elseif prune_flag == 1
-    reconstruction_decoder = reconstruct_control_points_decoder(debug_flag, rec_ctrlpts_forDec, wavelet_coeffs_forDec, SpatialIndex, FirstChildPtr, ChildCount, corner_coords_decoder, ctrl_pts_pointers, start_lvl, max_lvl, b, q_stepsize, prune_flag, reconstructed_control_points, post_pruning_array, pp_first_nonempty);
+    reconstruction_decoder = reconstruct_control_points_decoder(debug_flag, rec_ctrlpts_forDec, wavelet_coeffs_forDec, SpatialIndex, FirstChildPtr, ChildCount, corner_coords_decoder, ctrl_pts_pointers, start_lvl, max_lvl, b, q_stepsize, prune_flag, post_pruning_array, pp_first_nonempty);
 end
 
 % %--------------- Reconstructed Bezier Volume Visualization ---------------%

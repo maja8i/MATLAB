@@ -44,7 +44,8 @@ q_stepsizes = 5;
 %contain zero wavelet coefficients on all of their corners, and therefore
 %whether to prune the corresponding wavelet coefficient tree: 
 %prune_flag = 1 => prune; prune_flag = 0 => do not prune
-prune_flag = 1;
+prune_flag = 0;
+prune_levels_all = [7 8 9];
 %Define threshold for pruning quantized wavelet coefficients
 %(zero_threshold can only have integer values, because the quantized
 %wavelet coefficients will all be integers)
@@ -174,19 +175,20 @@ end %End check if colour_compression == 1
 %Make a copy of plyStruct, as it will be modified
 plyStruct2 = plyStruct;
 
-%Use the different values specified in zero_threshold, to obtain different
-%reconstruction points for a rate-distortion curve
+%If using variable-level octree pruning, use the different values specified
+%in zero_threshold, to obtain different reconstruction points for a 
+%rate-distortion curve
 if (prune_flag == 1) && (~isempty(zero_threshold_for_pruning))
     start_lvl = start_OT_lvl;
     max_lvl = max_OT_lvl;
-    zero_threshold_cntr = 1;
+    %zero_threshold_cntr = 1;
     q_stepsize_cntr = 1;
     %To get separate R-D curves for each zero_threshold value (but using
     %all q_stepsize values to get the operation points in each curve), use
     %one zero_threshold value at a time below, and just vary q_stepsize
     for zero_threshold = zero_threshold_for_pruning
         disp(' ');
-        disp('prune_flag = 1');
+        disp(['prune_flag = ' num2str(prune_flag)]);
         disp(['zero_threshold = ' num2str(zero_threshold)]);
         for q_stepsize = q_stepsizes
             disp(['q_stepsize = ' num2str(q_stepsize)]);
@@ -195,8 +197,8 @@ if (prune_flag == 1) && (~isempty(zero_threshold_for_pruning))
             [occupancy_codes_forDec, rec_ctrlpts_forDec, wavelet_coeffs_forDec, total_geom_bits, total_geom_bpv, reconstructed_control_points, post_pruning_array_forDec] = Bezier_volumes_encoder(debug_flag, ptcloud_file, b, start_lvl, max_lvl, q_stepsize, ptcloud_name, prune_flag, colour_compression, zero_threshold);
             
             %Run decoder
-            [reconstruction_decoder, reconstructed_vox_pos] = Bezier_volumes_decoder(debug_flag, occupancy_codes_forDec, rec_ctrlpts_forDec, wavelet_coeffs_forDec, start_lvl, max_lvl, q_stepsize, b, ptcloud_name, ptcloud_file, reconstructed_control_points, prune_flag, colour_compression, post_pruning_array_forDec);
-            
+            [reconstruction_decoder, reconstructed_vox_pos] = Bezier_volumes_decoder(debug_flag, occupancy_codes_forDec, rec_ctrlpts_forDec, wavelet_coeffs_forDec, start_lvl, max_lvl, q_stepsize, b, ptcloud_name, ptcloud_file, prune_flag, colour_compression, post_pruning_array_forDec);
+
             %Create a new cell array for the plyStruct2 property arrays, 
             %which contains the reconstructed voxel x, y, z coordinates
             %and, if colour compression was used, their corresponding 
@@ -275,7 +277,6 @@ if (prune_flag == 1) && (~isempty(zero_threshold_for_pruning))
             %Update counter for the next q_stepsize
             q_stepsize_cntr =  q_stepsize_cntr + 1;
             
-            
         end %End q_stepsize
 
         %Update counter for the next zero_threshold
@@ -283,6 +284,109 @@ if (prune_flag == 1) && (~isempty(zero_threshold_for_pruning))
         
     end %End zero_threshold
 end %End check if (prune_flag == 1) && (~isempty(zero_threshold))
+
+%If using a fixed-level octree pruning, use one fixed level at a time,
+%while varying q_stepsize, to get different R-D curves (from different
+%levels), where the different R-D points on each curve represent different
+%q_stepsize values
+if (prune_flag == 0)
+    start_lvl = start_OT_lvl;
+    max_lvl = max_OT_lvl;
+    q_stepsize_cntr = 1; 
+    for prune_level = prune_levels_all
+        disp(' ');
+        disp(['prune_flag = ' num2str(prune_flag)]);
+        disp(['prune_level = ' num2str(prune_level)]);
+        for q_stepsize = q_stepsizes
+            disp(['q_stepsize = ' num2str(q_stepsize)]);
+            
+            %Run encoder
+            [occupancy_codes_forDec, rec_ctrlpts_forDec, wavelet_coeffs_forDec, total_geom_bits, total_geom_bpv, reconstructed_control_points, ~] = Bezier_volumes_encoder(debug_flag, ptcloud_file, b, start_lvl, max_lvl, q_stepsize, ptcloud_name, prune_flag, colour_compression, prune_level);
+            
+            %Run decoder
+            [reconstruction_decoder, reconstructed_vox_pos] = Bezier_volumes_decoder(debug_flag, occupancy_codes_forDec, rec_ctrlpts_forDec, wavelet_coeffs_forDec, start_lvl, max_lvl, q_stepsize, b, ptcloud_name, ptcloud_file, prune_flag, colour_compression, prune_level);
+
+            %Create a new cell array for the plyStruct2 property arrays, 
+            %which contains the reconstructed voxel x, y, z coordinates
+            %and, if colour compression was used, their corresponding 
+            %decoded colours (R, G, B) 
+            plyStruct2.propArrayListList = cell(1, 1);
+            plyStruct2.propArrayListList{1}{1} = reconstructed_vox_pos(:, 1);   %Reconstructed voxel X coordinates
+            plyStruct2.propArrayListList{1}{2} = reconstructed_vox_pos(:, 2);   %Reconstructed voxel Y coordinates
+            plyStruct2.propArrayListList{1}{3} = reconstructed_vox_pos(:, 3);   %Reconstructed voxel Z coordinates
+            if colour_compression == 1
+                plyStruct2.propArrayListList{1}{4} = reconstructed_vox_pos(:, 4);   %R colour value
+                plyStruct2.propArrayListList{1}{5} = reconstructed_vox_pos(:, 5);   %G colour value
+                plyStruct2.propArrayListList{1}{6} = reconstructed_vox_pos(:, 6);   %B colour value
+            end
+            %Create a new cell array for the plyStruct2 property types, 
+            %which contains the data types of the reconstructed voxel x, y,
+            %z coordinates and, if colour compression was used, the data
+            %types of the colour data 
+            plyStruct2.propTypeListList = cell(1, 1);
+            plyStruct2.propTypeListList{1}(1) = "float";
+            plyStruct2.propTypeListList{1}(2) = "float";
+            plyStruct2.propTypeListList{1}(3) = "float";
+            if colour_compression == 1
+                plyStruct2.propTypeListList{1}(4) = "uchar";
+                plyStruct2.propTypeListList{1}(5) = "uchar";
+                plyStruct2.propTypeListList{1}(6) = "uchar";        
+            end
+            %Create a new cell array for the plyStruct2 property names, 
+            %which contains the names for the reconstructed voxel x, y, z 
+            %coordinates and, if colour compression was used, the colour
+            %data 
+            plyStruct2.propNameListList = cell(1, 1);
+            plyStruct2.propNameListList{1}(1) = "x";
+            plyStruct2.propNameListList{1}(2) = "y";
+            plyStruct2.propNameListList{1}(3) = "z";
+            if colour_compression == 1
+                plyStruct2.propNameListList{1}(4) = "red";
+                plyStruct2.propNameListList{1}(5) = "green";
+                plyStruct2.propNameListList{1}(6) = "blue";         
+            end
+
+            if q_stepsize_cntr <= 9
+                plyWrite(plyStruct2, [output_dir ptcloud_name '_voxelized' num2str(b) '_distorted0' num2str(q_stepsize_cntr) '.ply'], format);
+                disp(['Finished writing to PLY file: ' output_dir ptcloud_name '_voxelized' num2str(b) '_distorted0' num2str(q_stepsize_cntr) '.ply']);
+            else
+                plyWrite(plyStruct2, [output_dir ptcloud_name '_voxelized' num2str(b) '_distorted' num2str(q_stepsize_cntr) '.ply'], format);
+                disp(['Finished writing to PLY file: ' output_dir ptcloud_name '_voxelized' num2str(b) '_distorted' num2str(q_stepsize_cntr) '.ply']);
+            end
+            disp(' ');
+
+            %Write the geometry bitrates to text file (the highest bitrate 
+            %should come first, corresponding to the best reconstruction in
+            %..._distorted01.ply)
+            fprintf(fid_geom_bits, '%f %f\r\n', [total_geom_bpv total_geom_bits]);
+            disp(['Finished writing to geometry bitrates text file: ' output_dir ptcloud_name '_voxelized' num2str(b) '_geom_bitrates.txt']);
+            disp('------------------------------------------------------------');
+
+            if colour_compression == 1
+                %Write the colour bitrates to text file (the highest 
+                %bitrate should come first, corresponding to the best 
+                %reconstruction in ..._distorted01.ply)
+                fprintf(fid_col_bits, '%f %f\r\n', [total_col_bpv total_col_bits]);
+                disp(['Finished writing to colour bitrates text file: ' output_dir ptcloud_name '_voxelized' num2str(b) '_col_bitrates.txt']);
+                disp('------------------------------------------------------------');            
+
+                %Write the total (geometry + colour) bitrates to text file 
+                %(the highest bitrate should come first, corresponding to 
+                %the best reconstruction in ..._distorted01.ply)
+                fprintf(fid_all_bits, '%f %f\r\n', [total_bpv total_bits]);
+                disp(['Finished writing to total bitrates text file: ' output_dir ptcloud_name '_voxelized' num2str(b) '_all_bitrates.txt']);
+                disp('------------------------------------------------------------');  
+            end
+            
+            %Close all open figures
+            close all;
+            
+            %Update counter for the next q_stepsize
+            q_stepsize_cntr =  q_stepsize_cntr + 1;
+            
+        end %End q_stepsize          
+    end %End prune_level
+end %End check if (prune_flag == 1)
 
 % %Try using different start levels, to obtain different reconstruction
 % %points for a rate-distortion curve

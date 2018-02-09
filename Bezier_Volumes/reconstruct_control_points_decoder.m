@@ -1,9 +1,9 @@
-function reconstruction_decoder = reconstruct_control_points_decoder(debug_flag, rec_ctrlpts_forDec, wavelet_coeffs_forDec, SpatialIndex, FirstChildPtr, ChildCount, corner_coords_decoder, ctrl_pts_pointers, start_lvl, max_lvl, b, q_stepsize, prune_flag, reconstructed_control_points, varargin)
+function reconstruction_decoder = reconstruct_control_points_decoder(debug_flag, rec_ctrlpts_forDec, wavelet_coeffs_forDec, SpatialIndex, FirstChildPtr, ChildCount, corner_coords_decoder, ctrl_pts_pointers, start_lvl, max_lvl, b, q_stepsize, prune_flag, varargin)
 
 %Assign inputs to new variables
 rec_ctrlpts_start_lvl = rec_ctrlpts_forDec;
 wavelet_coeffs = wavelet_coeffs_forDec;
-if ~isempty(varargin)
+if (~isempty(varargin)) && (prune_flag == 1)
     post_pruning_array = varargin{1};
     pp_first_nonempty = varargin{2};    %First octree level at which leaf cells are found (after pruning)
 end
@@ -53,7 +53,7 @@ for lvl = start_lvl:end_lvl
     %the corners of all the cell's children
     for occ_cell = 1:size(SpatialIndex{lvl}, 1)
         %If this cell is a leaf
-        if (lvl >= pp_first_nonempty) && (post_pruning_array{lvl}(occ_cell) == 1)
+        if (prune_flag == 1) && ((lvl >= pp_first_nonempty) && (post_pruning_array{lvl}(occ_cell) == 1))
             %It has no children (they were pruned off at the encoder), so
             %do nothing further
             continue;  
@@ -213,19 +213,6 @@ for lvl = start_lvl:end_lvl
         disp(['No. of cells with all 0 control points at level ' num2str(lvl + 1) ': ' num2str(zero_cp_cntr)]);
         disp('------------------------------------------------------------');
     end   
-%     %BELOW IS FOR DEBUGGING PURPOSES ONLY:
-%     if prune_flag == 0
-%         %Check if the control points at this level have been correctly
-%         %reconstructed (i.e., if they are identical to the control points
-%         %at the encoder)
-%         test_ctrlpts = reconstructed_control_points{lvl + 1} - reconstruction_decoder{lvl + 1};
-%         test_ctrlpts_wrong = find(test_ctrlpts ~= 0);
-%         if isempty(test_ctrlpts_wrong)
-%             disp('All control points reconstructed correctly');
-%         else
-%             disp(['Number of incorrectly reconstructed control points: ' num2str(length(test_ctrlpts_wrong))]);
-%         end
-%     end
 end %End lvl
 ctrlpts_recon_time = toc(start_ctrlpts_recon_time);
 disp(' ');
