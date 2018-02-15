@@ -32,6 +32,9 @@ for lvl = start_lvl:(max_lvl - 1)
     parent_cnr_coords_cntr = 1;
     %For each occupied octree cell at the current level ...
     for occ_cell = 1:myOT.NodeCount(lvl)
+        if (lvl == 5)&&(occ_cell == 174)
+            pause(1);
+        end
         %Extract the current cell's 8 corner coordinates. This cell will 
         %represent our parent cell at the current level, and we will 
         %compute wavelet coefficients for its child cells.
@@ -109,13 +112,17 @@ for lvl = start_lvl:(max_lvl - 1)
         %In this case, the signal on each of these corners is a low-pass 
         %coefficient (not a wavelet coefficient) and has already been 
         %reconstructed as it is equal to its corresponding parent control 
-        %point. So, do nothing but place the value of the parent control 
-        %point in the corresponding location in the "averages" array - this 
-        %will ensure that the wavelet coefficient for the corresponding 
-        %child will be equal to 0 and the reconstructed control point for 
-        %the child will be the same as the parent control point.
+        %point. So, do nothing but place the value of the reconstructed 
+        %parent control point in the corresponding location in the
+        %"averages" array and change the value of the corresponding child 
+        %control point to be the same as the value of the reconstructed 
+        %parent control point - this will ensure that the wavelet 
+        %coefficient for the corresponding child will be equal to 0 and the
+        %reconstructed control point for the child will be the same as the
+        %parent control point.
         if ~isempty(on_parent_child_inds)
             averages(on_parent_child_inds) = parent_control_points(section_nbr);
+            child_control_points(on_parent_child_inds) = parent_control_points(section_nbr);
         end
         
         %On a parent edge

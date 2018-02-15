@@ -44,7 +44,7 @@ q_stepsizes = 5;
 %contain zero wavelet coefficients on all of their corners, and therefore
 %whether to prune the corresponding wavelet coefficient tree: 
 %prune_flag = 1 => prune; prune_flag = 0 => do not prune
-prune_flag = 0;
+prune_flag = 1;
 prune_levels_all = [7 8 9];
 %Define threshold for pruning quantized wavelet coefficients
 %(zero_threshold can only have integer values, because the quantized
@@ -56,7 +56,7 @@ zero_threshold_for_pruning = 0;
 %which can be used to check that the program is working correctly. If
 %debug_flag = 0, only a few basic outputs are written to log file, which 
 %also speeds up execution of the code.
-debug_flag = 0;
+debug_flag = 1;
 %Choose whether to apply colour compression on top of the BV-compressed
 %geometry (colour_compression = 1), or not (colour_compression = 0)
 colour_compression = 0;
