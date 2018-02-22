@@ -1,14 +1,34 @@
-function [wavelet_coeffs, reconstructed_control_points] = wavelet_analysis(debug_flag, myOT, corner_coords, control_points, ctrl_pts_pointers, start_lvl, max_lvl, b, q_stepsize, zero_threshold)
+function [wavelet_coeffs, reconstructed_control_points, all_zero_wav_cfs, ctrl_pts_pointers_wavelets, cnrs_to_discard_all, old_inds] = wavelet_analysis(debug_flag, myOT, corner_coords, control_points, ctrl_pts_pointers, start_lvl, max_lvl, b, q_stepsize, zero_threshold)
 
 %Initialize a cell array to store the transform (wavelet) coefficients for
-%all the unique corner vertices (1 coefficient per vertex) across all 
-%octree blocks and levels, starting from start_lvl and going up to one
-%level before the leaves
+%all the unique corner vertices (1 coefficient per vertex) that have 
+%wavelet coefficients associated with them (and not low-pass coefficients),
+%across all octree blocks and levels, starting from start_lvl and going up 
+%to one level before the leaves
 wavelet_coeffs = cell((b + 1), 1);  %These will be quantized coefficients
 %Initialize a cell array to store the reconstructed signal at each vertex
 %of each octree cell at every level from start_lvl to one level before the
 %leaves
 reconstructed_control_points = cell(size(control_points, 1), 1);
+%The below cell array will contain the ctrl_pts_pointers to unique corners
+%that contain wavelet coefficients (and not low-pass coefficients)
+ctrl_pts_pointers_wavelets = cell((b + 1), 1);
+%The below cell array will contain unscaled ctrl_pts_pointers wavelets
+unscaled_ctrl_pts_pointers_wavelets = ctrl_pts_pointers;
+%Initialize a cell array to store the indices of the occupied octree cells
+%at each level that have quantized wavelet coefficient values (i.e., 
+%quantized symbols) of 0 on all of their corners that are associated with
+%wavelet coefficients
+all_zero_wav_cfs = cell((b + 1), 1);
+%Initialize a cell array that will contain, for each octree level, the
+%indices of the corners at this level that do not have wavelet
+%coefficients associated with them (they are associated with low-pass
+%coefficients instead)
+cnrs_to_discard_all = cell((b + 1), 1);
+%Initialize a cell array that will contain the corresponding old indices of
+%remaining corners after the corners that do not have wavelet coefficients
+%associated with them have been removed, at each octree level
+old_inds = cell((b + 1), 1);
 
 start_wcfs_time = tic;
 
@@ -27,6 +47,9 @@ for lvl = start_lvl:(max_lvl - 1)
         disp('------------------------------------------------------------');
         start_wcfs_time_lvl = tic;
     end
+    %Initialize a counter for the wavelet coefficients at the current
+    %octree level
+    wav_cf_cntr = 1;
     %Initialize a counter for the corner coordinates of the occupied cells 
     %at this level 
     parent_cnr_coords_cntr = 1;
@@ -109,20 +132,28 @@ for lvl = start_lvl:(max_lvl - 1)
         sub = repmat(child_corner_coords, 8, 1) - parent_corner_coords(repmat(1:size(parent_corner_coords, 1), size(child_corner_coords, 1), 1), :);
         section_nbr = ceil((find(sum(abs(sub), 2) == 0)./size(child_corner_coords, 1)));
         on_parent_child_inds = find(sum(abs(sub), 2) == 0) - size(child_corner_coords, 1)*(section_nbr - 1);   
+%         %In this case, the signal on each of these corners is a low-pass 
+%         %coefficient (not a wavelet coefficient) and has already been 
+%         %reconstructed as it is equal to its corresponding parent control 
+%         %point. So, do nothing but place the value of the reconstructed 
+%         %parent control point in the corresponding location in the
+%         %"averages" array and change the value of the corresponding child 
+%         %control point to be the same as the value of the reconstructed 
+%         %parent control point - this will ensure that the wavelet 
+%         %coefficient for the corresponding child will be equal to 0 and the
+%         %reconstructed control point for the child will be the same as the
+%         %parent control point.
+%         if ~isempty(on_parent_child_inds)
+%             averages(on_parent_child_inds) = parent_control_points(section_nbr);
+%             child_control_points(on_parent_child_inds) = parent_control_points(section_nbr);
+%         end
         %In this case, the signal on each of these corners is a low-pass 
         %coefficient (not a wavelet coefficient) and has already been 
-        %reconstructed as it is equal to its corresponding parent control 
-        %point. So, do nothing but place the value of the reconstructed 
-        %parent control point in the corresponding location in the
-        %"averages" array and change the value of the corresponding child 
-        %control point to be the same as the value of the reconstructed 
-        %parent control point - this will ensure that the wavelet 
-        %coefficient for the corresponding child will be equal to 0 and the
-        %reconstructed control point for the child will be the same as the
-        %parent control point.
+        %reconstructed, as it is equal to its corresponding parent control 
+        %point
         if ~isempty(on_parent_child_inds)
-            averages(on_parent_child_inds) = parent_control_points(section_nbr);
-            child_control_points(on_parent_child_inds) = parent_control_points(section_nbr);
+            %reconstructed_control_points{lvl + 1}(on_parent_child_inds, 1) = parent_control_points(section_nbr);
+            reconstructed_control_points{lvl + 1}(cnr_coords_inds(on_parent_child_inds), 1) = parent_control_points(section_nbr);
         end
         
         %On a parent edge
@@ -153,30 +184,72 @@ for lvl = start_lvl:(max_lvl - 1)
             averages(in_centre_child_inds) = mean(parent_control_points);
         end
         
-        %For all the child corners of the current parent block, subtract 
-        %their corresponding average parent signal (control point) computed
-        %above, from the child control point. The result will be the high-
-        %pass transform (wavelet) coefficient of the child corner.
-        wavelet_coeffs{lvl + 1}(cnr_coords_inds, 1) = child_control_points - averages;
+        %For all the child corners of the current parent block, except 
+        %those that lie on parent corners, subtract their corresponding 
+        %average parent signal (control point) computed above, from the 
+        %child control point. The result will be the high-pass transform 
+        %(wavelet) coefficient of the child corner.
+        cnrs_to_discard_all{lvl + 1}((end + 1):(end + length(on_parent_child_inds)), 1) = cnr_coords_inds(on_parent_child_inds);
+        cnr_coords_inds(on_parent_child_inds) = [];
+        child_control_points(on_parent_child_inds) = [];
+        averages(on_parent_child_inds) = [];
+        %wavelet_coeffs{lvl + 1}(cnr_coords_inds, 1) = child_control_points - averages;
+        wavelet_coeffs{lvl + 1}(wav_cf_cntr:(wav_cf_cntr + length(cnr_coords_inds) - 1), 1) = child_control_points - averages;     
         %Quantize the wavelet coefficients computed above
-        wavelet_coeffs{lvl + 1}(cnr_coords_inds, 1) = quantize_uniform_scalar(wavelet_coeffs{lvl + 1}(cnr_coords_inds, 1), q_stepsize);
+        %wavelet_coeffs{lvl + 1}(cnr_coords_inds, 1) = quantize_uniform_scalar(wavelet_coeffs{lvl + 1}(cnr_coords_inds, 1), q_stepsize);
+        wavelet_coeffs{lvl + 1}(wav_cf_cntr:(wav_cf_cntr + length(cnr_coords_inds) - 1), 1) = quantize_uniform_scalar(wavelet_coeffs{lvl + 1}(wav_cf_cntr:(wav_cf_cntr + length(cnr_coords_inds) - 1), 1), q_stepsize);
         %Check if any of the quantized wavelet coefficients are within +/-
         %zero_threshold of 0: if so, set the values of these quantized
         %coefficients to 0
-        thresholded_wav_cfs = wavelet_coeffs{lvl + 1}(cnr_coords_inds, 1);
+        thresholded_wav_cfs = wavelet_coeffs{lvl + 1}(wav_cf_cntr:(wav_cf_cntr + length(cnr_coords_inds) - 1), 1);
         thresholded_wav_cfs(abs(thresholded_wav_cfs) <= zero_threshold) = 0;
-        wavelet_coeffs{lvl + 1}(cnr_coords_inds, 1) = thresholded_wav_cfs;
+        wavelet_coeffs{lvl + 1}(wav_cf_cntr:(wav_cf_cntr + length(cnr_coords_inds) - 1), 1) = thresholded_wav_cfs;
+        %Check if all the wavelet coefficients for any of the child cells
+        %of the current occ_cell are zero (or within zero_threshold), and 
+        %if so then record these child cells' indices, to consider them for
+        %pruning later
+        current_wavelet_coeffs = wavelet_coeffs{lvl + 1}(wav_cf_cntr:(wav_cf_cntr + length(cnr_coords_inds) - 1), 1);
+        cells_with_parent_corners = ceil(on_parent_child_inds./8);
+        wcf_cntr = 1;
+        for c_cell = 1:length(child_ptrs)
+            shared_parent_cnrs = find(cells_with_parent_corners == c_cell);
+            %If any of the current child cell corners are shared with a
+            %parent corner
+            if ~isempty(shared_parent_cnrs)
+                %Only get the wavelet coefficients for the other
+                %corners of this child cell
+                child_wav_cfs = current_wavelet_coeffs(wcf_cntr:(wcf_cntr + 7 - length(shared_parent_cnrs)));
+                wcf_cntr = wcf_cntr + 8 - length(shared_parent_cnrs);
+            else
+                %Get the wavelet coefficients for all 8 corners of this
+                %child cell
+                child_wav_cfs = current_wavelet_coeffs(wcf_cntr:(wcf_cntr + 7));
+                wcf_cntr = wcf_cntr + 8;     
+            end
+%                 %If the quantized wavelet coefficients at all the corners of this 
+%                 %cell are 0 ...
+%                 if isempty(find((current_wavelet_coeffs ~= 0), 1))
+            %If all the quantized wavelet coefficients for the current
+            %child cell are near 0 (i.e., within +/- zero_threshold of
+            %0) ...
+            if isempty(find((abs(child_wav_cfs) > zero_threshold), 1))
+                all_zero_wav_cfs{lvl + 1}(end + 1) = child_ptrs(c_cell); 
+            end
+        end
+        
         %Dequantize the quantized wavelet coefficients and add them to the
         %corresponding values in "averages", to obtain the reconstructed 
         %signal (control point) at each corresponding child corner. Note
         %that the QUANTIZED versions of these wavelet coefficients will be
         %sent to the decoder.
-        dequant_wavelet_coeffs = dequantize_uniform_scalar(wavelet_coeffs{lvl + 1}(cnr_coords_inds, 1), q_stepsize);
+        dequant_wavelet_coeffs = dequantize_uniform_scalar(wavelet_coeffs{lvl + 1}(wav_cf_cntr:(wav_cf_cntr + length(cnr_coords_inds) - 1), 1), q_stepsize);
         reconstructed_control_points{lvl + 1}(cnr_coords_inds, 1) = averages + dequant_wavelet_coeffs;
         
         %Increment parent_cnr_coords_cntr before moving on to a new 
         %occupied (parent) cell at the current octree level
         parent_cnr_coords_cntr = parent_cnr_coords_cntr + 8; 
+        
+        wav_cf_cntr = wav_cf_cntr + length(cnr_coords_inds);
         
         %disp(['Finished occ_cell ' num2str(occ_cell) '/' num2str(myOT.NodeCount(lvl))]);
     end %End occ_cell
@@ -184,9 +257,19 @@ for lvl = start_lvl:(max_lvl - 1)
     %Keep only the wavelet coefficients and reconstructed control points
     %for the UNIQUE child corners at level lvl + 1, and discard the rest
     [~, unique_ctrl_pts_pointers_inds, ~] = unique(ctrl_pts_pointers{lvl + 1}, 'stable');
-    wavelet_coeffs{lvl + 1} = wavelet_coeffs{lvl + 1}(unique_ctrl_pts_pointers_inds);
     reconstructed_control_points{lvl + 1} = reconstructed_control_points{lvl + 1}(unique_ctrl_pts_pointers_inds);
-    
+    %For the corners that will remain at lvl + 1 after discarding those
+    %corners in cnrs_to_discard_all, figure out what their corresponding
+    %old indices would have been (before discarding the other corners)
+    all_inds = 1:length(unscaled_ctrl_pts_pointers_wavelets{lvl + 1});
+    old_inds{lvl + 1} = all_inds(ismember(all_inds, cnrs_to_discard_all{lvl + 1}) == 0);
+    unscaled_ctrl_pts_pointers_wavelets{lvl + 1}(cnrs_to_discard_all{lvl + 1}) = [];  %Remove the discarded corners' (those that don't have wavelet coefficients) pointers
+    [~, unique_ctrl_pts_pointers_wavelets_inds, unique_remaining_cnr_inds] = unique(unscaled_ctrl_pts_pointers_wavelets{lvl + 1}, 'stable');
+    wavelet_coeffs{lvl + 1} = wavelet_coeffs{lvl + 1}(unique_ctrl_pts_pointers_wavelets_inds);
+    %Scale the modified ctrl_pts_pointers_wavelets at the current octree
+    %level, to span only the remaining unique corners
+    ctrl_pts_pointers_wavelets{lvl + 1} = unique_remaining_cnr_inds;
+
     if debug_flag == 1
         wcfs_time_lvl = toc(start_wcfs_time_lvl);
         disp(['Time taken to compute wavelet coefficients and reconstructed control points for level ' num2str(lvl + 1) ': ' num2str(wcfs_time_lvl) ' seconds']);

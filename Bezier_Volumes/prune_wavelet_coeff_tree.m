@@ -1,4 +1,4 @@
-function pruned_wavelet_coeffs = prune_wavelet_coeff_tree(debug_flag, wavelet_coeffs, toprune, toprune2, ctrl_pts_pointers, myOT, start_lvl, max_lvl, b)
+function pruned_wavelet_coeffs = prune_wavelet_coeff_tree(debug_flag, wavelet_coeffs, toprune, toprune2, ctrl_pts_pointers, cnrs_to_discard_all, old_inds, myOT, start_lvl, max_lvl, b)
 
 %Create a copy of the wavelet_coeffs cell array, which will contain the 
 %pruned set of wavelet coefficients
@@ -21,18 +21,25 @@ for lvl = (start_lvl + 1):max_lvl
             %Get the indices of these cells
             pruned_cells = toprune2{lvl};
             %Expand wavelet_coeffs{lvl} to get ALL the corners at this
-            %octree level, not just the unique ones
+            %octree level that have wavelet coefficients associated with
+            %them, not just the unique corners
             wavelet_coeffs_expanded = wavelet_coeffs{lvl}(ctrl_pts_pointers{lvl});
             %Make a copy of ctrl_pts_pointers{lvl}, as it will be
             %temporarily modified
             ctrl_pts_pointers_temp = ctrl_pts_pointers{lvl};
             %Find the corners to prune at this octree level 
             corners_to_prune = [(pruned_cells.*8 - 7) (pruned_cells.*8 - 6) (pruned_cells.*8 - 5) (pruned_cells.*8 - 4) (pruned_cells.*8 - 3) (pruned_cells.*8 - 2) (pruned_cells.*8 - 1) (pruned_cells.*8)];
-            %Remove the wavelet coefficients associated with the 
-            %corners_to_prune at this octree level
-            wavelet_coeffs_expanded(corners_to_prune) = [];
+            %Remove any corners in corners_to_prune that do not have
+            %wavelet coefficients associated with them
+            corners_to_prune(find(ismember(corners_to_prune, cnrs_to_discard_all{lvl}) == 1)) = [];
+            %Get the new indices of the corners_to_prune (the indices after
+            %the corners with no wavelet coefficients have been removed
+            %from the list of wavelet coefficients) and remove their
+            %associated wavelet coefficients 
+            new_inds = find(ismember(old_inds{lvl}, corners_to_prune));
+            wavelet_coeffs_expanded(new_inds) = []; 
             %Remove the corresponding corners in ctrl_pts_pointers_temp
-            ctrl_pts_pointers_temp(corners_to_prune) = [];
+            ctrl_pts_pointers_temp(new_inds) = [];
             %Keep only the wavelet coefficients corresponding to the unique
             %corners that remain after pruning
             [~, unique_ctrl_pts_pointers_inds, ~] = unique(ctrl_pts_pointers_temp, 'stable');
@@ -62,18 +69,25 @@ for lvl = (start_lvl + 1):max_lvl
                 children_cnt = children_cnt + child_count(j);
             end
             %Expand wavelet_coeffs{lvl} to get ALL the corners at this
-            %octree level, not just the unique ones
+            %octree level that have wavelet coefficients associated with
+            %them, not just the unique corners
             wavelet_coeffs_expanded = wavelet_coeffs{lvl}(ctrl_pts_pointers{lvl});
             %Make a copy of ctrl_pts_pointers{lvl}, as it will be
             %temporarily modified
             ctrl_pts_pointers_temp = ctrl_pts_pointers{lvl};
             %Find the corners to prune at this octree level
             corners_to_prune = [(children_of_pruned.*8 - 7) (children_of_pruned.*8 - 6) (children_of_pruned.*8 - 5) (children_of_pruned.*8 - 4) (children_of_pruned.*8 - 3) (children_of_pruned.*8 - 2) (children_of_pruned.*8 - 1) (children_of_pruned.*8)];
-            %Remove the wavelet coefficients associated with the 
-            %corners_to_prune at this octree level
-            wavelet_coeffs_expanded(corners_to_prune) = [];
+            %Remove any corners in corners_to_prune that do not have
+            %wavelet coefficients associated with them
+            corners_to_prune(find(ismember(corners_to_prune, cnrs_to_discard_all{lvl}) == 1)) = [];
+            %Get the new indices of the corners_to_prune (the indices after
+            %the corners with no wavelet coefficients have been removed
+            %from the list of wavelet coefficients) and remove their
+            %associated wavelet coefficients 
+            new_inds = find(ismember(old_inds{lvl}, corners_to_prune));
+            wavelet_coeffs_expanded(new_inds) = []; 
             %Remove the corresponding corners in ctrl_pts_pointers_temp
-            ctrl_pts_pointers_temp(corners_to_prune) = [];
+            ctrl_pts_pointers_temp(new_inds) = [];
             %Keep only the wavelet coefficients corresponding to the unique
             %corners that remain after pruning
             [~, unique_ctrl_pts_pointers_inds, ~] = unique(ctrl_pts_pointers_temp, 'stable');

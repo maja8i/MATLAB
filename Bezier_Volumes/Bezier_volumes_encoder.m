@@ -503,8 +503,9 @@ disp(' ');
 disp('----------------- Wavelet Decomposition --------------------');
 disp(' ');
 
-[wavelet_coeffs, reconstructed_control_points] = wavelet_analysis(debug_flag, myOT, corner_coords, control_points, ctrl_pts_pointers, start_lvl, max_lvl, b, q_stepsize, zero_threshold);
+[wavelet_coeffs, reconstructed_control_points, all_zero_wav_cfs, ctrl_pts_pointers_wavelets, cnrs_to_discard_all, old_inds] = wavelet_analysis(debug_flag, myOT, corner_coords, control_points, ctrl_pts_pointers, start_lvl, max_lvl, b, q_stepsize, zero_threshold);
 %[wavelet_coeffs, reconstructed_control_points] = wavelet_analysis_loop(myOT, corner_coords, control_points, ctrl_pts_pointers, start_lvl, max_lvl, b, q_stepsize, ptcloud_file);
+save('reconstructed_control_points', 'reconstructed_control_points');
 
 if debug_flag == 1
     disp(' ');
@@ -610,63 +611,63 @@ end
 %     end
 % end
 
-%---------------- Checking for Zero Wavelet Coefficients -----------------%
-
-if prune_flag == 1    
-    disp(' ');
-    disp('------- Checking for All Zero Wavelet Coefficients  --------');
-    disp(' ');
-
-    %Cell array to store the indices of the occupied octree cells at each level
-    %that have quantized wavelet coefficient values (i.e., quantized symbols)
-    %of 0 on all of their corners
-    all_zero_wav_cfs = cell(size(wavelet_coeffs));
-    %Cell array to store the midpoints of the occupied octree cells at each
-    %level that have zero-valued quantized wavelet coefficients on all of their 
-    %corners (only needed for display purposes, later)
-    %all_zero_cell_midpoints = cell(size(wavelet_coeffs));
-    %Cell array to store the indices of ctrl_pts_pointers for the occupied
-    %octree cells at each level that have zero-valued quantized wavelet 
-    %coefficients on all of their corners (only needed for display purposes, 
-    %later)
-    %all_zero_cell_ctrlpts_ptrs = cell(size(wavelet_coeffs));
-
-    %At each octree level, check which occupied octree cells (if any) have 
-    %zero-valued quantized wavelet coefficients on all of their corners
-    for lvl = (start_lvl + 1):max_lvl
-        if debug_flag == 1
-            disp(['Processing octree level ' num2str(lvl) ' ...']);
-        end
-        %Counter for number of occupied cells at this level, which contain all
-        %zero-valued quantized wavelet coefficients
-        zw_cntr = 1;
-        for occ_cell = 1:myOT.NodeCount(lvl)
-            %Get the quantized wavelet coefficients for each of the 8 corners
-            %of this cell
-            current_wavelet_coeffs = wavelet_coeffs{lvl}(ctrl_pts_pointers{lvl}((occ_cell*8 - 7):(occ_cell*8)));
-            %If the quantized wavelet coefficients at all the corners of this 
-            %cell are 0 ...
-            if isempty(find((current_wavelet_coeffs ~= 0), 1))
-            %If the quantized wavelet coefficients at all the corners of this 
-            %cell are near 0 (i.e., within +/- zero_threshold of 0) ...
-    %         if isempty(find((abs(current_wavelet_coeffs) > zero_threshold), 1))
-                %disp(['All zero-valued quantized wavelet coefficients for occupied cell ' num2str(occ_cell)]);
-                all_zero_wav_cfs{lvl}(zw_cntr) = occ_cell; 
-                %Get the midpoints of the current cell (only needed for display
-                %purposes, later)
-                %all_zero_cell_midpoints{lvl}(zw_cntr, 1:3) = mean(corner_coords{lvl}(((occ_cell*8 - 7):(occ_cell*8)), :), 1);
-                %Store the control points pointers for each corner of this cell
-                %(only needed for display purposes, later)
-                %all_zero_cell_ctrlpts_ptrs{lvl}(zw_cntr, 1:8) = ctrl_pts_pointers{lvl}((occ_cell*8 - 7):(occ_cell*8));
-                zw_cntr = zw_cntr + 1;
-            end
-        end
-        if debug_flag == 1
-            disp(['TOTAL no. of occupied octree cells with all zero-valued quantized wavelet coefficients at this level: ' num2str(length(all_zero_wav_cfs{lvl}))]);
-            disp('------------------------------------------------------------');
-        end
-    end
-end
+% %---------------- Checking for Zero Wavelet Coefficients -----------------%
+% 
+% if prune_flag == 1    
+%     disp(' ');
+%     disp('------- Checking for All Zero Wavelet Coefficients  --------');
+%     disp(' ');
+% 
+%     %Cell array to store the indices of the occupied octree cells at each level
+%     %that have quantized wavelet coefficient values (i.e., quantized symbols)
+%     %of 0 on all of their corners
+%     all_zero_wav_cfs = cell(size(wavelet_coeffs));
+%     %Cell array to store the midpoints of the occupied octree cells at each
+%     %level that have zero-valued quantized wavelet coefficients on all of their 
+%     %corners (only needed for display purposes, later)
+%     %all_zero_cell_midpoints = cell(size(wavelet_coeffs));
+%     %Cell array to store the indices of ctrl_pts_pointers for the occupied
+%     %octree cells at each level that have zero-valued quantized wavelet 
+%     %coefficients on all of their corners (only needed for display purposes, 
+%     %later)
+%     %all_zero_cell_ctrlpts_ptrs = cell(size(wavelet_coeffs));
+% 
+%     %At each octree level, check which occupied octree cells (if any) have 
+%     %zero-valued quantized wavelet coefficients on all of their corners
+%     for lvl = (start_lvl + 1):max_lvl
+%         if debug_flag == 1
+%             disp(['Processing octree level ' num2str(lvl) ' ...']);
+%         end
+%         %Counter for number of occupied cells at this level, which contain all
+%         %zero-valued quantized wavelet coefficients
+%         zw_cntr = 1;
+%         for occ_cell = 1:myOT.NodeCount(lvl)
+%             %Get the quantized wavelet coefficients for each of the 8 corners
+%             %of this cell
+%             current_wavelet_coeffs = wavelet_coeffs{lvl}(ctrl_pts_pointers{lvl}((occ_cell*8 - 7):(occ_cell*8)));
+%             %If the quantized wavelet coefficients at all the corners of this 
+%             %cell are 0 ...
+%             if isempty(find((current_wavelet_coeffs ~= 0), 1))
+%             %If the quantized wavelet coefficients at all the corners of this 
+%             %cell are near 0 (i.e., within +/- zero_threshold of 0) ...
+%     %         if isempty(find((abs(current_wavelet_coeffs) > zero_threshold), 1))
+%                 %disp(['All zero-valued quantized wavelet coefficients for occupied cell ' num2str(occ_cell)]);
+%                 all_zero_wav_cfs{lvl}(zw_cntr) = occ_cell; 
+%                 %Get the midpoints of the current cell (only needed for display
+%                 %purposes, later)
+%                 %all_zero_cell_midpoints{lvl}(zw_cntr, 1:3) = mean(corner_coords{lvl}(((occ_cell*8 - 7):(occ_cell*8)), :), 1);
+%                 %Store the control points pointers for each corner of this cell
+%                 %(only needed for display purposes, later)
+%                 %all_zero_cell_ctrlpts_ptrs{lvl}(zw_cntr, 1:8) = ctrl_pts_pointers{lvl}((occ_cell*8 - 7):(occ_cell*8));
+%                 zw_cntr = zw_cntr + 1;
+%             end
+%         end
+%         if debug_flag == 1
+%             disp(['TOTAL no. of occupied octree cells with all zero-valued quantized wavelet coefficients at this level: ' num2str(length(all_zero_wav_cfs{lvl}))]);
+%             disp('------------------------------------------------------------');
+%         end
+%     end
+% end
 
 % %---------- Visualization of Zero Wavelet Coefficient Locations ----------%
 % 
@@ -776,7 +777,8 @@ if prune_flag == 1
     disp('------- Pruning Wavelet Coefficient Tree (Variable) --------');
     disp(' ');
 
-    pruned_wavelet_coeffs = prune_wavelet_coeff_tree(debug_flag, wavelet_coeffs, toprune, toprune2, ctrl_pts_pointers, myOT, start_lvl, max_lvl, b);
+    %pruned_wavelet_coeffs = prune_wavelet_coeff_tree(debug_flag, wavelet_coeffs, toprune, toprune2, ctrl_pts_pointers, myOT, start_lvl, max_lvl, b);
+    pruned_wavelet_coeffs = prune_wavelet_coeff_tree(debug_flag, wavelet_coeffs, toprune, toprune2, ctrl_pts_pointers_wavelets, cnrs_to_discard_all, old_inds, myOT, start_lvl, max_lvl, b);
 
 elseif prune_flag == 0
     %Prune octree and wavelet coefficient tree to a constant octree level
@@ -799,36 +801,36 @@ elseif prune_flag == 0
     end
 end
 
-% %The below is for debugging only: prune the reconstructed control points to
-% %match the control points that will be reconstructed at the decoder, to
-% %make sure that they are exactly the same
-% pruned_reconstructed_control_points = cell(size(reconstructed_control_points));
-% for i = start_lvl:(max_lvl - 1)
-%     if isempty(toprune2{i})
-%         %The below will represent only the control points for the UNIQUE
-%         %corners
-%         pruned_reconstructed_control_points{i} = reconstructed_control_points{i};
-%     else
-%         first_inds = toprune2{i}.*8 - 7;
-%         last_inds = toprune2{i}.*8;
-%         all_inds = [];
-%         for j = 1:length(first_inds)
-%             all_inds((end + 1):(end + 8), 1) = first_inds(j):last_inds(j);
-%         end
-%         pruned_reconstructed_control_points{i} = reconstructed_control_points{i}(ctrl_pts_pointers{i});
-%         %The below will represent ALL the control points at each level
-%         %after pruning (except the voxel level), not just the unique corner
-%         %control points. NOTE that this differs from the control points
-%         %stored in pruned_reconstructed_control_points at levels where
-%         %toprune2 is empty, above, which are stored only for the unique
-%         %corners. To compare the below with control points reconstructed
-%         %at the decoder, expand the decoder-reconstructed control points by
-%         %using ctrl_pts_pointers, to get the control points for ALL corners
-%         %at the corresponding octree level.
-%         pruned_reconstructed_control_points{i}(all_inds) = [];
-%     end
-% end
-% save('pruned_reconstructed_control_points', 'pruned_reconstructed_control_points');
+%The below is for debugging only: prune the reconstructed control points to
+%match the control points that will be reconstructed at the decoder, to
+%make sure that they are exactly the same
+pruned_reconstructed_control_points = cell(size(reconstructed_control_points));
+for i = start_lvl:(max_lvl - 1)
+    if isempty(toprune2{i})
+        %The below will represent only the control points for the UNIQUE
+        %corners
+        pruned_reconstructed_control_points{i} = reconstructed_control_points{i};
+    else
+        first_inds = toprune2{i}.*8 - 7;
+        last_inds = toprune2{i}.*8;
+        all_inds = [];
+        for j = 1:length(first_inds)
+            all_inds((end + 1):(end + 8), 1) = first_inds(j):last_inds(j);
+        end
+        pruned_reconstructed_control_points{i} = reconstructed_control_points{i}(ctrl_pts_pointers{i});
+        %The below will represent ALL the control points at each level
+        %after pruning (except the voxel level), not just the unique corner
+        %control points. NOTE that this differs from the control points
+        %stored in pruned_reconstructed_control_points at levels where
+        %toprune2 is empty, above, which are stored only for the unique
+        %corners. To compare the below with control points reconstructed
+        %at the decoder, expand the decoder-reconstructed control points by
+        %using ctrl_pts_pointers, to get the control points for ALL corners
+        %at the corresponding octree level.
+        pruned_reconstructed_control_points{i}(all_inds) = [];
+    end
+end
+save('pruned_reconstructed_control_points', 'pruned_reconstructed_control_points');
 
 if colour_compression == 1
     %--------------- Voxel Reconstruction and Recolouring ----------------%

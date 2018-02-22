@@ -56,7 +56,7 @@ zero_threshold_for_pruning = 0;
 %which can be used to check that the program is working correctly. If
 %debug_flag = 0, only a few basic outputs are written to log file, which 
 %also speeds up execution of the code.
-debug_flag = 1;
+debug_flag = 0;
 %Choose whether to apply colour compression on top of the BV-compressed
 %geometry (colour_compression = 1), or not (colour_compression = 0)
 colour_compression = 0;
