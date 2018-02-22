@@ -1,4 +1,8 @@
-function [wavelet_coeffs, reconstructed_control_points, all_zero_wav_cfs, ctrl_pts_pointers_wavelets, cnrs_to_discard_all, old_inds] = wavelet_analysis(debug_flag, myOT, corner_coords, control_points, ctrl_pts_pointers, start_lvl, max_lvl, b, q_stepsize, zero_threshold)
+function [wavelet_coeffs, reconstructed_control_points, all_zero_wav_cfs, ctrl_pts_pointers_wavelets, cnrs_to_discard_all, old_inds] = wavelet_analysis(debug_flag, prune_flag, myOT, corner_coords, control_points, ctrl_pts_pointers, start_lvl, max_lvl, b, q_stepsize, varargin)
+
+if prune_flag == 1
+    zero_threshold = varargin{1};
+end
 
 %Initialize a cell array to store the transform (wavelet) coefficients for
 %all the unique corner vertices (1 coefficient per vertex) that have 
@@ -198,44 +202,46 @@ for lvl = start_lvl:(max_lvl - 1)
         %Quantize the wavelet coefficients computed above
         %wavelet_coeffs{lvl + 1}(cnr_coords_inds, 1) = quantize_uniform_scalar(wavelet_coeffs{lvl + 1}(cnr_coords_inds, 1), q_stepsize);
         wavelet_coeffs{lvl + 1}(wav_cf_cntr:(wav_cf_cntr + length(cnr_coords_inds) - 1), 1) = quantize_uniform_scalar(wavelet_coeffs{lvl + 1}(wav_cf_cntr:(wav_cf_cntr + length(cnr_coords_inds) - 1), 1), q_stepsize);
-        %Check if any of the quantized wavelet coefficients are within +/-
-        %zero_threshold of 0: if so, set the values of these quantized
-        %coefficients to 0
-        thresholded_wav_cfs = wavelet_coeffs{lvl + 1}(wav_cf_cntr:(wav_cf_cntr + length(cnr_coords_inds) - 1), 1);
-        thresholded_wav_cfs(abs(thresholded_wav_cfs) <= zero_threshold) = 0;
-        wavelet_coeffs{lvl + 1}(wav_cf_cntr:(wav_cf_cntr + length(cnr_coords_inds) - 1), 1) = thresholded_wav_cfs;
-        %Check if all the wavelet coefficients for any of the child cells
-        %of the current occ_cell are zero (or within zero_threshold), and 
-        %if so then record these child cells' indices, to consider them for
-        %pruning later
-        current_wavelet_coeffs = wavelet_coeffs{lvl + 1}(wav_cf_cntr:(wav_cf_cntr + length(cnr_coords_inds) - 1), 1);
-        cells_with_parent_corners = ceil(on_parent_child_inds./8);
-        wcf_cntr = 1;
-        for c_cell = 1:length(child_ptrs)
-            shared_parent_cnrs = find(cells_with_parent_corners == c_cell);
-            %If any of the current child cell corners are shared with a
-            %parent corner
-            if ~isempty(shared_parent_cnrs)
-                %Only get the wavelet coefficients for the other
-                %corners of this child cell
-                child_wav_cfs = current_wavelet_coeffs(wcf_cntr:(wcf_cntr + 7 - length(shared_parent_cnrs)));
-                wcf_cntr = wcf_cntr + 8 - length(shared_parent_cnrs);
-            else
-                %Get the wavelet coefficients for all 8 corners of this
-                %child cell
-                child_wav_cfs = current_wavelet_coeffs(wcf_cntr:(wcf_cntr + 7));
-                wcf_cntr = wcf_cntr + 8;     
+        if prune_flag == 1
+            %Check if any of the quantized wavelet coefficients are within +/-
+            %zero_threshold of 0: if so, set the values of these quantized
+            %coefficients to 0
+            thresholded_wav_cfs = wavelet_coeffs{lvl + 1}(wav_cf_cntr:(wav_cf_cntr + length(cnr_coords_inds) - 1), 1);
+            thresholded_wav_cfs(abs(thresholded_wav_cfs) <= zero_threshold) = 0;
+            wavelet_coeffs{lvl + 1}(wav_cf_cntr:(wav_cf_cntr + length(cnr_coords_inds) - 1), 1) = thresholded_wav_cfs;
+            %Check if all the wavelet coefficients for any of the child cells
+            %of the current occ_cell are zero (or within zero_threshold), and 
+            %if so then record these child cells' indices, to consider them for
+            %pruning later
+            current_wavelet_coeffs = wavelet_coeffs{lvl + 1}(wav_cf_cntr:(wav_cf_cntr + length(cnr_coords_inds) - 1), 1);
+            cells_with_parent_corners = ceil(on_parent_child_inds./8);
+            wcf_cntr = 1;
+            for c_cell = 1:length(child_ptrs)
+                shared_parent_cnrs = find(cells_with_parent_corners == c_cell);
+                %If any of the current child cell corners are shared with a
+                %parent corner
+                if ~isempty(shared_parent_cnrs)
+                    %Only get the wavelet coefficients for the other
+                    %corners of this child cell
+                    child_wav_cfs = current_wavelet_coeffs(wcf_cntr:(wcf_cntr + 7 - length(shared_parent_cnrs)));
+                    wcf_cntr = wcf_cntr + 8 - length(shared_parent_cnrs);
+                else
+                    %Get the wavelet coefficients for all 8 corners of this
+                    %child cell
+                    child_wav_cfs = current_wavelet_coeffs(wcf_cntr:(wcf_cntr + 7));
+                    wcf_cntr = wcf_cntr + 8;     
+                end
+    %                 %If the quantized wavelet coefficients at all the corners of this 
+    %                 %cell are 0 ...
+    %                 if isempty(find((current_wavelet_coeffs ~= 0), 1))
+                %If all the quantized wavelet coefficients for the current
+                %child cell are near 0 (i.e., within +/- zero_threshold of
+                %0) ...
+                if isempty(find((abs(child_wav_cfs) > zero_threshold), 1))
+                    all_zero_wav_cfs{lvl + 1}(end + 1) = child_ptrs(c_cell); 
+                end
             end
-%                 %If the quantized wavelet coefficients at all the corners of this 
-%                 %cell are 0 ...
-%                 if isempty(find((current_wavelet_coeffs ~= 0), 1))
-            %If all the quantized wavelet coefficients for the current
-            %child cell are near 0 (i.e., within +/- zero_threshold of
-            %0) ...
-            if isempty(find((abs(child_wav_cfs) > zero_threshold), 1))
-                all_zero_wav_cfs{lvl + 1}(end + 1) = child_ptrs(c_cell); 
-            end
-        end
+        end %End check if prune_flag == 1
         
         %Dequantize the quantized wavelet coefficients and add them to the
         %corresponding values in "averages", to obtain the reconstructed 

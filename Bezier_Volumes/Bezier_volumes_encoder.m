@@ -503,7 +503,13 @@ disp(' ');
 disp('----------------- Wavelet Decomposition --------------------');
 disp(' ');
 
-[wavelet_coeffs, reconstructed_control_points, all_zero_wav_cfs, ctrl_pts_pointers_wavelets, cnrs_to_discard_all, old_inds] = wavelet_analysis(debug_flag, myOT, corner_coords, control_points, ctrl_pts_pointers, start_lvl, max_lvl, b, q_stepsize, zero_threshold);
+if prune_flag == 1
+    [wavelet_coeffs, reconstructed_control_points, all_zero_wav_cfs, ctrl_pts_pointers_wavelets, cnrs_to_discard_all, old_inds] = wavelet_analysis(debug_flag, prune_flag, myOT, corner_coords, control_points, ctrl_pts_pointers, start_lvl, max_lvl, b, q_stepsize, zero_threshold);
+elseif prune_flag == 0
+    %Note: all_zero_wav_cfs will be empty below: should modify this later
+    %so that this is an optional output
+    [wavelet_coeffs, reconstructed_control_points, all_zero_wav_cfs, ctrl_pts_pointers_wavelets, cnrs_to_discard_all, old_inds] = wavelet_analysis(debug_flag, prune_flag, myOT, corner_coords, control_points, ctrl_pts_pointers, start_lvl, max_lvl, b, q_stepsize);
+end
 %[wavelet_coeffs, reconstructed_control_points] = wavelet_analysis_loop(myOT, corner_coords, control_points, ctrl_pts_pointers, start_lvl, max_lvl, b, q_stepsize, ptcloud_file);
 save('reconstructed_control_points', 'reconstructed_control_points');
 
