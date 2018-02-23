@@ -802,7 +802,7 @@ elseif prune_flag == 0
     disp(' ');
     
     pruned_wavelet_coeffs = wavelet_coeffs;
-    for i = (prune_level + 1):(max_lvl - 1)
+    for i = (prune_level + 1):max_lvl
         pruned_wavelet_coeffs{i} = []; %Assume max_lvl = b + 1    
     end
 end
